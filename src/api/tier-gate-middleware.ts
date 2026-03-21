@@ -23,6 +23,9 @@ const FEATURE_GATES: Array<{ prefix: string; feature: TierFeature }> = [
   { prefix: '/api/openclaw/tune', feature: 'ai-tune' },
   { prefix: '/api/openclaw/history', feature: 'ai-tune' },
   { prefix: '/api/openclaw/auto-tune', feature: 'ai-auto-tune' },
+  { prefix: '/api/openclaw/usage', feature: 'ai-analyze' },
+  { prefix: '/api/openclaw/tuning-history', feature: 'ai-tune' },
+  { prefix: '/api/openclaw/rollback', feature: 'ai-tune' },
 ];
 
 /**

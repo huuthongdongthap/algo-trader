@@ -6,6 +6,8 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { AiRouter } from './ai-router.js';
 import { loadOpenClawConfig } from './openclaw-config.js';
 import { isAutoTuningEnabled, setAutoTuningEnabled } from './auto-tuning-job.js';
+import { recordAiCall, getAiUsage, canMakeAiCall, getAllAiUsage } from './ai-usage-meter.js';
+import type { Tier } from '../users/subscription-tier.js';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -22,6 +24,10 @@ export interface OpenClawDeps {
   observer?: { active: boolean; startedAt?: number };
   tuner?: AiRouter;
   history: TuningDecision[];
+  /** Optional: tuning history for audit trail endpoint */
+  tuningHistory?: { getAll(): unknown[]; getEffectivenessReport(): unknown };
+  /** Optional: tuning executor for rollback endpoint */
+  tuningExecutor?: { rollback(strategy: string): boolean };
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -48,6 +54,33 @@ async function readJsonBody<T = Record<string, unknown>>(req: IncomingMessage): 
     });
     req.on('error', reject);
   });
+}
+
+interface AuthedIncoming extends IncomingMessage {
+  user?: { id: string; email: string; tier: Tier };
+}
+
+/** Check AI quota before processing. Returns false (sends 429) if exceeded. */
+function checkAiQuota(req: AuthedIncoming, res: ServerResponse): boolean {
+  const user = req.user;
+  if (!user) return true; // unauthenticated — let auth middleware handle
+  const quota = canMakeAiCall(user.id, user.tier);
+  if (!quota.allowed) {
+    sendJson(res, 429, {
+      error: 'AI quota exceeded',
+      message: `Your "${user.tier}" plan allows ${quota.limit} AI calls/month. Upgrade for more.`,
+      limit: quota.limit,
+      remaining: 0,
+      upgradeUrl: 'https://cashclaw.cc/pricing',
+    });
+    return false;
+  }
+  return true;
+}
+
+/** Record an AI call after successful response */
+function trackAiCall(req: AuthedIncoming, tokens: number): void {
+  if (req.user) recordAiCall(req.user.id, tokens);
 }
 
 // ─── Route handlers ───────────────────────────────────────────────────────────
@@ -153,19 +186,39 @@ export async function handleOpenClawRequest(
 ): Promise<void> {
   const method = req.method ?? 'GET';
 
+  const authedReq = req as AuthedIncoming;
+
   if (pathname === '/openclaw/analyze') {
     if (method !== 'POST') { sendError(res, 405, 'Method Not Allowed'); return; }
+    if (!checkAiQuota(authedReq, res)) return;
     await handleAnalyze(req, res, deps);
+    trackAiCall(authedReq, 512);
     return;
   }
   if (pathname === '/openclaw/tune') {
     if (method !== 'POST') { sendError(res, 405, 'Method Not Allowed'); return; }
+    if (!checkAiQuota(authedReq, res)) return;
     await handleTune(req, res, deps);
+    trackAiCall(authedReq, 600);
     return;
   }
   if (pathname === '/openclaw/report') {
     if (method !== 'GET') { sendError(res, 405, 'Method Not Allowed'); return; }
+    if (!checkAiQuota(authedReq, res)) return;
     await handleReport(req, res, deps);
+    trackAiCall(authedReq, 800);
+    return;
+  }
+  if (pathname === '/openclaw/usage') {
+    if (method !== 'GET') { sendError(res, 405, 'Method Not Allowed'); return; }
+    if (authedReq.user) {
+      const usage = getAiUsage(authedReq.user.id);
+      const quota = canMakeAiCall(authedReq.user.id, authedReq.user.tier);
+      sendJson(res, 200, { ok: true, usage, quota });
+    } else {
+      // Admin view: all usage
+      sendJson(res, 200, { ok: true, allUsage: getAllAiUsage() });
+    }
     return;
   }
   if (pathname === '/openclaw/status') {
@@ -196,6 +249,28 @@ export async function handleOpenClawRequest(
       return;
     }
     sendError(res, 405, 'Method Not Allowed');
+    return;
+  }
+
+  if (pathname === '/openclaw/tuning-history') {
+    if (method !== 'GET') { sendError(res, 405, 'Method Not Allowed'); return; }
+    if (!deps.tuningHistory) { sendError(res, 503, 'Tuning history not configured'); return; }
+    sendJson(res, 200, {
+      ok: true,
+      records: deps.tuningHistory.getAll(),
+      effectiveness: deps.tuningHistory.getEffectivenessReport(),
+    });
+    return;
+  }
+  if (pathname === '/openclaw/rollback') {
+    if (method !== 'POST') { sendError(res, 405, 'Method Not Allowed'); return; }
+    if (!deps.tuningExecutor) { sendError(res, 503, 'Tuning executor not configured'); return; }
+    let body: { strategy?: string };
+    try { body = await readJsonBody<{ strategy?: string }>(req); }
+    catch { sendError(res, 400, 'Invalid JSON body'); return; }
+    if (!body.strategy) { sendError(res, 400, 'Missing required field: strategy'); return; }
+    const success = deps.tuningExecutor.rollback(body.strategy);
+    sendJson(res, success ? 200 : 404, { ok: success, strategy: body.strategy, message: success ? 'Rolled back' : 'No snapshot available' });
     return;
   }
 
