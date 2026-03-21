@@ -10,3 +10,5 @@ export type { FollowerContext, CopyTradeResult } from './copy-engine.js';
 
 export { CopyTradingService } from './copy-trading-service.js';
 export type { FollowerCapitalResolver, CopyTradeDispatcher } from './copy-trading-service.js';
+
+export { seedDemoLeaders } from './seed-demo-leaders.js';

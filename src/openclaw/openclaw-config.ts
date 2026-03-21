@@ -22,15 +22,15 @@ export interface OpenClawConfig {
 }
 
 const DEFAULT_ROUTING: OpenClawRouting = {
-  simple: 'gpt-4o-mini',
-  standard: 'claude-sonnet-4-6',
-  complex: 'claude-opus-4-6',
+  simple: 'llama3.1:8b',
+  standard: 'deepseek-r1:32b',
+  complex: 'deepseek-r1:70b',
 };
 
 const DEFAULT_CONFIG: OpenClawConfig = {
-  gatewayUrl: 'http://localhost:18789/v1',
+  gatewayUrl: 'http://localhost:11434/v1',
   routing: DEFAULT_ROUTING,
-  timeout: 30_000,
+  timeout: 60_000,
 };
 
 /**

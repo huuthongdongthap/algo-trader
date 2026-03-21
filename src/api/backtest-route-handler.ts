@@ -132,17 +132,19 @@ export async function handleBacktest(req: IncomingMessage, res: ServerResponse):
     const strategy = buildMomentumStrategy(body.strategy, initialCapital);
     const result = await runBacktest(strategy, candles, config);
 
-    // Omit full trades array from response to keep payload small; include count + summary
-    const { trades, equityCurve, ...summary } = result;
+    // Return full equity curve for charting; omit individual trades to keep payload reasonable
+    const { trades, ...summary } = result;
     sendJson(res, 200, {
       ...summary,
       tradeCount: trades.length,
-      equityCurveLength: equityCurve.length,
-      // First + last 5 equity points for sparkline
-      equityCurvePreview: [
-        ...equityCurve.slice(0, 5),
-        ...equityCurve.slice(-5),
-      ],
+      // Last 5 trades for context
+      recentTrades: trades.slice(-5).map(t => ({
+        side: t.side,
+        price: t.fillPrice,
+        size: t.fillSize,
+        fees: t.fees,
+        time: t.timestamp,
+      })),
     });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

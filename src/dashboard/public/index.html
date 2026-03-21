@@ -367,6 +367,75 @@
     <div class="empty-state" id="trades-empty" style="padding:24px">No trade history yet</div>
   </div>
 
+  <!-- Backtest Runner -->
+  <div class="panel">
+    <div class="panel-title">
+      <span>Backtest Runner</span>
+      <span id="bt-status" style="font-size:11px;font-weight:400;color:var(--muted)"></span>
+    </div>
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px">
+      <select id="bt-strategy" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:12px">
+        <option value="polymarket-arb">Polymarket Arb</option>
+        <option value="cross-market-arb">Cross-Market Arb</option>
+        <option value="market-maker">Market Maker</option>
+        <option value="momentum-scalper">Momentum Scalper</option>
+      </select>
+      <input id="bt-market" type="text" placeholder="Market (e.g. BTC-USD)" value="BTC-USD" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:12px;width:130px">
+      <input id="bt-start" type="date" value="2025-01-01" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:12px">
+      <input id="bt-end" type="date" value="2025-12-31" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:12px">
+      <input id="bt-capital" type="number" placeholder="Capital" value="10000" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:6px 10px;font-size:12px;width:100px">
+      <button onclick="runBacktest()" style="background:var(--accent);color:#000;border:none;border-radius:6px;padding:6px 16px;font-size:12px;font-weight:600;cursor:pointer">Run</button>
+    </div>
+    <!-- Backtest Results -->
+    <div id="bt-results" style="display:none">
+      <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-bottom:16px">
+        <div style="background:var(--surface2);border-radius:6px;padding:10px;text-align:center">
+          <div class="card-label">Return</div>
+          <div id="bt-return" style="font-size:16px;font-weight:700;margin-top:4px">—</div>
+        </div>
+        <div style="background:var(--surface2);border-radius:6px;padding:10px;text-align:center">
+          <div class="card-label">Win Rate</div>
+          <div id="bt-winrate" style="font-size:16px;font-weight:700;margin-top:4px">—</div>
+        </div>
+        <div style="background:var(--surface2);border-radius:6px;padding:10px;text-align:center">
+          <div class="card-label">Sharpe</div>
+          <div id="bt-sharpe" style="font-size:16px;font-weight:700;margin-top:4px">—</div>
+        </div>
+        <div style="background:var(--surface2);border-radius:6px;padding:10px;text-align:center">
+          <div class="card-label">Max DD</div>
+          <div id="bt-dd" style="font-size:16px;font-weight:700;margin-top:4px">—</div>
+        </div>
+        <div style="background:var(--surface2);border-radius:6px;padding:10px;text-align:center">
+          <div class="card-label">Trades</div>
+          <div id="bt-trades" style="font-size:16px;font-weight:700;margin-top:4px">—</div>
+        </div>
+        <div style="background:var(--surface2);border-radius:6px;padding:10px;text-align:center">
+          <div class="card-label">Profit Factor</div>
+          <div id="bt-pf" style="font-size:16px;font-weight:700;margin-top:4px">—</div>
+        </div>
+      </div>
+      <svg id="bt-chart-svg" viewBox="0 0 800 120" preserveAspectRatio="none" style="width:100%;height:120px"></svg>
+    </div>
+    <div id="bt-error" style="display:none;color:var(--loss);font-size:12px;padding:8px"></div>
+  </div>
+
+  <!-- Copy-Trading Leaderboard -->
+  <div class="panel">
+    <div class="panel-title">
+      <span>Top Traders — Copy Trading</span>
+      <span style="font-size:11px;font-weight:400;color:var(--muted)">Pro+ required to follow</span>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Rank</th><th>Trader</th><th>Return</th><th>Win Rate</th><th>Trades</th><th>Max DD</th><th>Followers</th><th>Score</th><th></th>
+        </tr>
+      </thead>
+      <tbody id="leaders-tbody"></tbody>
+    </table>
+    <div class="empty-state" id="leaders-empty" style="padding:16px">Loading leaderboard...</div>
+  </div>
+
   <!-- OpenClaw AI Panel + Strategies -->
   <div class="two-col">
     <!-- OpenClaw AI Panel -->
@@ -721,6 +790,109 @@ async function toggleAutoTune(enabled) {
   }
 }
 
+// ── Copy-trading leaderboard ─────────────────────────────────────────────────
+async function fetchLeaderboard() {
+  try {
+    const res = await fetch('/api/leaders?limit=10');
+    const data = await res.json();
+    const leaders = data.leaders || [];
+    const tbody = $('leaders-tbody');
+    const empty = $('leaders-empty');
+
+    if (leaders.length === 0) { empty.textContent = 'No traders yet'; return; }
+    empty.style.display = 'none';
+    tbody.innerHTML = '';
+
+    leaders.forEach((l, i) => {
+      const tr = document.createElement('tr');
+      const retClass = l.totalReturn >= 0 ? 'positive' : 'negative';
+      const retSign = l.totalReturn >= 0 ? '+' : '';
+      tr.innerHTML = `
+        <td style="font-weight:600">#${i + 1}</td>
+        <td style="font-weight:600">${l.displayName}</td>
+        <td class="${retClass}">${retSign}${(l.totalReturn * 100).toFixed(1)}%</td>
+        <td>${(l.winRate * 100).toFixed(1)}%</td>
+        <td>${l.tradeCount}</td>
+        <td class="negative">${(l.maxDrawdown * 100).toFixed(1)}%</td>
+        <td>${l.followers}</td>
+        <td style="color:var(--purple);font-weight:600">${l.score.toFixed(2)}</td>
+        <td><button onclick="alert('Upgrade to Pro to copy this trader')" style="font-size:11px;padding:3px 10px;border-radius:4px;border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer">Follow</button></td>`;
+      tbody.appendChild(tr);
+    });
+  } catch (err) {
+    console.warn('[Leaderboard] fetch error:', err);
+  }
+}
+
+// ── Backtest runner ──────────────────────────────────────────────────────────
+async function runBacktest() {
+  const token = localStorage.getItem('jwt');
+  const apiKey = localStorage.getItem('apiKey');
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  else if (apiKey) headers['Authorization'] = `ApiKey ${apiKey}`;
+
+  $('bt-status').textContent = 'Running...';
+  $('bt-status').style.color = 'var(--warning)';
+  $('bt-results').style.display = 'none';
+  $('bt-error').style.display = 'none';
+
+  try {
+    const res = await fetch('/api/backtest', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        strategy: $('bt-strategy').value,
+        market: $('bt-market').value,
+        startDate: $('bt-start').value,
+        endDate: $('bt-end').value,
+        config: { initialCapital: parseFloat($('bt-capital').value) || 10000 },
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Backtest failed');
+
+    const retPct = (data.totalReturn * 100).toFixed(2);
+    $('bt-return').textContent = (data.totalReturn >= 0 ? '+' : '') + retPct + '%';
+    $('bt-return').className = data.totalReturn >= 0 ? 'positive' : 'negative';
+    $('bt-winrate').textContent = (data.winRate * 100).toFixed(1) + '%';
+    $('bt-sharpe').textContent = data.sharpeRatio.toFixed(2);
+    $('bt-dd').textContent = (data.maxDrawdown * 100).toFixed(1) + '%';
+    $('bt-dd').className = 'negative';
+    $('bt-trades').textContent = data.tradeCount;
+    $('bt-pf').textContent = data.profitFactor === Infinity ? '∞' : data.profitFactor.toFixed(2);
+    $('bt-results').style.display = 'block';
+    $('bt-status').textContent = 'Done';
+    $('bt-status').style.color = 'var(--accent)';
+
+    if (data.equityCurve && data.equityCurve.length > 1) {
+      drawBacktestChart(data.equityCurve);
+    }
+  } catch (err) {
+    $('bt-error').textContent = err.message;
+    $('bt-error').style.display = 'block';
+    $('bt-status').textContent = 'Error';
+    $('bt-status').style.color = 'var(--loss)';
+  }
+}
+
+function drawBacktestChart(curve) {
+  const svg = $('bt-chart-svg');
+  const w = 800, h = 120;
+  const min = Math.min(...curve), max = Math.max(...curve);
+  const range = max - min || 1;
+  const step = w / (curve.length - 1);
+  let d = '';
+  for (let i = 0; i < curve.length; i++) {
+    const x = i * step;
+    const y = h - ((curve[i] - min) / range) * (h - 10) - 5;
+    d += (i === 0 ? 'M' : 'L') + x.toFixed(1) + ',' + y.toFixed(1);
+  }
+  const final = curve[curve.length - 1], initial = curve[0];
+  const color = final >= initial ? 'var(--accent)' : 'var(--loss)';
+  svg.innerHTML = `<path d="${d}" fill="none" stroke="${color}" stroke-width="1.5" vector-effect="non-scaling-stroke"/>`;
+}
+
 // ── Fetch helpers ─────────────────────────────────────────────────────────────
 async function fetchAll() {
   try {
@@ -855,8 +1027,10 @@ function handleLogout() {
 (function init() {
   fetchAll();
   fetchOpenClaw();
-  setInterval(fetchAll, 10000); // Polling fallback every 10s
-  setInterval(fetchOpenClaw, 30000); // OpenClaw refresh every 30s
+  fetchLeaderboard();
+  setInterval(fetchAll, 10000);
+  setInterval(fetchOpenClaw, 30000);
+  setInterval(fetchLeaderboard, 60000); // Leaderboard refresh every 60s
   connectWs();
 })();
 </script>

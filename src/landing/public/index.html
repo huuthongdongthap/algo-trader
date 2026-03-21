@@ -3,749 +3,214 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CashClaw — AI-Powered Prediction Market Trading</title>
-  <meta name="description" content="Automated strategies for Polymarket, Kalshi & crypto exchanges. AI-powered trading bots that never sleep." />
+  <title>CashClaw — Algorithmic Trading as a Service</title>
+  <meta name="description" content="AI-powered algorithmic trading platform. Polymarket, CEX, DEX. Copy top traders. Start free." />
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --bg:       #0a0a1a;
-      --surface:  #0f0f24;
-      --card:     #12122a;
-      --border:   #1e1e40;
-      --border2:  #2a2a55;
-      --accent:   #00d4aa;
-      --accent2:  #00a8ff;
-      --gold:     #ffd700;
-      --danger:   #ff4444;
-      --text:     #e8eaf0;
-      --muted:    #8892a4;
-      --muted2:   #5a6480;
-      --radius:   14px;
-      --font:     system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      --bg: #0a0a1a; --card: #12122a; --border: #1e1e3a;
+      --text: #e2e8f0; --muted: #8892b0; --accent: #00d4aa;
+      --loss: #ff4757; --blue: #4fc3f7; --purple: #a78bfa;
     }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Inter", sans-serif; }
+    a { color: var(--accent); text-decoration: none; }
 
-    html { scroll-behavior: smooth; }
-
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: var(--font);
-      line-height: 1.6;
-      overflow-x: hidden;
-    }
-
-    /* ── NAV ── */
-    nav {
-      position: fixed; top: 0; left: 0; right: 0; z-index: 200;
-      display: flex; align-items: center; justify-content: space-between;
-      padding: 1rem 2rem;
-      background: rgba(10,10,26,0.88);
-      backdrop-filter: blur(16px);
-      border-bottom: 1px solid var(--border);
-    }
-    .nav-logo {
-      font-weight: 800; font-size: 1.15rem; letter-spacing: -0.02em;
-      text-decoration: none; color: var(--text);
-    }
-    .nav-logo .claw { color: var(--accent); }
-    .nav-links { display: flex; gap: 2rem; list-style: none; }
-    .nav-links a {
-      color: var(--muted); text-decoration: none; font-size: 0.9rem;
-      transition: color 0.2s;
-    }
+    /* Nav */
+    nav { display: flex; align-items: center; justify-content: space-between; padding: 20px 48px; max-width: 1200px; margin: 0 auto; }
+    .nav-logo { font-size: 24px; font-weight: 800; background: linear-gradient(135deg, var(--accent), var(--blue)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .nav-links { display: flex; gap: 32px; font-size: 14px; color: var(--muted); }
     .nav-links a:hover { color: var(--text); }
-    .nav-cta {
-      background: var(--accent); color: #0a0a1a;
-      padding: 0.5rem 1.25rem; border-radius: 8px;
-      text-decoration: none; font-size: 0.9rem; font-weight: 700;
-      transition: opacity 0.2s, transform 0.15s;
-    }
-    .nav-cta:hover { opacity: 0.88; transform: translateY(-1px); }
+    .btn-cta { display: inline-block; padding: 10px 24px; border-radius: 8px; font-weight: 600; font-size: 14px; transition: transform 0.15s, box-shadow 0.15s; }
+    .btn-primary { background: var(--accent); color: #000; }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(0,212,170,0.3); }
+    .btn-outline { border: 1px solid var(--border); color: var(--text); }
+    .btn-outline:hover { border-color: var(--accent); }
 
-    /* ── TICKER ── */
-    .ticker-bar {
-      background: rgba(0,212,170,0.06);
-      border-bottom: 1px solid rgba(0,212,170,0.15);
-      padding: 0.45rem 0;
-      overflow: hidden;
-      margin-top: 65px; /* below fixed nav */
-    }
-    .ticker-track {
-      display: flex; gap: 4rem;
-      animation: ticker-scroll 30s linear infinite;
-      white-space: nowrap;
-    }
-    .ticker-track:hover { animation-play-state: paused; }
-    .ticker-item {
-      font-size: 0.8rem; font-weight: 600;
-      color: var(--accent); letter-spacing: 0.03em;
-    }
-    .ticker-item .sep { color: var(--muted2); margin: 0 0.4rem; }
-    @keyframes ticker-scroll {
-      0%   { transform: translateX(0); }
-      100% { transform: translateX(-50%); }
-    }
+    /* Hero */
+    .hero { text-align: center; padding: 100px 24px 80px; max-width: 800px; margin: 0 auto; }
+    .hero h1 { font-size: 52px; font-weight: 800; line-height: 1.1; margin-bottom: 20px; background: linear-gradient(135deg, var(--text), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .hero p { font-size: 18px; color: var(--muted); line-height: 1.6; margin-bottom: 36px; }
+    .hero-actions { display: flex; gap: 16px; justify-content: center; }
 
-    /* ── HERO ── */
-    #hero {
-      min-height: calc(100vh - 65px);
-      display: flex; align-items: center; justify-content: center;
-      text-align: center;
-      padding: 5rem 1.5rem 4rem;
-      position: relative; overflow: hidden;
-    }
-    #hero::before {
-      content: '';
-      position: absolute; inset: 0;
-      background:
-        radial-gradient(ellipse 70% 60% at 50% -10%, rgba(0,212,170,0.12) 0%, transparent 65%),
-        radial-gradient(ellipse 50% 40% at 80% 80%, rgba(0,168,255,0.07) 0%, transparent 60%);
-      pointer-events: none;
-    }
-    .hero-inner { position: relative; max-width: 780px; margin: 0 auto; }
-    .hero-badge {
-      display: inline-flex; align-items: center; gap: 0.4rem;
-      background: rgba(0,212,170,0.1); border: 1px solid rgba(0,212,170,0.25);
-      color: var(--accent); padding: 0.35rem 1rem; border-radius: 20px;
-      font-size: 0.78rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
-      margin-bottom: 1.75rem;
-      animation: fadeUp 0.55s ease both;
-    }
-    .badge-dot {
-      width: 7px; height: 7px; border-radius: 50%;
-      background: var(--accent);
-      animation: pulse-dot 2s ease-in-out infinite;
-    }
-    @keyframes pulse-dot {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50%       { opacity: 0.5; transform: scale(0.7); }
-    }
-    h1 {
-      font-size: clamp(2.6rem, 6.5vw, 5rem);
-      font-weight: 900; letter-spacing: -0.04em; line-height: 1.05;
-      margin-bottom: 1.25rem;
-      animation: fadeUp 0.55s 0.1s ease both;
-    }
-    h1 .gradient {
-      background: linear-gradient(135deg, var(--accent) 0%, var(--accent2) 60%, #a78bfa 100%);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-    }
-    .hero-sub {
-      font-size: clamp(1rem, 2.5vw, 1.2rem); color: var(--muted);
-      max-width: 560px; margin: 0 auto 2.5rem; line-height: 1.7;
-      animation: fadeUp 0.55s 0.2s ease both;
-    }
-    .hero-actions {
-      display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;
-      animation: fadeUp 0.55s 0.3s ease both;
-    }
-    .btn-primary {
-      background: var(--accent); color: #0a0a1a;
-      padding: 0.9rem 2.2rem; border-radius: 10px;
-      text-decoration: none; font-weight: 800; font-size: 1rem;
-      transition: transform 0.2s, box-shadow 0.2s;
-      box-shadow: 0 4px 28px rgba(0,212,170,0.35);
-    }
-    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 36px rgba(0,212,170,0.5); }
-    .btn-secondary {
-      background: transparent; border: 1px solid var(--border2);
-      color: var(--text); padding: 0.9rem 2.2rem; border-radius: 10px;
-      text-decoration: none; font-weight: 600; font-size: 1rem;
-      transition: border-color 0.2s, background 0.2s;
-    }
-    .btn-secondary:hover { border-color: var(--accent); background: rgba(0,212,170,0.06); }
+    /* Stats bar */
+    .stats-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; max-width: 900px; margin: 0 auto 80px; padding: 0 24px; }
+    .stat { text-align: center; padding: 24px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; }
+    .stat-value { font-size: 32px; font-weight: 800; color: var(--accent); }
+    .stat-label { font-size: 12px; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 1px; }
 
-    .hero-stats {
-      display: flex; gap: 2.5rem; justify-content: center; margin-top: 4rem;
-      flex-wrap: wrap;
-      animation: fadeUp 0.55s 0.4s ease both;
-    }
-    .stat-item { text-align: center; }
-    .stat-num {
-      font-size: 1.9rem; font-weight: 900; letter-spacing: -0.03em;
-      background: linear-gradient(135deg, var(--accent), var(--accent2));
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-    }
-    .stat-label { font-size: 0.78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-top: 0.15rem; }
+    /* Features */
+    .features { max-width: 1100px; margin: 0 auto 80px; padding: 0 24px; }
+    .features h2 { text-align: center; font-size: 36px; margin-bottom: 48px; }
+    .features-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+    .feature-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 28px; }
+    .feature-icon { font-size: 28px; margin-bottom: 12px; }
+    .feature-card h3 { font-size: 16px; margin-bottom: 8px; }
+    .feature-card p { font-size: 13px; color: var(--muted); line-height: 1.6; }
 
-    /* ── SECTION BASE ── */
-    section { padding: 5.5rem 1.5rem; }
-    .container { max-width: 1100px; margin: 0 auto; }
-    .section-eyebrow {
-      color: var(--accent); font-size: 0.78rem; font-weight: 700;
-      text-transform: uppercase; letter-spacing: 0.12em; margin-bottom: 0.75rem;
-    }
-    .section-title {
-      font-size: clamp(1.9rem, 4vw, 2.6rem);
-      font-weight: 900; letter-spacing: -0.03em; margin-bottom: 1rem;
-    }
-    .section-sub { color: var(--muted); max-width: 520px; margin-bottom: 3rem; font-size: 0.97rem; }
+    /* Pricing */
+    .pricing { max-width: 1000px; margin: 0 auto 80px; padding: 0 24px; }
+    .pricing h2 { text-align: center; font-size: 36px; margin-bottom: 12px; }
+    .pricing-sub { text-align: center; color: var(--muted); margin-bottom: 48px; }
+    .pricing-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; }
+    .price-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 32px; position: relative; }
+    .price-card.popular { border-color: var(--accent); }
+    .price-card.popular::before { content: 'Most Popular'; position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: var(--accent); color: #000; font-size: 11px; font-weight: 700; padding: 4px 16px; border-radius: 20px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .price-tier { font-size: 14px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+    .price-amount { font-size: 48px; font-weight: 800; margin-bottom: 4px; }
+    .price-amount span { font-size: 16px; color: var(--muted); font-weight: 400; }
+    .price-desc { color: var(--muted); font-size: 13px; margin-bottom: 24px; }
+    .price-features { list-style: none; margin-bottom: 24px; }
+    .price-features li { font-size: 13px; padding: 6px 0; border-bottom: 1px solid rgba(30,30,58,0.5); }
+    .price-features li::before { content: ''; display: inline-block; width: 6px; height: 6px; background: var(--accent); border-radius: 50%; margin-right: 10px; }
+    .price-cta { display: block; text-align: center; padding: 12px; border-radius: 8px; font-weight: 600; font-size: 14px; }
 
-    /* ── HOW IT WORKS ── */
-    #how-it-works { background: var(--surface); }
-    .steps {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 2rem; margin-top: 0.5rem;
-    }
-    .step {
-      background: var(--card); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 2rem 1.75rem;
-      text-align: center;
-      transition: border-color 0.2s, transform 0.2s;
-    }
-    .step:hover { border-color: var(--accent); transform: translateY(-3px); }
-    .step-icon {
-      width: 60px; height: 60px; border-radius: 16px;
-      background: rgba(0,212,170,0.1); border: 1px solid rgba(0,212,170,0.2);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1.6rem; margin: 0 auto 1.2rem;
-    }
-    .step-num-label {
-      font-size: 0.72rem; font-weight: 700; color: var(--accent);
-      text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.5rem;
-    }
-    .step h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 0.6rem; }
-    .step p { color: var(--muted); font-size: 0.9rem; line-height: 1.65; }
+    /* Footer */
+    footer { text-align: center; padding: 40px 24px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12px; }
 
-    /* ── FEATURES ── */
-    .features-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-      gap: 1.5rem;
-    }
-    .feature-card {
-      background: var(--card); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 1.75rem;
-      transition: border-color 0.2s, transform 0.2s;
-    }
-    .feature-card:hover { border-color: rgba(0,212,170,0.4); transform: translateY(-3px); }
-    .feature-icon { font-size: 1.8rem; margin-bottom: 1rem; }
-    .feature-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 0.5rem; }
-    .feature-card p { color: var(--muted); font-size: 0.88rem; line-height: 1.65; }
-    .feature-tag {
-      display: inline-block; margin-top: 0.75rem;
-      background: rgba(0,212,170,0.08); border: 1px solid rgba(0,212,170,0.18);
-      color: var(--accent); font-size: 0.72rem; font-weight: 600;
-      padding: 0.2rem 0.6rem; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.05em;
-    }
-
-    /* ── PRICING ── */
-    #pricing { background: var(--surface); }
-    .pricing-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
-      gap: 1.5rem; align-items: start;
-    }
-    .pricing-card {
-      background: var(--card); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 2rem;
-      position: relative; overflow: hidden;
-      transition: transform 0.2s;
-    }
-    .pricing-card:hover { transform: translateY(-3px); }
-    .pricing-card.popular {
-      border-color: var(--accent);
-      box-shadow: 0 0 40px rgba(0,212,170,0.12);
-    }
-    .popular-badge {
-      position: absolute; top: 0; right: 1.5rem;
-      background: var(--accent); color: #0a0a1a;
-      font-size: 0.7rem; font-weight: 800; text-transform: uppercase;
-      letter-spacing: 0.06em; padding: 0.3rem 0.8rem;
-      border-radius: 0 0 10px 10px;
-    }
-    .plan-name {
-      font-size: 0.8rem; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.12em; color: var(--muted); margin-bottom: 0.6rem;
-    }
-    .plan-price {
-      font-size: 3rem; font-weight: 900; letter-spacing: -0.04em;
-      margin-bottom: 0.25rem; line-height: 1;
-    }
-    .plan-price .per { font-size: 1rem; font-weight: 400; color: var(--muted); }
-    .plan-desc { color: var(--muted); font-size: 0.88rem; margin-bottom: 1.75rem; line-height: 1.55; }
-    .plan-features { list-style: none; margin-bottom: 2rem; }
-    .plan-features li {
-      display: flex; align-items: flex-start; gap: 0.65rem;
-      font-size: 0.88rem; padding: 0.45rem 0;
-      border-bottom: 1px solid var(--border);
-    }
-    .plan-features li:last-child { border-bottom: none; }
-    .check { color: var(--accent); font-size: 0.9rem; flex-shrink: 0; margin-top: 0.1rem; }
-    .plan-btn {
-      display: block; text-align: center; padding: 0.85rem;
-      border-radius: 10px; text-decoration: none;
-      font-weight: 700; font-size: 0.95rem;
-      transition: opacity 0.2s, transform 0.15s;
-    }
-    .plan-btn:hover { opacity: 0.88; transform: translateY(-1px); }
-    .plan-btn.accent { background: var(--accent); color: #0a0a1a; }
-    .plan-btn.outline {
-      border: 1px solid var(--border2); color: var(--text);
-    }
-    .plan-btn.outline:hover { border-color: var(--accent); background: rgba(0,212,170,0.06); }
-    .plan-btn.outline-gold {
-      border: 1px solid rgba(255,215,0,0.35); color: var(--gold);
-    }
-    .plan-btn.outline-gold:hover { border-color: var(--gold); background: rgba(255,215,0,0.06); }
-
-    /* ── FAQ ── */
-    .faq-list { max-width: 720px; display: flex; flex-direction: column; gap: 0; }
-    .faq-item {
-      border-bottom: 1px solid var(--border);
-      overflow: hidden;
-    }
-    .faq-item:first-child { border-top: 1px solid var(--border); }
-    .faq-q {
-      display: flex; justify-content: space-between; align-items: center;
-      padding: 1.2rem 0; cursor: pointer;
-      font-weight: 600; font-size: 0.97rem;
-      color: var(--text); user-select: none;
-      list-style: none;
-    }
-    .faq-q::-webkit-details-marker { display: none; }
-    .faq-chevron {
-      font-size: 1.1rem; color: var(--muted);
-      transition: transform 0.25s;
-      flex-shrink: 0; margin-left: 1rem;
-    }
-    details[open] .faq-chevron { transform: rotate(180deg); color: var(--accent); }
-    details[open] .faq-q { color: var(--accent); }
-    .faq-a {
-      padding: 0 0 1.25rem;
-      color: var(--muted); font-size: 0.9rem; line-height: 1.75;
-    }
-
-    /* ── CTA BAND ── */
-    .cta-band {
-      background: linear-gradient(135deg, rgba(0,212,170,0.08) 0%, rgba(0,168,255,0.06) 100%);
-      border: 1px solid rgba(0,212,170,0.15);
-      border-radius: var(--radius);
-      padding: 3.5rem 2.5rem;
-      text-align: center;
-      margin: 0 auto;
-      max-width: 680px;
-    }
-    .cta-band h2 { font-size: clamp(1.6rem, 3.5vw, 2.2rem); font-weight: 900; letter-spacing: -0.03em; margin-bottom: 0.75rem; }
-    .cta-band p { color: var(--muted); margin-bottom: 2rem; font-size: 0.97rem; }
-
-    /* ── FOOTER ── */
-    footer {
-      background: var(--surface);
-      border-top: 1px solid var(--border);
-      padding: 3rem 1.5rem;
-    }
-    .footer-inner {
-      max-width: 1100px; margin: 0 auto;
-      display: flex; justify-content: space-between; align-items: center;
-      flex-wrap: wrap; gap: 1.5rem;
-    }
-    .footer-logo { font-weight: 800; font-size: 1rem; color: var(--text); text-decoration: none; }
-    .footer-logo .claw { color: var(--accent); }
-    .footer-links { display: flex; gap: 1.5rem; list-style: none; flex-wrap: wrap; }
-    .footer-links a {
-      color: var(--muted); text-decoration: none; font-size: 0.85rem;
-      transition: color 0.2s;
-    }
-    .footer-links a:hover { color: var(--text); }
-    .footer-right { text-align: right; }
-    .footer-copy { color: var(--muted2); font-size: 0.8rem; }
-    .footer-powered {
-      color: var(--muted2); font-size: 0.75rem; margin-top: 0.25rem;
-    }
-    .footer-powered a { color: var(--accent); text-decoration: none; }
-
-    /* ── ANIMATIONS ── */
-    @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(22px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-
-    /* Scroll-reveal via CSS only */
-    .reveal {
-      opacity: 0; transform: translateY(24px);
-      animation: fadeUp 0.6s ease forwards;
-      animation-play-state: paused;
-    }
-    .reveal.visible { animation-play-state: running; }
-
-    /* ── DIVIDER ── */
-    .divider {
-      height: 1px;
-      background: linear-gradient(90deg, transparent, var(--border2), transparent);
-      max-width: 1100px; margin: 0 auto;
-    }
-
-    /* ── RESPONSIVE ── */
     @media (max-width: 768px) {
+      .hero h1 { font-size: 32px; }
+      .stats-bar, .features-grid, .pricing-grid { grid-template-columns: 1fr; }
+      nav { padding: 16px 20px; }
       .nav-links { display: none; }
-      .hero-stats { gap: 1.5rem; }
-    }
-    @media (max-width: 640px) {
-      .footer-inner { flex-direction: column; text-align: center; }
-      .footer-right { text-align: center; }
-      .cta-band { padding: 2.5rem 1.5rem; }
     }
   </style>
 </head>
 <body>
 
-  <!-- NAV -->
-  <nav>
-    <a href="/" class="nav-logo">Cash<span class="claw">Claw</span></a>
-    <ul class="nav-links">
-      <li><a href="#how-it-works">How It Works</a></li>
-      <li><a href="#features">Features</a></li>
-      <li><a href="#pricing">Pricing</a></li>
-      <li><a href="#faq">FAQ</a></li>
-    </ul>
-    <a href="/api/checkout?tier=free" class="nav-cta">Start Free</a>
-  </nav>
+<nav>
+  <div class="nav-logo">CashClaw</div>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#pricing">Pricing</a>
+    <a href="/dashboard">Dashboard</a>
+  </div>
+  <a href="/dashboard" class="btn-cta btn-primary">Get Started</a>
+</nav>
 
-  <!-- LIVE TICKER -->
-  <div class="ticker-bar">
-    <div class="ticker-track" id="ticker-track">
-      <span class="ticker-item">📈 <strong>12,847</strong> trades executed<span class="sep">|</span></span>
-      <span class="ticker-item">🎯 Win rate <strong>63.4%</strong><span class="sep">|</span></span>
-      <span class="ticker-item">💰 Profit generated <strong>$284,193</strong><span class="sep">|</span></span>
-      <span class="ticker-item">⚡ Avg execution <strong>&lt;48ms</strong><span class="sep">|</span></span>
-      <span class="ticker-item">🏪 Markets: Polymarket, Kalshi, Binance, Coinbase<span class="sep">|</span></span>
-      <span class="ticker-item">🤖 Active bots <strong>318</strong><span class="sep">|</span></span>
-      <!-- duplicate for seamless loop -->
-      <span class="ticker-item">📈 <strong>12,847</strong> trades executed<span class="sep">|</span></span>
-      <span class="ticker-item">🎯 Win rate <strong>63.4%</strong><span class="sep">|</span></span>
-      <span class="ticker-item">💰 Profit generated <strong>$284,193</strong><span class="sep">|</span></span>
-      <span class="ticker-item">⚡ Avg execution <strong>&lt;48ms</strong><span class="sep">|</span></span>
-      <span class="ticker-item">🏪 Markets: Polymarket, Kalshi, Binance, Coinbase<span class="sep">|</span></span>
-      <span class="ticker-item">🤖 Active bots <strong>318</strong><span class="sep">|</span></span>
+<section class="hero">
+  <h1>AI-Powered Algorithmic Trading</h1>
+  <p>Deploy battle-tested strategies on Polymarket, CEX &amp; DEX. Copy top traders. Let OpenClaw AI optimize your edge. Start free, scale to millions.</p>
+  <div class="hero-actions">
+    <a href="/dashboard" class="btn-cta btn-primary">Start Trading Free</a>
+    <a href="#pricing" class="btn-cta btn-outline">View Pricing</a>
+  </div>
+</section>
+
+<div class="stats-bar">
+  <div class="stat"><div class="stat-value">4</div><div class="stat-label">Strategies</div></div>
+  <div class="stat"><div class="stat-value">50+</div><div class="stat-label">API Endpoints</div></div>
+  <div class="stat"><div class="stat-value">24/7</div><div class="stat-label">Uptime</div></div>
+  <div class="stat"><div class="stat-value">$0</div><div class="stat-label">To Start</div></div>
+</div>
+
+<section class="features" id="features">
+  <h2>Everything You Need</h2>
+  <div class="features-grid">
+    <div class="feature-card">
+      <div class="feature-icon">~</div>
+      <h3>Polymarket Strategies</h3>
+      <p>Cross-market arb, market maker, momentum scalper, and Kelly-optimized strategies for binary prediction markets.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">&gt;</div>
+      <h3>OpenClaw AI</h3>
+      <p>AI-driven parameter tuning via local LLM (Ollama). Auto-optimize entry thresholds, stop-losses, and position sizing hourly.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">#</div>
+      <h3>Copy Trading</h3>
+      <p>Follow top traders on the leaderboard. Proportional position mirroring with slippage guards and allocation controls.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">%</div>
+      <h3>Backtesting</h3>
+      <p>Run any strategy against historical data. Equity curves, Sharpe ratios, drawdown analysis — all from the dashboard.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">@</div>
+      <h3>Risk Management</h3>
+      <p>Position sizing limits, max drawdown guards, stop-loss enforcement, and real-time AI risk alerts via Telegram.</p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon">*</div>
+      <h3>REST API + SDK</h3>
+      <p>50+ endpoints. TypeScript SDK. TradingView webhooks. Build custom integrations or use the dashboard.</p>
     </div>
   </div>
+</section>
 
-  <!-- HERO -->
-  <section id="hero">
-    <div class="hero-inner">
-      <div class="hero-badge">
-        <span class="badge-dot"></span>
-        Beta — 500+ active traders
-      </div>
-      <h1>AI-Powered<br /><span class="gradient">Prediction Market</span><br />Trading</h1>
-      <p class="hero-sub">
-        Automated strategies for Polymarket, Kalshi &amp; crypto exchanges.
-        Deploy institutional-grade bots in minutes — no code required.
-      </p>
-      <div class="hero-actions">
-        <a href="/api/checkout?tier=free" class="btn-primary">Start Free</a>
-        <a href="#how-it-works" class="btn-secondary">See How It Works</a>
-      </div>
-      <div class="hero-stats">
-        <div class="stat-item">
-          <div class="stat-num">12,847+</div>
-          <div class="stat-label">Trades Executed</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-num">63.4%</div>
-          <div class="stat-label">Avg Win Rate</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-num">$284K</div>
-          <div class="stat-label">Profit Generated</div>
-        </div>
-        <div class="stat-item">
-          <div class="stat-num">&lt;48ms</div>
-          <div class="stat-label">Execution Speed</div>
-        </div>
-      </div>
-    </div>
-  </section>
+<section class="pricing" id="pricing">
+  <h2>Simple Pricing</h2>
+  <p class="pricing-sub">Start free. Upgrade when you're ready.</p>
+  <div class="pricing-grid">
 
-  <div class="divider"></div>
-
-  <!-- HOW IT WORKS -->
-  <section id="how-it-works">
-    <div class="container">
-      <div class="section-eyebrow">Get Started</div>
-      <h2 class="section-title">Up and Trading in 3 Steps</h2>
-      <p class="section-sub">No DevOps, no PhD required. Connect once and let the AI do the work.</p>
-      <div class="steps">
-
-        <div class="step">
-          <div class="step-icon">🔗</div>
-          <div class="step-num-label">Step 01</div>
-          <h3>Sign Up &amp; Connect</h3>
-          <p>Create your free account and connect your exchange API keys. All credentials are encrypted with AES-256 and stored in isolated vaults — we never touch your funds directly.</p>
-        </div>
-
-        <div class="step">
-          <div class="step-icon">⚙️</div>
-          <div class="step-num-label">Step 02</div>
-          <h3>Choose Your Strategy</h3>
-          <p>Pick from Polymarket arbitrage, market making, grid trading, copy trading, or build custom flows. Run a backtest on 2 years of data, then validate in paper mode before going live.</p>
-        </div>
-
-        <div class="step">
-          <div class="step-icon">📈</div>
-          <div class="step-num-label">Step 03</div>
-          <h3>Watch Profits Grow</h3>
-          <p>Go live with one click. Your dashboard shows real-time P&amp;L, open positions, drawdown metrics, and win/loss breakdown. Get instant Telegram alerts on every fill.</p>
-        </div>
-
-      </div>
-    </div>
-  </section>
-
-  <div class="divider"></div>
-
-  <!-- FEATURES -->
-  <section id="features">
-    <div class="container">
-      <div class="section-eyebrow">Platform Features</div>
-      <h2 class="section-title">Everything You Need to Trade at Scale</h2>
-      <p class="section-sub">From prediction markets to crypto — one platform, unlimited strategies.</p>
-      <div class="features-grid">
-
-        <div class="feature-card">
-          <div class="feature-icon">🧮</div>
-          <h3>Polymarket Arbitrage</h3>
-          <p>Detect and exploit pricing discrepancies between Polymarket, Kalshi, and Manifold in real time. Our AI monitors thousands of markets simultaneously to surface edge before it disappears.</p>
-          <span class="feature-tag">Prediction Markets</span>
-        </div>
-
-        <div class="feature-card">
-          <div class="feature-icon">📊</div>
-          <h3>Market Making</h3>
-          <p>Post two-sided liquidity across prediction markets and crypto order books. Dynamic spread adjustment based on volatility and inventory ensures consistent fee capture with managed risk.</p>
-          <span class="feature-tag">Advanced</span>
-        </div>
-
-        <div class="feature-card">
-          <div class="feature-icon">🔲</div>
-          <h3>Grid Trading</h3>
-          <p>Profit from sideways markets with automated buy-low-sell-high grids. Configurable grid spacing, range, and allocation. Supports both symmetric and asymmetric modes.</p>
-          <span class="feature-tag">All Plans</span>
-        </div>
-
-        <div class="feature-card">
-          <div class="feature-icon">📡</div>
-          <h3>Copy Trading</h3>
-          <p>Follow top-performing traders in one click. Set max allocation, stop-loss per leader, and auto-compound settings. Available on Pro &amp; Enterprise plans.</p>
-          <span class="feature-tag">Pro+</span>
-        </div>
-
-        <div class="feature-card">
-          <div class="feature-icon">🛡️</div>
-          <h3>Risk Management</h3>
-          <p>Portfolio-level drawdown limits, per-trade stop losses, exposure caps, and kill-switch protection. Our risk engine runs on a separate thread and cannot be bypassed by strategy logic.</p>
-          <span class="feature-tag">Built-in</span>
-        </div>
-
-        <div class="feature-card">
-          <div class="feature-icon">🖥️</div>
-          <h3>Real-time Dashboard</h3>
-          <p>Live equity curves, P&amp;L heatmaps, win-rate analysis, position tracker, and strategy-level attribution. Export reports to CSV or integrate via our REST API.</p>
-          <span class="feature-tag">All Plans</span>
-        </div>
-
-      </div>
-    </div>
-  </section>
-
-  <div class="divider"></div>
-
-  <!-- PRICING -->
-  <section id="pricing">
-    <div class="container">
-      <div class="section-eyebrow">Pricing</div>
-      <h2 class="section-title">Simple, Transparent Pricing</h2>
-      <p class="section-sub">No hidden fees. Cancel anytime. Upgrade or downgrade instantly.</p>
-
-      <div class="pricing-grid">
-
-        <!-- FREE -->
-        <div class="pricing-card">
-          <div class="plan-name">Free</div>
-          <div class="plan-price">$0 <span class="per">/ mo</span></div>
-          <div class="plan-desc">Perfect for learning the platform and testing strategies risk-free.</div>
-          <ul class="plan-features">
-            <li><span class="check">✓</span> Paper trading (no real money)</li>
-            <li><span class="check">✓</span> 1 active strategy</li>
-            <li><span class="check">✓</span> Basic dashboard &amp; analytics</li>
-            <li><span class="check">✓</span> Backtesting (30-day data)</li>
-            <li><span class="check">✓</span> Community support</li>
-          </ul>
-          <a href="/api/checkout?tier=free" class="plan-btn outline">Get Started Free</a>
-        </div>
-
-        <!-- PRO -->
-        <div class="pricing-card popular">
-          <div class="popular-badge">Most Popular</div>
-          <div class="plan-name">Pro</div>
-          <div class="plan-price">$29 <span class="per">/ mo</span></div>
-          <div class="plan-desc">For serious traders ready to deploy capital across prediction markets and crypto.</div>
-          <ul class="plan-features">
-            <li><span class="check">✓</span> 3 active live strategies</li>
-            <li><span class="check">✓</span> Backtesting (2-year data)</li>
-            <li><span class="check">✓</span> Strategy optimizer (AI-tuned)</li>
-            <li><span class="check">✓</span> OpenClaw AI analysis &amp; reports</li>
-            <li><span class="check">✓</span> Copy trading (3 leaders)</li>
-            <li><span class="check">✓</span> Polymarket &amp; Kalshi access</li>
-            <li><span class="check">✓</span> Telegram &amp; email alerts</li>
-            <li><span class="check">✓</span> Priority email support</li>
-          </ul>
-          <a href="https://polar.sh/cashclaw/checkout?product=3a7eff03-acee-4bf0-99b7-882d9a1192ae"
-             class="plan-btn accent"
-             target="_blank" rel="noopener noreferrer">
-            Subscribe Pro →
-          </a>
-        </div>
-
-        <!-- ENTERPRISE -->
-        <div class="pricing-card">
-          <div class="plan-name">Enterprise</div>
-          <div class="plan-price" style="color: var(--gold);">$199 <span class="per">/ mo</span></div>
-          <div class="plan-desc">For funds and professional desks that need maximum throughput and custom integrations.</div>
-          <ul class="plan-features">
-            <li><span class="check">✓</span> Unlimited active strategies</li>
-            <li><span class="check">✓</span> Full historical data</li>
-            <li><span class="check">✓</span> REST API &amp; webhook access</li>
-            <li><span class="check">✓</span> OpenClaw AI: full suite (tune + auto-tune)</li>
-            <li><span class="check">✓</span> Copy trading (unlimited leaders)</li>
-            <li><span class="check">✓</span> Multi-user team access</li>
-            <li><span class="check">✓</span> White-glove onboarding</li>
-            <li><span class="check">✓</span> 99.9% uptime SLA</li>
-            <li><span class="check">✓</span> Priority Slack support</li>
-          </ul>
-          <a href="https://polar.sh/cashclaw/checkout?product=d4aba8f3-6baa-44a6-82d8-f5ff9b9bbcf1"
-             class="plan-btn outline-gold"
-             target="_blank" rel="noopener noreferrer">
-            Subscribe Enterprise →
-          </a>
-        </div>
-
-      </div>
-    </div>
-  </section>
-
-  <div class="divider"></div>
-
-  <!-- FAQ -->
-  <section id="faq">
-    <div class="container">
-      <div class="section-eyebrow">FAQ</div>
-      <h2 class="section-title">Common Questions</h2>
-      <p class="section-sub">Everything you need to know before you start.</p>
-
-      <div class="faq-list">
-
-        <details class="faq-item">
-          <summary class="faq-q">
-            What is CashClaw?
-            <span class="faq-chevron">▾</span>
-          </summary>
-          <p class="faq-a">
-            CashClaw is an AI-powered automated trading platform specialized in prediction markets (Polymarket, Kalshi) and crypto exchanges. It provides pre-built and configurable strategies — arbitrage, market making, grid trading, and copy trading — that run 24/7 without manual intervention. You connect your exchange accounts, choose a strategy, and the platform handles execution.
-          </p>
-        </details>
-
-        <details class="faq-item">
-          <summary class="faq-q">
-            How does the AI optimization work?
-            <span class="faq-chevron">▾</span>
-          </summary>
-          <p class="faq-a">
-            Our strategy optimizer (Pro and above) uses Bayesian hyperparameter tuning to find optimal parameter sets for each strategy based on your historical data. It runs backtests automatically across thousands of parameter combinations, ranks them by risk-adjusted return, and recommends the top configuration. You review and approve before anything goes live.
-          </p>
-        </details>
-
-        <details class="faq-item">
-          <summary class="faq-q">
-            Is my money safe? Do you hold funds?
-            <span class="faq-chevron">▾</span>
-          </summary>
-          <p class="faq-a">
-            CashClaw never holds or custodies your funds. You connect your exchange accounts via API keys that you generate — you control which permissions to grant (typically trade-only, no withdrawal). Your funds stay on your exchange account at all times. API keys are encrypted with AES-256 in isolated vaults and never logged or transmitted in plaintext.
-          </p>
-        </details>
-
-        <details class="faq-item">
-          <summary class="faq-q">
-            Can I cancel my subscription anytime?
-            <span class="faq-chevron">▾</span>
-          </summary>
-          <p class="faq-a">
-            Yes. Cancel anytime from your billing dashboard — no questions asked, no cancellation fee. Your subscription remains active until the end of the current billing period, then downgrade to the Free plan automatically. All your strategies, backtest history, and configuration are preserved and accessible on the Free tier.
-          </p>
-        </details>
-
-        <details class="faq-item">
-          <summary class="faq-q">
-            What markets and exchanges are supported?
-            <span class="faq-chevron">▾</span>
-          </summary>
-          <p class="faq-a">
-            Prediction markets: Polymarket (CLOB API), Kalshi. Crypto spot: Binance, Coinbase Advanced, Bybit, OKX, Kraken. Crypto derivatives: Binance Futures, Bybit Perpetuals. DEX: Uniswap v3 via 0x API. We ship new integrations regularly — vote for the next one in our community Discord.
-          </p>
-        </details>
-
-      </div>
-    </div>
-  </section>
-
-  <!-- CTA BAND -->
-  <section style="padding: 4rem 1.5rem;">
-    <div class="container">
-      <div class="cta-band">
-        <h2>Ready to Automate Your Edge?</h2>
-        <p>Join 500+ traders running CashClaw strategies around the clock. Start free — no credit card required.</p>
-        <div style="display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap;">
-          <a href="/api/checkout?tier=free" class="btn-primary">Start Free Today</a>
-          <a href="https://polar.sh/cashclaw/checkout?product=3a7eff03-acee-4bf0-99b7-882d9a1192ae"
-             class="btn-secondary"
-             target="_blank" rel="noopener noreferrer">
-            Go Pro — $29/mo
-          </a>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- FOOTER -->
-  <footer>
-    <div class="footer-inner">
-      <a href="/" class="footer-logo">Cash<span class="claw">Claw</span></a>
-      <ul class="footer-links">
-        <li><a href="#how-it-works">How It Works</a></li>
-        <li><a href="#features">Features</a></li>
-        <li><a href="#pricing">Pricing</a></li>
-        <li><a href="#faq">FAQ</a></li>
-        <li><a href="/docs">Docs</a></li>
-        <li><a href="/status">Status</a></li>
-        <li><a href="/privacy">Privacy</a></li>
-        <li><a href="/terms">Terms</a></li>
+    <div class="price-card">
+      <div class="price-tier">Free</div>
+      <div class="price-amount">$0<span>/mo</span></div>
+      <div class="price-desc">Get started with core features</div>
+      <ul class="price-features">
+        <li>2 active strategies</li>
+        <li>Basic dashboard</li>
+        <li>10 API calls/min</li>
+        <li>Community support</li>
+        <li>Backtest runner</li>
       </ul>
-      <div class="footer-right">
-        <div class="footer-copy">&copy; 2026 CashClaw. All rights reserved.</div>
-        <div class="footer-powered">Powered by <a href="https://openclaw.ai" target="_blank" rel="noopener">OpenClaw AI</a></div>
-      </div>
+      <a href="/dashboard" class="btn-cta btn-outline price-cta">Get Started</a>
     </div>
-  </footer>
 
-  <script>
-    // CSS-only scroll reveal — minimal JS to add .visible class
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((e) => {
-          if (e.isIntersecting) {
-            e.target.classList.add('visible');
-            observer.unobserve(e.target);
-          }
-        });
-      },
-      { threshold: 0.12 }
-    );
-    document.querySelectorAll('.reveal').forEach((el) => observer.observe(el));
-  </script>
+    <div class="price-card popular">
+      <div class="price-tier">Pro</div>
+      <div class="price-amount">$29<span>/mo</span></div>
+      <div class="price-desc">For serious traders</div>
+      <ul class="price-features">
+        <li>Unlimited strategies</li>
+        <li>Copy trading access</li>
+        <li>OpenClaw AI (100 calls/mo)</li>
+        <li>60 API calls/min</li>
+        <li>Telegram alerts</li>
+        <li>Priority support</li>
+      </ul>
+      <a href="/api/checkout" class="btn-cta btn-primary price-cta" onclick="checkout('pro')">Upgrade to Pro</a>
+    </div>
 
+    <div class="price-card">
+      <div class="price-tier">Enterprise</div>
+      <div class="price-amount">$199<span>/mo</span></div>
+      <div class="price-desc">Maximum edge</div>
+      <ul class="price-features">
+        <li>Everything in Pro</li>
+        <li>Unlimited AI calls</li>
+        <li>300 API calls/min</li>
+        <li>Strategy marketplace</li>
+        <li>Custom strategy deployment</li>
+        <li>Dedicated support</li>
+      </ul>
+      <a href="/api/checkout" class="btn-cta btn-outline price-cta" onclick="checkout('enterprise')">Contact Sales</a>
+    </div>
+
+  </div>
+</section>
+
+<footer>
+  CashClaw &copy; 2026. Algorithmic Trading as a Service. Built with OpenClaw AI.
+</footer>
+
+<script>
+async function checkout(tier) {
+  event.preventDefault();
+  try {
+    const res = await fetch('/api/checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tier }),
+    });
+    const data = await res.json();
+    if (data.checkoutUrl) window.location.href = data.checkoutUrl;
+    else alert(data.error || 'Checkout unavailable');
+  } catch (err) {
+    alert('Checkout error: ' + err.message);
+  }
+}
+</script>
 </body>
 </html>

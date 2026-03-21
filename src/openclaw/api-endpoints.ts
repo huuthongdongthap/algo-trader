@@ -6,6 +6,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { AiRouter } from './ai-router.js';
 import { loadOpenClawConfig } from './openclaw-config.js';
 import { isAutoTuningEnabled, setAutoTuningEnabled } from './auto-tuning-job.js';
+import { checkOllamaHealth, autoSelectModels } from './ollama-health-check.js';
 import { recordAiCall, getAiUsage, canMakeAiCall, getAllAiUsage } from './ai-usage-meter.js';
 import type { Tier } from '../users/subscription-tier.js';
 
@@ -271,6 +272,16 @@ export async function handleOpenClawRequest(
     if (!body.strategy) { sendError(res, 400, 'Missing required field: strategy'); return; }
     const success = deps.tuningExecutor.rollback(body.strategy);
     sendJson(res, success ? 200 : 404, { ok: success, strategy: body.strategy, message: success ? 'Rolled back' : 'No snapshot available' });
+    return;
+  }
+
+  if (pathname === '/openclaw/ollama-health') {
+    if (method !== 'GET') { sendError(res, 405, 'Method Not Allowed'); return; }
+    const config = loadOpenClawConfig();
+    const ollamaUrl = config.gatewayUrl.replace('/v1', '');
+    const health = await checkOllamaHealth(ollamaUrl);
+    const recommended = health.healthy ? autoSelectModels(health.models) : null;
+    sendJson(res, health.healthy ? 200 : 503, { ok: health.healthy, ...health, recommendedModels: recommended });
     return;
   }
 
