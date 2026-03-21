@@ -7,6 +7,7 @@ import { DecisionLogger } from '../openclaw/decision-logger.js';
 import { AlgorithmTuner } from '../openclaw/algorithm-tuner.js';
 import { TuningExecutor } from '../openclaw/tuning-executor.js';
 import { TuningHistory } from '../openclaw/tuning-history.js';
+import { AiSignalGenerator } from '../openclaw/ai-signal-generator.js';
 import { loadOpenClawConfig } from '../openclaw/openclaw-config.js';
 import { logger } from '../core/logger.js';
 import type { OpenClawDeps } from '../openclaw/api-endpoints.js';
@@ -18,6 +19,7 @@ export interface OpenClawBundle {
   decisionLogger: DecisionLogger;
   tuningExecutor: TuningExecutor;
   tuningHistory: TuningHistory;
+  signalGenerator: AiSignalGenerator;
   deps: OpenClawDeps;
   /** Auto-tuning handler for scheduler registration */
   autoTuningHandler: () => Promise<void>;
@@ -65,6 +67,9 @@ export function wireOpenClaw(eventBus: EventBus): OpenClawBundle {
   const tuningExecutor = new TuningExecutor(tuner);
   const tuningHistory = new TuningHistory();
 
+  // AI Signal generator — generates trade signals from market analysis
+  const signalGenerator = new AiSignalGenerator(router);
+
   // Build deps for API endpoint handlers
   const deps: OpenClawDeps = {
     controller: router,
@@ -78,6 +83,7 @@ export function wireOpenClaw(eventBus: EventBus): OpenClawBundle {
     tuningExecutor: {
       rollback: (strategy: string) => tuningExecutor.rollback(strategy as any),
     },
+    signalGenerator,
   };
 
   // Auto-tuning handler — register with scheduler
@@ -89,5 +95,5 @@ export function wireOpenClaw(eventBus: EventBus): OpenClawBundle {
     authenticated: !!config.apiKey,
   });
 
-  return { router, observer, decisionLogger, tuningExecutor, tuningHistory, deps, autoTuningHandler };
+  return { router, observer, decisionLogger, tuningExecutor, tuningHistory, signalGenerator, deps, autoTuningHandler };
 }

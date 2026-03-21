@@ -690,6 +690,45 @@
     </div>
   </div>
 
+  <!-- AI Insights & Signals (Sprint 49) -->
+  <div class="panel" id="ai-insights-panel" style="grid-column:span 2">
+    <div class="panel-title">
+      <span>OpenClaw AI Insights</span>
+      <span id="ai-status-dot" style="width:8px;height:8px;border-radius:50%;background:var(--accent);display:inline-block"></span>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:6px;font-weight:600">Trade Signals</div>
+        <div id="ai-signals" style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto">
+          <div class="empty-state" style="padding:12px">Loading signals...</div>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--muted);margin-bottom:6px;font-weight:600">AI Health & Stats</div>
+        <div id="ai-health-info" style="display:flex;flex-direction:column;gap:6px">
+          <div class="empty-state" style="padding:12px">Loading...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI Chat (Sprint 49) -->
+  <div class="panel" id="ai-chat-panel">
+    <div class="panel-title">
+      <span>Chat with OpenClaw AI</span>
+      <span style="font-size:10px;color:var(--muted);font-weight:400">Pro/Enterprise</span>
+    </div>
+    <div id="ai-chat-messages" style="max-height:250px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;margin-bottom:8px">
+      <div style="padding:8px 12px;background:var(--surface2);border-radius:8px;font-size:12px;color:var(--muted)">
+        Ask me about strategies, markets, portfolio, or trading concepts.
+      </div>
+    </div>
+    <div style="display:flex;gap:6px">
+      <input id="ai-chat-input" type="text" placeholder="Ask OpenClaw AI..." style="flex:1;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px" onkeydown="if(event.key==='Enter')sendAiChat()">
+      <button onclick="sendAiChat()" style="padding:8px 16px;background:var(--accent);color:#000;border:none;border-radius:6px;font-weight:600;font-size:12px;cursor:pointer">Send</button>
+    </div>
+  </div>
+
 </main>
 
 <script>
@@ -1368,6 +1407,9 @@ function renderApiDocs() {
     { method: 'POST', path: '/api/openclaw/analyze', tier: 'pro', desc: 'AI market analysis' },
     { method: 'POST', path: '/api/openclaw/tune', tier: 'enterprise', desc: 'AI tune strategy' },
     { method: 'GET', path: '/api/openclaw/usage', tier: 'pro', desc: 'AI usage meter' },
+    { method: 'POST', path: '/api/openclaw/chat', tier: 'pro', desc: 'AI chat conversation' },
+    { method: 'GET', path: '/api/openclaw/signals', tier: 'pro', desc: 'AI trade signals' },
+    { method: 'POST', path: '/api/openclaw/signals/generate', tier: 'enterprise', desc: 'Generate AI signal' },
     { method: 'GET', path: '/api/admin/stats', tier: 'admin', desc: 'Admin user stats' },
     { method: 'GET', path: '/api/admin/revenue', tier: 'admin', desc: 'Revenue analytics' },
     { method: 'POST', path: '/api/referral/generate', tier: 'auth', desc: 'Generate referral code' },
@@ -1510,6 +1552,81 @@ async function fetchOnboarding() {
   } catch (e) { console.warn('Onboarding fetch error:', e); }
 }
 
+// ── AI Insights & Chat (Sprint 49) ───────────────────────────────────────────
+async function fetchAiInsights() {
+  try {
+    const res = await fetch('/dashboard/api/ai-insights');
+    const d = await res.json();
+    // Render signals
+    const sigEl = $('ai-signals');
+    if (d.signals && d.signals.length > 0) {
+      const actionColors = { buy: 'var(--accent)', sell: 'var(--loss)', hold: 'var(--muted)' };
+      sigEl.innerHTML = d.signals.map(s => `
+        <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--surface2);border-radius:6px;font-size:11px">
+          <span style="color:${actionColors[s.action] || 'var(--text)'};font-weight:700;text-transform:uppercase;width:32px">${s.action}</span>
+          <span style="font-weight:600;flex:1">${s.market}</span>
+          <span style="color:var(--muted)">${s.strategy}</span>
+          <span style="color:${s.confidence > 0.7 ? 'var(--accent)' : 'var(--warning)'}">${(s.confidence * 100).toFixed(0)}%</span>
+        </div>
+      `).join('');
+    }
+    // Render health info
+    const healthEl = $('ai-health-info');
+    const h = d.health || {};
+    const ai = d.aiStatus || {};
+    healthEl.innerHTML = `
+      <div style="padding:8px 12px;background:var(--surface2);border-radius:6px">
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+          <span>Assessment</span>
+          <span style="color:${h.assessment === 'healthy' ? 'var(--accent)' : 'var(--warning)'};font-weight:700">${h.assessment || 'N/A'}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+          <span>Confidence</span><span>${((h.confidence || 0) * 100).toFixed(0)}%</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+          <span>Gateway</span><span>${ai.gateway || 'N/A'}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+          <span>Model</span><span style="font-family:monospace">${ai.model || 'N/A'}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+          <span>API Calls</span><span>${ai.totalCalls || 0}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:12px">
+          <span>Latency</span><span>${ai.lastCallMs || 0}ms</span>
+        </div>
+      </div>
+      ${(h.insights || []).map(i => `<div style="font-size:11px;color:var(--muted);padding:4px 0">• ${i}</div>`).join('')}
+    `;
+  } catch (e) { console.warn('AI insights error:', e); }
+}
+
+let _chatHistory = [];
+async function sendAiChat() {
+  const input = $('ai-chat-input');
+  const msg = input.value.trim();
+  if (!msg) return;
+  input.value = '';
+  const container = $('ai-chat-messages');
+  container.innerHTML += `<div style="padding:6px 12px;background:var(--blue);border-radius:8px;font-size:12px;align-self:flex-end;max-width:80%">${msg}</div>`;
+  container.scrollTop = container.scrollHeight;
+  _chatHistory.push({ role: 'user', content: msg });
+  try {
+    const res = await fetch('/api/openclaw/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: msg, history: _chatHistory.slice(-10), context: 'general' }),
+    });
+    const d = await res.json();
+    const reply = d.reply || d.error || 'No response';
+    _chatHistory.push({ role: 'assistant', content: reply });
+    container.innerHTML += `<div style="padding:6px 12px;background:var(--surface2);border-radius:8px;font-size:12px;max-width:80%">${reply}</div>`;
+  } catch (e) {
+    container.innerHTML += `<div style="padding:6px 12px;background:var(--surface2);border-radius:8px;font-size:12px;color:var(--loss)">Chat unavailable — check API key & tier</div>`;
+  }
+  container.scrollTop = container.scrollHeight;
+}
+
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 (function init() {
   fetchAll();
@@ -1523,6 +1640,8 @@ async function fetchOnboarding() {
   fetchPaperTrading();
   fetchSystemHealth();
   fetchSdkExamples();
+  fetchAiInsights();
+  setInterval(fetchAiInsights, 20000);
   setInterval(fetchPaperTrading, 15000);
   setInterval(fetchSystemHealth, 30000);
   setInterval(fetchAll, 10000);

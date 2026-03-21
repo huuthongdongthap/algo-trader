@@ -31,6 +31,8 @@ import type { ServersBundle } from './wiring/servers-wiring.js';
 import type { NotificationsBundle } from './wiring/notifications-wiring.js';
 import { wireOpenClaw, type OpenClawBundle } from './wiring/openclaw-wiring.js';
 import { setOpenClawDeps } from './api/routes.js';
+import { getMarketplaceService } from './marketplace/marketplace-service.js';
+import { seedDemoStrategies } from './marketplace/seed-demo-strategies.js';
 
 // ── Ports ──────────────────────────────────────────────────────────────────
 
@@ -212,7 +214,16 @@ export async function startApp(): Promise<void> {
   // 18. Process signal handlers (SIGINT/SIGTERM/uncaughtException/unhandledRejection)
   wireProcessSignals({ eventBus, notifier: _notifier, stopApp });
 
-  // 19. Banner
+  // 19. Seed demo data for marketplace (idempotent)
+  try {
+    const mktSvc = getMarketplaceService(config.dbPath);
+    const seeded = seedDemoStrategies(mktSvc);
+    if (seeded > 0) logger.info(`Seeded ${seeded} demo marketplace strategies`, 'App');
+  } catch (err) {
+    logger.warn('Demo seeding skipped', 'App', { error: String(err) });
+  }
+
+  // 21. Banner
   printBanner(config.env, Object.keys(config.exchanges).join(', ') || 'none');
   logger.info('Platform ready', 'App', { version: APP_VERSION });
 }

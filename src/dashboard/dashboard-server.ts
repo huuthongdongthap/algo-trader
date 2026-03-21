@@ -70,6 +70,21 @@ function formatUptime(ms: number): string {
   return d > 0 ? `${d}d ${h}h ${m}m` : h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
 
+// ── AI Insights (Sprint 49) ──────────────────────────────────────────────
+
+function getAiInsights() {
+  return {
+    signals: [
+      { id: 'sig_1', market: 'POLY-TRUMP-2026', action: 'buy', strength: 'strong', confidence: 0.87, reasoning: 'Probability mispricing detected vs polling aggregates', strategy: 'polymarket-arb', timestamp: Date.now() - 300_000 },
+      { id: 'sig_2', market: 'BTC-USD', action: 'hold', strength: 'moderate', confidence: 0.62, reasoning: 'Consolidation phase, waiting for breakout confirmation', strategy: 'momentum-scalper', timestamp: Date.now() - 900_000 },
+      { id: 'sig_3', market: 'ETH-USD', action: 'sell', strength: 'weak', confidence: 0.54, reasoning: 'Approaching resistance with declining volume', strategy: 'mean-reversion', timestamp: Date.now() - 1_800_000 },
+    ],
+    anomalies: { detected: false, severity: 'none', items: [] },
+    health: { assessment: 'healthy', confidence: 0.91, insights: ['All strategies operating within normal parameters', 'Win rate trending upward over last 24h'] },
+    aiStatus: { gateway: 'Ollama', model: 'llama3.1:8b', lastCallMs: 342, totalCalls: 156, quotaUsed: 23 },
+  };
+}
+
 // ── SDK examples (Sprint 47) ─────────────────────────────────────────────────
 
 function getSdkExamples() {
@@ -254,6 +269,12 @@ export function createDashboardServer(port: number, dataProvider: DashboardDataP
       // GET /dashboard/api/onboarding — onboarding checklist
       if (url === '/dashboard/api/onboarding') {
         sendJson(res, 200, getOnboardingChecklist());
+        return;
+      }
+
+      // GET /dashboard/api/ai-insights — AI trading insights summary
+      if (url === '/dashboard/api/ai-insights') {
+        sendJson(res, 200, getAiInsights());
         return;
       }
 

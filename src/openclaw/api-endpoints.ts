@@ -8,6 +8,8 @@ import { loadOpenClawConfig } from './openclaw-config.js';
 import { isAutoTuningEnabled, setAutoTuningEnabled } from './auto-tuning-job.js';
 import { checkOllamaHealth, autoSelectModels } from './ollama-health-check.js';
 import { recordAiCall, getAiUsage, canMakeAiCall, getAllAiUsage } from './ai-usage-meter.js';
+import { handleAiChat, type ChatRequest } from './ai-chat-handler.js';
+import type { AiSignalGenerator } from './ai-signal-generator.js';
 import type { Tier } from '../users/subscription-tier.js';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -29,6 +31,8 @@ export interface OpenClawDeps {
   tuningHistory?: { getAll(): unknown[]; getEffectivenessReport(): unknown };
   /** Optional: tuning executor for rollback endpoint */
   tuningExecutor?: { rollback(strategy: string): boolean };
+  /** Optional: AI signal generator for trade signals */
+  signalGenerator?: AiSignalGenerator;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -282,6 +286,68 @@ export async function handleOpenClawRequest(
     const health = await checkOllamaHealth(ollamaUrl);
     const recommended = health.healthy ? autoSelectModels(health.models) : null;
     sendJson(res, health.healthy ? 200 : 503, { ok: health.healthy, ...health, recommendedModels: recommended });
+    return;
+  }
+
+  // POST /openclaw/chat — conversational AI chat (Pro/Enterprise)
+  if (pathname === '/openclaw/chat') {
+    if (method !== 'POST') { sendError(res, 405, 'Method Not Allowed'); return; }
+    if (!checkAiQuota(authedReq, res)) return;
+    let body: ChatRequest;
+    try { body = await readJsonBody<ChatRequest>(req); }
+    catch { sendError(res, 400, 'Invalid JSON body'); return; }
+    if (!body.message || typeof body.message !== 'string') {
+      sendError(res, 400, 'Missing required field: message'); return;
+    }
+    const router = deps.controller ?? new AiRouter();
+    try {
+      const result = await handleAiChat(body, router);
+      trackAiCall(authedReq, result.tokensUsed);
+      sendJson(res, 200, { ok: true, ...result, timestamp: Date.now() });
+    } catch (err) {
+      sendError(res, 502, `AI chat failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    return;
+  }
+
+  // GET /openclaw/signals — get AI-generated trade signals
+  if (pathname === '/openclaw/signals') {
+    if (method !== 'GET') { sendError(res, 405, 'Method Not Allowed'); return; }
+    if (!deps.signalGenerator) {
+      sendJson(res, 200, { ok: true, signals: [], stats: { totalSignals: 0, actionBreakdown: { buy: 0, sell: 0, hold: 0 }, avgConfidence: 0, markets: [] } });
+      return;
+    }
+    const url = new URL(req.url ?? '/', `http://${req.headers.host ?? 'localhost'}`);
+    const market = url.searchParams.get('market') ?? undefined;
+    const limit = parseInt(url.searchParams.get('limit') ?? '50', 10);
+    sendJson(res, 200, {
+      ok: true,
+      signals: deps.signalGenerator.getSignals(market, limit),
+      stats: deps.signalGenerator.getStats(),
+    });
+    return;
+  }
+
+  // POST /openclaw/signals/generate — trigger AI signal generation
+  if (pathname === '/openclaw/signals/generate') {
+    if (method !== 'POST') { sendError(res, 405, 'Method Not Allowed'); return; }
+    if (!checkAiQuota(authedReq, res)) return;
+    if (!deps.signalGenerator) { sendError(res, 503, 'Signal generator not configured'); return; }
+    let body: { market?: string; strategy?: string; data?: Record<string, unknown> };
+    try { body = await readJsonBody(req); }
+    catch { sendError(res, 400, 'Invalid JSON body'); return; }
+    if (!body.market) { sendError(res, 400, 'Missing required field: market'); return; }
+    try {
+      const signal = await deps.signalGenerator.generateSignal(
+        body.market,
+        body.strategy ?? 'general',
+        body.data ?? {},
+      );
+      trackAiCall(authedReq, 256);
+      sendJson(res, 200, { ok: true, signal });
+    } catch (err) {
+      sendError(res, 502, `Signal generation failed: ${err instanceof Error ? err.message : String(err)}`);
+    }
     return;
   }
 
