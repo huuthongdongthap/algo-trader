@@ -27,3 +27,25 @@ export {
   createRequestHandler,
 } from './api-wiring.js';
 export type { ApiDependencies } from './api-wiring.js';
+
+export {
+  createTradingPipeline,
+  startLandingServer,
+  startWsServer,
+  startAllServers,
+  stopAllServers,
+} from './servers-wiring.js';
+export type {
+  ServersBundle,
+  ServersShutdownHandles,
+} from './servers-wiring.js';
+
+export {
+  startRecoveryManager,
+  startScheduler,
+  wireProcessSignals,
+} from './process-wiring.js';
+export type {
+  RecoveryAutoSaveContext,
+  SignalHandlerDeps,
+} from './process-wiring.js';

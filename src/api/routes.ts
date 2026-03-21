@@ -2,22 +2,14 @@
 // Each handler receives (req, res, engine) - pure Node.js, no framework
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { TradingEngine } from '../engine/engine.js';
-import type { StrategyName } from '../core/types.js';
 import type { UserStore } from '../users/user-store.js';
 import { handleCheckout, handlePolarWebhookRoute } from './polar-billing-routes.js';
+import { handleHealthEnriched } from './health-route.js';
+import { handleMetrics } from './metrics-route.js';
+import { withRequestMetrics } from './request-metrics-middleware.js';
+import { handleStrategyStart, handleStrategyStop } from './strategy-route-handlers.js';
 
-const VALID_STRATEGIES = new Set<string>([
-  'cross-market-arb',
-  'market-maker',
-  'grid-trading',
-  'dca-bot',
-  'funding-rate-arb',
-]);
-
-/** Server start time for uptime calculation */
-const SERVER_START = Date.now();
-
-// ─── Response helpers ────────────────────────────────────────────────────────
+// ─── Response helpers ─────────────────────────────────────────────────────────
 
 function sendJson(res: ServerResponse, status: number, data: unknown): void {
   const body = JSON.stringify(data);
@@ -36,43 +28,22 @@ function sendMethodNotAllowed(res: ServerResponse): void {
   sendJson(res, 405, { error: 'Method Not Allowed' });
 }
 
-// ─── Body parser ─────────────────────────────────────────────────────────────
+// ─── Route handlers ───────────────────────────────────────────────────────────
 
-/** Read and parse JSON body from POST requests */
-async function readJsonBody<T = Record<string, unknown>>(req: IncomingMessage): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const chunks: Buffer[] = [];
-    req.on('data', (chunk: Buffer) => chunks.push(chunk));
-    req.on('end', () => {
-      try {
-        const raw = Buffer.concat(chunks).toString('utf8');
-        resolve(raw ? (JSON.parse(raw) as T) : ({} as T));
-      } catch {
-        reject(new Error('Invalid JSON body'));
-      }
-    });
-    req.on('error', reject);
-  });
-}
+/** GET /api/health - enriched health check (delegates to health-route.ts) */
+export { handleHealthEnriched as handleHealth };
 
-// ─── Route handlers ──────────────────────────────────────────────────────────
+/** GET /api/metrics - Prometheus text format (delegates to metrics-route.ts) */
+export { handleMetrics };
 
-/** GET /api/health - public health check */
-export function handleHealth(_req: IncomingMessage, res: ServerResponse): void {
-  sendJson(res, 200, {
-    status: 'ok',
-    timestamp: Date.now(),
-    uptime: Date.now() - SERVER_START,
-  });
-}
+/** POST /api/strategy/start|stop - delegated to strategy-route-handlers.ts */
+export { handleStrategyStart, handleStrategyStop };
 
-/** GET /api/status - engine status including strategies and trade count */
+const STATUS_START = Date.now();
+
+/** GET /api/status - engine status + uptime */
 export function handleStatus(_req: IncomingMessage, res: ServerResponse, engine: TradingEngine): void {
-  const status = engine.getStatus();
-  sendJson(res, 200, {
-    ...status,
-    uptime: Date.now() - SERVER_START,
-  });
+  sendJson(res, 200, { ...engine.getStatus(), uptime: Date.now() - STATUS_START });
 }
 
 /** GET /api/trades - recent trade log (last 100) */
@@ -84,16 +55,12 @@ export function handleTrades(_req: IncomingMessage, res: ServerResponse, engine:
 /** GET /api/pnl - P&L summary derived from trade log */
 export function handlePnl(_req: IncomingMessage, res: ServerResponse, engine: TradingEngine): void {
   const trades = engine.getExecutor().getTradeLog();
-
-  // Aggregate fees and trade counts per strategy from trade log
   let totalFees = 0;
   const byStrategy: Record<string, number> = {};
-
   for (const t of trades) {
     totalFees += parseFloat(t.fees);
     byStrategy[t.strategy] = (byStrategy[t.strategy] ?? 0) + 1;
   }
-
   sendJson(res, 200, {
     totalFees: totalFees.toFixed(6),
     tradeCount: trades.length,
@@ -101,71 +68,7 @@ export function handlePnl(_req: IncomingMessage, res: ServerResponse, engine: Tr
   });
 }
 
-/** POST /api/strategy/start - start a named strategy */
-export async function handleStrategyStart(
-  req: IncomingMessage,
-  res: ServerResponse,
-  engine: TradingEngine,
-): Promise<void> {
-  let body: { name?: string };
-  try {
-    body = await readJsonBody<{ name?: string }>(req);
-  } catch {
-    sendJson(res, 400, { error: 'Invalid JSON body' });
-    return;
-  }
-
-  const { name } = body;
-  if (!name || !VALID_STRATEGIES.has(name)) {
-    sendJson(res, 400, {
-      error: 'Invalid strategy name',
-      valid: [...VALID_STRATEGIES],
-    });
-    return;
-  }
-
-  try {
-    await engine.getRunner().startStrategy(name as StrategyName);
-    sendJson(res, 200, { ok: true, strategy: name, action: 'started' });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    sendJson(res, 500, { error: 'Failed to start strategy', message });
-  }
-}
-
-/** POST /api/strategy/stop - stop a named strategy */
-export async function handleStrategyStop(
-  req: IncomingMessage,
-  res: ServerResponse,
-  engine: TradingEngine,
-): Promise<void> {
-  let body: { name?: string };
-  try {
-    body = await readJsonBody<{ name?: string }>(req);
-  } catch {
-    sendJson(res, 400, { error: 'Invalid JSON body' });
-    return;
-  }
-
-  const { name } = body;
-  if (!name || !VALID_STRATEGIES.has(name)) {
-    sendJson(res, 400, {
-      error: 'Invalid strategy name',
-      valid: [...VALID_STRATEGIES],
-    });
-    return;
-  }
-
-  try {
-    await engine.getRunner().stopStrategy(name as StrategyName);
-    sendJson(res, 200, { ok: true, strategy: name, action: 'stopped' });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    sendJson(res, 500, { error: 'Failed to stop strategy', message });
-  }
-}
-
-// ─── Main router ─────────────────────────────────────────────────────────────
+// ─── Main router ──────────────────────────────────────────────────────────────
 
 /** Route incoming request to appropriate handler */
 export async function handleRequest(
@@ -177,55 +80,46 @@ export async function handleRequest(
 ): Promise<void> {
   const method = req.method ?? 'GET';
 
+  // Health and metrics bypass metrics middleware to avoid circularity
   if (pathname === '/api/health') {
     if (method !== 'GET') { sendMethodNotAllowed(res); return; }
-    handleHealth(req, res);
+    handleHealthEnriched(req, res, engine);
     return;
   }
 
-  if (pathname === '/api/status') {
+  if (pathname === '/api/metrics') {
     if (method !== 'GET') { sendMethodNotAllowed(res); return; }
-    handleStatus(req, res, engine);
+    handleMetrics(req, res);
     return;
   }
 
-  if (pathname === '/api/trades') {
-    if (method !== 'GET') { sendMethodNotAllowed(res); return; }
-    handleTrades(req, res, engine);
-    return;
-  }
-
-  if (pathname === '/api/pnl') {
-    if (method !== 'GET') { sendMethodNotAllowed(res); return; }
-    handlePnl(req, res, engine);
-    return;
-  }
-
-  if (pathname === '/api/strategy/start') {
-    if (method !== 'POST') { sendMethodNotAllowed(res); return; }
-    await handleStrategyStart(req, res, engine);
-    return;
-  }
-
-  if (pathname === '/api/strategy/stop') {
-    if (method !== 'POST') { sendMethodNotAllowed(res); return; }
-    await handleStrategyStop(req, res, engine);
-    return;
-  }
-
-  if (pathname === '/api/checkout') {
-    if (method !== 'POST') { sendMethodNotAllowed(res); return; }
-    if (!userStore) { sendJson(res, 503, { error: 'Billing not configured' }); return; }
-    await handleCheckout(req, res, userStore);
-    return;
-  }
-
-  if (pathname === '/api/webhooks/polar') {
-    if (method !== 'POST') { sendMethodNotAllowed(res); return; }
-    if (!userStore) { sendJson(res, 503, { error: 'Billing not configured' }); return; }
-    await handlePolarWebhookRoute(req, res, userStore);
-    return;
-  }
-
-  sendNotFound(res);
+  // All other routes tracked via request metrics middleware
+  await withRequestMetrics(req, res, pathname, async () => {
+    if (pathname === '/api/status') {
+      if (method !== 'GET') { sendMethodNotAllowed(res); return; }
+      handleStatus(req, res, engine);
+    } else if (pathname === '/api/trades') {
+      if (method !== 'GET') { sendMethodNotAllowed(res); return; }
+      handleTrades(req, res, engine);
+    } else if (pathname === '/api/pnl') {
+      if (method !== 'GET') { sendMethodNotAllowed(res); return; }
+      handlePnl(req, res, engine);
+    } else if (pathname === '/api/strategy/start') {
+      if (method !== 'POST') { sendMethodNotAllowed(res); return; }
+      await handleStrategyStart(req, res, engine);
+    } else if (pathname === '/api/strategy/stop') {
+      if (method !== 'POST') { sendMethodNotAllowed(res); return; }
+      await handleStrategyStop(req, res, engine);
+    } else if (pathname === '/api/checkout') {
+      if (method !== 'POST') { sendMethodNotAllowed(res); return; }
+      if (!userStore) { sendJson(res, 503, { error: 'Billing not configured' }); return; }
+      await handleCheckout(req, res, userStore);
+    } else if (pathname === '/api/webhooks/polar') {
+      if (method !== 'POST') { sendMethodNotAllowed(res); return; }
+      if (!userStore) { sendJson(res, 503, { error: 'Billing not configured' }); return; }
+      await handlePolarWebhookRoute(req, res, userStore);
+    } else {
+      sendNotFound(res);
+    }
+  }, engine.isRunning());
 }

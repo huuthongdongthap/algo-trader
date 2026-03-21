@@ -6,10 +6,18 @@ module.exports = {
       script: 'npx',
       args: 'tsx src/app.ts',
       cwd: '/Users/macbook/projects/algo-trader',
+      // Default env (development)
       env: {
+        NODE_ENV: 'development',
+        LOG_LEVEL: 'debug',
+        DB_PATH: './data/algo-trade.db',
+      },
+      // Production env overrides - activated via: pm2 start ecosystem.config.cjs --env production
+      env_production: {
         NODE_ENV: 'production',
         LOG_LEVEL: 'info',
         DB_PATH: './data/algo-trade.db',
+        PORT: '3000',
       },
       instances: 1,
       autorestart: true,

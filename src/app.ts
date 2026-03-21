@@ -3,7 +3,6 @@
 import type { Server } from 'node:http';
 import { loadConfig, validateConfig } from './core/config.js';
 import { logger } from './core/logger.js';
-import { RiskManager } from './core/risk-manager.js';
 import { getEventBus } from './events/event-bus.js';
 import { EventLogger } from './events/event-logger.js';
 import { getDatabase } from './data/database.js';
@@ -14,21 +13,28 @@ import { DashboardDataProvider } from './dashboard/dashboard-data.js';
 import { createWebhookServer, stopWebhookServer } from './webhooks/webhook-server.js';
 import { NotificationRouter } from './notifications/notification-router.js';
 import { JobScheduler } from './scheduler/job-scheduler.js';
-import { registerBuiltInJobs } from './scheduler/job-registry.js';
 import { RecoveryManager } from './resilience/recovery-manager.js';
+import { startAllServers, stopAllServers } from './wiring/servers-wiring.js';
+import { startRecoveryManager, startScheduler, wireProcessSignals } from './wiring/process-wiring.js';
+import type { ServersBundle } from './wiring/servers-wiring.js';
+
+// ── Ports ──────────────────────────────────────────────────────────────────
+
+const APP_VERSION    = '0.1.0';
+const API_PORT       = Number(process.env['API_PORT'])       || 3000;
+const DASHBOARD_PORT = Number(process.env['DASHBOARD_PORT']) || 3001;
+const LANDING_PORT   = Number(process.env['LANDING_PORT'])   || 3002;
+const WS_PORT        = Number(process.env['WS_PORT'])        || 3003;
+const WEBHOOK_PORT   = Number(process.env['WEBHOOK_PORT'])   || 3004;
+const AUTO_SAVE_MS   = 5 * 60 * 1000;
 
 // ── Module-level state ─────────────────────────────────────────────────────
-
-const APP_VERSION = '0.1.0';
-const API_PORT = 3000;
-const DASHBOARD_PORT = 3001;
-const WEBHOOK_PORT = 3002;
-const AUTO_SAVE_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
 let _engine: TradingEngine | null = null;
 let _apiServer: Server | null = null;
 let _dashServer: Server | null = null;
 let _webhookServer: Server | null = null;
+let _supplementary: ServersBundle | null = null;
 let _scheduler: JobScheduler | null = null;
 let _recovery: RecoveryManager | null = null;
 let _notifier: NotificationRouter | null = null;
@@ -36,62 +42,44 @@ let _stopping = false;
 
 // ── Banner ─────────────────────────────────────────────────────────────────
 
-function printBanner(config: ReturnType<typeof loadConfig>): void {
-  const enabledExchanges = Object.keys(config.exchanges).join(', ') || 'none';
-  const lines = [
+function printBanner(env: string, exchanges: string): void {
+  const pad = (s: string) => s.slice(0, 30).padEnd(30);
+  console.log([
     '╔══════════════════════════════════════════════╗',
     `║       algo-trade RaaS  v${APP_VERSION}              ║`,
     '╠══════════════════════════════════════════════╣',
     `║  API        → http://localhost:${API_PORT}          ║`,
     `║  Dashboard  → http://localhost:${DASHBOARD_PORT}          ║`,
+    `║  Landing    → http://localhost:${LANDING_PORT}          ║`,
+    `║  WebSocket  → ws://localhost:${WS_PORT}             ║`,
     `║  Webhook    → http://localhost:${WEBHOOK_PORT}          ║`,
-    `║  Env        → ${config.env.padEnd(30)}║`,
-    `║  Exchanges  → ${enabledExchanges.slice(0, 30).padEnd(30)}║`,
+    `║  Env        → ${pad(env)}║`,
+    `║  Exchanges  → ${pad(exchanges)}║`,
     '╚══════════════════════════════════════════════╝',
-  ];
-  for (const line of lines) console.log(line);
+  ].join('\n'));
 }
 
 // ── Graceful shutdown ──────────────────────────────────────────────────────
 
-/** Gracefully stop all running services and save state before exit. */
 export async function stopApp(reason = 'manual'): Promise<void> {
   if (_stopping) return;
   _stopping = true;
-
   logger.info(`Shutting down (${reason})…`, 'App');
-
   try {
-    // 1. Stop trading engine first — no more orders
-    if (_engine) {
-      await _engine.shutdown(reason);
-      _engine = null;
-    }
+    if (_engine) { await _engine.shutdown(reason); _engine = null; }
 
-    // 2. Stop HTTP servers in parallel
     await Promise.allSettled([
-      _apiServer ? stopServer(_apiServer) : Promise.resolve(),
-      _dashServer ? stopDashboardServer(_dashServer) : Promise.resolve(),
+      _apiServer     ? stopServer(_apiServer)            : Promise.resolve(),
+      _dashServer    ? stopDashboardServer(_dashServer)  : Promise.resolve(),
       _webhookServer ? stopWebhookServer(_webhookServer) : Promise.resolve(),
+      _supplementary ? stopAllServers(_supplementary)    : Promise.resolve(),
     ]);
-    _apiServer = _dashServer = _webhookServer = null;
+    _apiServer = _dashServer = _webhookServer = _supplementary = null;
 
-    // 3. Stop scheduler jobs
-    if (_scheduler) {
-      _scheduler.stop();
-      _scheduler = null;
-    }
+    if (_scheduler) { _scheduler.stop(); _scheduler = null; }
+    if (_recovery)  { _recovery.stopAutoSave(); _recovery.clearState(); _recovery = null; }
 
-    // 4. Save final recovery state + clear clean-shutdown marker
-    if (_recovery) {
-      _recovery.stopAutoSave();
-      _recovery.clearState(); // clean exit — skip recovery on next start
-      _recovery = null;
-    }
-
-    // 5. Close database
     getDatabase().close();
-
     logger.info('Shutdown complete', 'App');
   } catch (err) {
     logger.error('Error during shutdown', 'App', { error: String(err) });
@@ -100,59 +88,40 @@ export async function stopApp(reason = 'manual'): Promise<void> {
 
 // ── Startup ────────────────────────────────────────────────────────────────
 
-/** Boot the entire application. Returns once all services are ready. */
 export async function startApp(): Promise<void> {
-  // ── 1. Config ────────────────────────────────────────────────────────────
+  // 1. Config
   const config = loadConfig();
-  const configErrors = validateConfig(config);
-  if (configErrors.length > 0) {
-    logger.warn('Config warnings detected', 'App', { warnings: configErrors });
-  }
+  const warnings = validateConfig(config);
+  if (warnings.length > 0) logger.warn('Config warnings', 'App', { warnings });
 
-  // ── 2. Logger ────────────────────────────────────────────────────────────
+  // 2. Logger
   logger.setLevel(config.logLevel);
   logger.info('Starting algo-trade platform', 'App', { version: APP_VERSION, env: config.env });
 
-  // ── 3. Event bus + event logger ──────────────────────────────────────────
+  // 3. Event bus + event logger
   const eventBus = getEventBus();
-  const eventLogger = new EventLogger();
-  eventLogger.startLogging(eventBus, { logLevel: 'debug' });
-
+  new EventLogger().startLogging(eventBus, { logLevel: 'debug' });
   eventBus.emit('system.startup', { version: APP_VERSION, timestamp: Date.now() });
 
-  // ── 4. Database ──────────────────────────────────────────────────────────
+  // 4. Database
   const db = getDatabase(config.dbPath);
   logger.info('Database initialised', 'App', { path: config.dbPath });
 
-  // ── 5. Risk manager ──────────────────────────────────────────────────────
-  const riskManager = new RiskManager(config.riskLimits);
-  logger.info('Risk manager initialised', 'App', {
-    maxDrawdown: config.riskLimits.maxDrawdown,
-    maxPositions: config.riskLimits.maxOpenPositions,
-  });
-
-  // ── 6. Trading engine ────────────────────────────────────────────────────
+  // 5. Trading engine
   _engine = new TradingEngine();
   logger.info('Trading engine initialised', 'App');
 
-  // ── 7. API server (port 3000) ────────────────────────────────────────────
+  // 6. API server (port 3000) — auth middleware + rate limiter wired inside createServer
   _apiServer = createServer(API_PORT, _engine);
   logger.info('API server started', 'App', { port: API_PORT });
 
-  // ── 8. Dashboard server (port 3001) ──────────────────────────────────────
-  // portfolio tracker is optional — pass undefined to use engine-only metrics
-  const dashboardData = new DashboardDataProvider(_engine);
-  _dashServer = createDashboardServer(DASHBOARD_PORT, dashboardData);
+  // 7. Dashboard server (port 3001)
+  _dashServer = createDashboardServer(DASHBOARD_PORT, new DashboardDataProvider(_engine));
   logger.info('Dashboard server started', 'App', { port: DASHBOARD_PORT });
 
-  // ── 9. Webhook server (port 3002) ────────────────────────────────────────
+  // 8. Webhook server (port 3004)
   _webhookServer = createWebhookServer(WEBHOOK_PORT, async (signal) => {
-    logger.info('Webhook signal received', 'App', {
-      symbol: signal.symbol,
-      side: signal.side,
-      source: signal.source,
-    });
-    // Route signal to engine via event bus
+    logger.info('Webhook signal received', 'App', { symbol: signal.symbol, side: signal.side });
     eventBus.emit('alert.triggered', {
       rule: 'webhook',
       message: `${signal.side} ${signal.symbol} @ ${signal.price ?? 'market'}`,
@@ -160,83 +129,36 @@ export async function startApp(): Promise<void> {
   });
   logger.info('Webhook server started', 'App', { port: WEBHOOK_PORT });
 
-  // ── 10. Notification router ──────────────────────────────────────────────
+  // 9. Supplementary servers: trading pipeline (paper mode default), landing page, WebSocket
+  _supplementary = await startAllServers(LANDING_PORT, WS_PORT, {
+    paperTrading: true,
+    dbPath: config.dbPath,
+  });
+  logger.info('Supplementary servers started', 'App', {
+    landing: LANDING_PORT, ws: WS_PORT,
+    pipeline: _supplementary.pipeline.getStatus(),
+  });
+
+  // 10. Notification router
   _notifier = new NotificationRouter();
-  // Channels are registered by env-driven setup; router starts empty but wired
-  logger.info('Notification router initialised', 'App', {
-    channels: _notifier.enabledChannels(),
-  });
+  logger.info('Notification router initialised', 'App', { channels: _notifier.enabledChannels() });
 
-  // ── 11. Scheduler + built-in jobs ────────────────────────────────────────
+  // 11. Scheduler + built-in jobs
   _scheduler = new JobScheduler();
-  registerBuiltInJobs(_scheduler);
-  logger.info('Scheduler started with built-in jobs', 'App');
+  startScheduler(_scheduler);
 
-  // ── 12. Recovery manager ─────────────────────────────────────────────────
+  // 12. Recovery manager
   _recovery = new RecoveryManager();
-
-  if (_recovery.shouldRecover()) {
-    const state = _recovery.loadState();
-    if (state) {
-      logger.info('Recovering from previous crash', 'App', {
-        strategies: state.strategies.length,
-        positions: state.positions.length,
-        lastEquity: state.lastEquity,
-      });
-    }
-  }
-
-  // Start periodic auto-save of recovery state
-  _recovery.startAutoSave(AUTO_SAVE_INTERVAL_MS, () => ({
+  startRecoveryManager(_recovery, AUTO_SAVE_MS, {
     strategies: config.strategies,
-    positions: db.getOpenPositions().map((p) => ({
-      marketId: p.market,
-      side: p.side as 'long' | 'short',
-      entryPrice: p.entry_price,
-      size: p.size,
-      unrealizedPnl: p.unrealized_pnl,
-      openedAt: p.opened_at,
-    })),
-    lastEquity: '0', // placeholder — real impl fetches from portfolio tracker
-    timestamp: Date.now(),
-  }));
-
-  logger.info('Recovery manager started', 'App');
-
-  // ── Signal handlers ───────────────────────────────────────────────────────
-  const onSignal = async (signal: string) => {
-    logger.info(`Received ${signal}`, 'App');
-    eventBus.emit('system.shutdown', { reason: signal });
-    await stopApp(signal);
-    process.exit(0);
-  };
-
-  process.once('SIGINT', () => { void onSignal('SIGINT'); });
-  process.once('SIGTERM', () => { void onSignal('SIGTERM'); });
-
-  // ── Uncaught exception safety net ────────────────────────────────────────
-  process.on('uncaughtException', async (err) => {
-    logger.error('Uncaught exception — initiating emergency shutdown', 'App', {
-      error: err.message,
-      stack: err.stack,
-    });
-    try {
-      await _notifier?.send(`[CRITICAL] Uncaught exception: ${err.message}`);
-    } catch { /* notification failure must not block shutdown */ }
-    await stopApp('uncaughtException');
-    process.exit(1);
+    getOpenPositions: () => db.getOpenPositions(),
   });
 
-  process.on('unhandledRejection', async (reason) => {
-    const message = reason instanceof Error ? reason.message : String(reason);
-    logger.error('Unhandled promise rejection', 'App', { reason: message });
-    try {
-      await _notifier?.send(`[ERROR] Unhandled rejection: ${message}`);
-    } catch { /* ignore notification errors */ }
-  });
+  // 13. Process signal handlers (SIGINT/SIGTERM/uncaughtException/unhandledRejection)
+  wireProcessSignals({ eventBus, notifier: _notifier, stopApp });
 
-  // ── Banner ────────────────────────────────────────────────────────────────
-  printBanner(config);
+  // 14. Banner
+  printBanner(config.env, Object.keys(config.exchanges).join(', ') || 'none');
   logger.info('Platform ready', 'App', { version: APP_VERSION });
 }
 
