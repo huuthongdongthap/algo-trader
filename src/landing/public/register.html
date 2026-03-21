@@ -212,12 +212,27 @@
         // Store JWT for subsequent requests
         localStorage.setItem('algo_token', data.token);
 
-        // Show API key before redirect
+        // Show API key + quickstart before redirect
         if (data.user?.apiKey) {
           apiKeyValue.textContent = data.user.apiKey;
           apiKeyBox.classList.add('visible');
-          submitBtn.textContent = 'Redirecting to dashboard...';
-          setTimeout(() => { window.location.href = '/dashboard'; }, 3000);
+          submitBtn.textContent = 'Go to Dashboard →';
+          submitBtn.disabled = false;
+          submitBtn.onclick = () => { window.location.href = '/dashboard'; };
+          // Show quickstart tips
+          const tips = document.createElement('div');
+          tips.className = 'api-key-box visible';
+          tips.style.marginTop = '1rem';
+          tips.innerHTML = `
+            <p style="font-weight:600;margin-bottom:0.5rem">Quick Start:</p>
+            <p>1. Your API key is above — save it securely</p>
+            <p>2. Paper trading is ON by default (no risk)</p>
+            <p>3. Click "Go to Dashboard" to start a strategy</p>
+            <p style="margin-top:0.5rem;font-size:0.8rem;color:#64748b">
+              API docs: <a href="/api/docs" style="color:#00d4aa">/api/docs</a> |
+              Quickstart: <a href="/api/onboarding/quickstart" style="color:#00d4aa">/api/onboarding/quickstart</a>
+            </p>`;
+          apiKeyBox.parentNode.insertBefore(tips, apiKeyBox.nextSibling);
         } else {
           window.location.href = '/dashboard';
         }

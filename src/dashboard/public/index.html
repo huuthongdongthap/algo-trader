@@ -686,10 +686,31 @@ function handleWsMessage(msg) {
   }
 }
 
-// ── Strategy toggle (sends to server — stub for now) ──────────────────────────
-function toggleStrategy(name, enabled) {
-  // Wire to REST endpoint or WS command when implemented
-  console.log(`[Dashboard] Strategy toggle: ${name} → ${enabled}`);
+// ── Strategy toggle — calls REST API ──────────────────────────────────────────
+async function toggleStrategy(name, enabled) {
+  const endpoint = enabled ? '/api/strategy/start' : '/api/strategy/stop';
+  const token = localStorage.getItem('jwt');
+  const apiKey = localStorage.getItem('apiKey');
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  else if (apiKey) headers['Authorization'] = `ApiKey ${apiKey}`;
+
+  try {
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ strategy: name }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      alert(`Failed to ${enabled ? 'start' : 'stop'} ${name}: ${data.error || data.message}`);
+      // Revert toggle
+      fetchAll();
+    }
+  } catch (err) {
+    alert(`Network error: ${err.message}`);
+    fetchAll();
+  }
 }
 
 // ── Logout ────────────────────────────────────────────────────────────────────
