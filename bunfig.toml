@@ -1,0 +1,6 @@
+[install]
+peer = false
+optional = true
+
+[run]
+bun = true

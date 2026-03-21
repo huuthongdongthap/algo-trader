@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Algo-Trade Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0d1117;
+      --surface:  #161b22;
+      --border:   #30363d;
+      --text:     #e6edf3;
+      --muted:    #8b949e;
+      --green:    #3fb950;
+      --red:      #f85149;
+      --blue:     #58a6ff;
+      --yellow:   #d29922;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-size: 14px;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+    }
+    header h1 { font-size: 18px; font-weight: 600; color: var(--blue); }
+    #status-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    #status-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--muted);
+    }
+    #status-dot.running { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    #last-updated { font-size: 12px; color: var(--muted); }
+
+    /* ── Main layout ── */
+    main { padding: 24px; display: flex; flex-direction: column; gap: 24px; }
+
+    /* ── KPI cards ── */
+    .kpi-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .kpi-card {
+      flex: 1 1 160px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 20px;
+    }
+    .kpi-card .label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .kpi-card .value { font-size: 24px; font-weight: 700; margin-top: 6px; }
+    .kpi-card .sub   { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .positive { color: var(--green); }
+    .negative { color: var(--red); }
+    .neutral  { color: var(--text); }
+
+    /* ── Section heading ── */
+    .section-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 12px;
+    }
+
+    /* ── Equity chart ── */
+    .chart-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+    }
+    #equity-canvas {
+      width: 100%;
+      height: 160px;
+      display: block;
+    }
+    #chart-empty {
+      text-align: center;
+      color: var(--muted);
+      padding: 40px 0;
+      display: none;
+    }
+
+    /* ── Strategy table ── */
+    .table-wrap {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow-x: auto;
+    }
+    table { width: 100%; border-collapse: collapse; }
+    thead tr { border-bottom: 1px solid var(--border); }
+    th {
+      padding: 10px 16px;
+      text-align: left;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    td { padding: 10px 16px; border-bottom: 1px solid var(--border); }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover { background: rgba(255,255,255,0.03); }
+    #strategies-empty { padding: 24px; text-align: center; color: var(--muted); }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Algo-Trade</h1>
+  <div id="status-badge">
+    <span id="status-dot"></span>
+    <span id="status-text">Connecting…</span>
+  </div>
+  <span id="last-updated"></span>
+</header>
+
+<main>
+  <!-- KPI Cards -->
+  <div class="kpi-grid">
+    <div class="kpi-card">
+      <div class="label">Total Equity</div>
+      <div class="value neutral" id="kpi-equity">—</div>
+      <div class="sub" id="kpi-uptime">uptime —</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">Daily P&amp;L</div>
+      <div class="value" id="kpi-pnl">—</div>
+      <div class="sub" id="kpi-trades">— trades</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">Drawdown</div>
+      <div class="value" id="kpi-drawdown">—</div>
+      <div class="sub">from peak</div>
+    </div>
+    <div class="kpi-card">
+      <div class="label">Win Rate</div>
+      <div class="value neutral" id="kpi-winrate">—</div>
+      <div class="sub" id="kpi-active">— active strategies</div>
+    </div>
+  </div>
+
+  <!-- Equity Curve -->
+  <div class="chart-wrap">
+    <div class="section-title">Equity Curve</div>
+    <canvas id="equity-canvas"></canvas>
+    <div id="chart-empty">No equity data yet</div>
+  </div>
+
+  <!-- Strategy Table -->
+  <div>
+    <div class="section-title">Strategy Breakdown</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Strategy</th>
+            <th>Equity</th>
+            <th>Realized P&amp;L</th>
+            <th>Trades</th>
+            <th>Win Rate</th>
+            <th>Avg Win</th>
+            <th>Avg Loss</th>
+          </tr>
+        </thead>
+        <tbody id="strategies-tbody"></tbody>
+      </table>
+      <div id="strategies-empty" style="display:none">No strategy data</div>
+    </div>
+  </div>
+</main>
+
+<script>
+  // ── Utilities ──────────────────────────────────────────────────────────────
+  const $ = (id) => document.getElementById(id);
+
+  function fmt(n, decimals = 2) {
+    if (n == null || isNaN(n)) return '—';
+    return Number(n).toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  }
+  function fmtPct(n) { return n == null ? '—' : (n * 100).toFixed(2) + '%'; }
+  function fmtUptime(s) {
+    if (s < 60) return s + 's';
+    if (s < 3600) return Math.floor(s / 60) + 'm ' + (s % 60) + 's';
+    return Math.floor(s / 3600) + 'h ' + Math.floor((s % 3600) / 60) + 'm';
+  }
+  function colorClass(n) { return n > 0 ? 'positive' : n < 0 ? 'negative' : 'neutral'; }
+
+  // ── Summary update ─────────────────────────────────────────────────────────
+  function applySummary(d) {
+    // Status dot
+    const dot = $('status-dot');
+    const txt = $('status-text');
+    if (d.engineRunning) { dot.className = 'running'; txt.textContent = 'Running'; }
+    else                  { dot.className = ''; txt.textContent = 'Stopped'; }
+
+    $('kpi-equity').textContent = '$' + fmt(d.totalEquity);
+    $('kpi-equity').className = 'value neutral';
+
+    const pnlEl = $('kpi-pnl');
+    pnlEl.textContent = (d.dailyPnl >= 0 ? '+$' : '-$') + fmt(Math.abs(d.dailyPnl));
+    pnlEl.className = 'value ' + colorClass(d.dailyPnl);
+
+    const ddEl = $('kpi-drawdown');
+    ddEl.textContent = fmtPct(d.drawdown);
+    ddEl.className = 'value ' + (d.drawdown > 0.05 ? 'negative' : 'neutral');
+
+    $('kpi-winrate').textContent = fmtPct(d.winRate);
+    $('kpi-uptime').textContent = 'uptime ' + fmtUptime(d.uptime || 0);
+    $('kpi-trades').textContent = (d.tradeCount || 0) + ' trades';
+    $('kpi-active').textContent = (d.activeStrategies || 0) + ' active strategies';
+
+    $('last-updated').textContent = 'Updated ' + new Date().toLocaleTimeString();
+  }
+
+  // ── Equity chart ───────────────────────────────────────────────────────────
+  function drawChart(points) {
+    const canvas = $('equity-canvas');
+    const empty = $('chart-empty');
+
+    if (!points || points.length < 2) {
+      canvas.style.display = 'none';
+      empty.style.display = 'block';
+      return;
+    }
+    canvas.style.display = 'block';
+    empty.style.display = 'none';
+
+    // Set pixel size = CSS size
+    const rect = canvas.getBoundingClientRect();
+    canvas.width  = rect.width  || 800;
+    canvas.height = rect.height || 160;
+
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    const pad = { top: 10, right: 10, bottom: 10, left: 10 };
+    const w = W - pad.left - pad.right;
+    const h = H - pad.top  - pad.bottom;
+
+    const equities = points.map(p => p.equity);
+    const minE = Math.min(...equities);
+    const maxE = Math.max(...equities);
+    const range = maxE - minE || 1;
+
+    const toX = (i) => pad.left + (i / (points.length - 1)) * w;
+    const toY = (v) => pad.top  + h - ((v - minE) / range) * h;
+
+    ctx.clearRect(0, 0, W, H);
+
+    // Gradient fill
+    const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + h);
+    grad.addColorStop(0, 'rgba(88,166,255,0.25)');
+    grad.addColorStop(1, 'rgba(88,166,255,0.00)');
+
+    ctx.beginPath();
+    ctx.moveTo(toX(0), toY(points[0].equity));
+    for (let i = 1; i < points.length; i++) {
+      ctx.lineTo(toX(i), toY(points[i].equity));
+    }
+    ctx.lineTo(toX(points.length - 1), pad.top + h);
+    ctx.lineTo(toX(0), pad.top + h);
+    ctx.closePath();
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Line
+    ctx.beginPath();
+    ctx.moveTo(toX(0), toY(points[0].equity));
+    for (let i = 1; i < points.length; i++) {
+      ctx.lineTo(toX(i), toY(points[i].equity));
+    }
+    ctx.strokeStyle = '#58a6ff';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  // ── Strategy table ─────────────────────────────────────────────────────────
+  function applyStrategies(rows) {
+    const tbody = $('strategies-tbody');
+    const empty = $('strategies-empty');
+    tbody.innerHTML = '';
+
+    if (!rows || rows.length === 0) {
+      empty.style.display = 'block';
+      return;
+    }
+    empty.style.display = 'none';
+
+    for (const s of rows) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${s.name}</td>
+        <td>$${fmt(s.equity)}</td>
+        <td class="${colorClass(s.realizedPnl)}">${s.realizedPnl >= 0 ? '+' : ''}$${fmt(Math.abs(s.realizedPnl))}</td>
+        <td>${s.tradeCount}</td>
+        <td>${fmtPct(s.winRate)}</td>
+        <td class="positive">$${fmt(s.avgWin)}</td>
+        <td class="negative">$${fmt(s.avgLoss)}</td>
+      `;
+      tbody.appendChild(tr);
+    }
+  }
+
+  // ── Polling ────────────────────────────────────────────────────────────────
+  async function fetchAll() {
+    try {
+      const [summary, curve, strategies] = await Promise.all([
+        fetch('/dashboard/api/summary').then(r => r.json()),
+        fetch('/dashboard/api/equity-curve').then(r => r.json()),
+        fetch('/dashboard/api/strategies').then(r => r.json()),
+      ]);
+      applySummary(summary);
+      drawChart(curve);
+      applyStrategies(strategies);
+    } catch (err) {
+      $('status-text').textContent = 'Error';
+      $('status-dot').className = '';
+      console.error('[Dashboard] fetch error:', err);
+    }
+  }
+
+  // Initial fetch + 5s polling
+  fetchAll();
+  setInterval(fetchAll, 5000);
+</script>
+</body>
+</html>

@@ -1,0 +1,50 @@
+version: '3.9'
+
+services:
+  algo-trade:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: algo-trade
+    restart: unless-stopped
+    ports:
+      - '3000:3000'   # API
+      - '3001:3001'   # Dashboard
+      - '3002:3002'   # Webhooks
+    env_file:
+      - .env
+    environment:
+      - NODE_ENV=production
+    volumes:
+      - ./data:/app/data
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:3000/api/health']
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  # Optional future DB - disabled by default, enabled via profile
+  postgres:
+    image: postgres:16-alpine
+    container_name: algo-trade-postgres
+    restart: unless-stopped
+    profiles:
+      - postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-algouser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_DB: ${POSTGRES_DB:-algotrade}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-algouser}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
