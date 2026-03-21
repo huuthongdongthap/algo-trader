@@ -239,3 +239,9 @@ export async function startApp(): Promise<void> {
   printBanner(config);
   logger.info('Platform ready', 'App', { version: APP_VERSION });
 }
+
+// Auto-start when run directly
+startApp().catch((err) => {
+  console.error('Fatal startup error:', err);
+  process.exit(1);
+});
