@@ -629,6 +629,67 @@
     </div>
   </div>
 
+  <!-- Paper Trading (Sprint 45) -->
+  <div class="panel" id="paper-trading-panel">
+    <div class="panel-title">
+      <span>Paper Trading</span>
+      <span id="pt-status" style="font-size:11px;font-weight:400;color:var(--accent)">—</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">
+      <div style="background:var(--surface2);border-radius:6px;padding:12px;text-align:center">
+        <div class="card-label">Total Capital</div>
+        <div id="pt-capital" style="font-size:18px;font-weight:700;margin-top:4px">—</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:6px;padding:12px;text-align:center">
+        <div class="card-label">Current Equity</div>
+        <div id="pt-equity" style="font-size:18px;font-weight:700;margin-top:4px;color:var(--accent)">—</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:6px;padding:12px;text-align:center">
+        <div class="card-label">Total P&amp;L</div>
+        <div id="pt-pnl" style="font-size:18px;font-weight:700;margin-top:4px">—</div>
+      </div>
+    </div>
+    <div id="pt-sessions" style="display:flex;flex-direction:column;gap:6px">
+      <div class="empty-state" style="padding:16px">Loading sessions...</div>
+    </div>
+  </div>
+
+  <!-- System Health (Sprint 46) -->
+  <div class="panel" id="health-panel">
+    <div class="panel-title">
+      <span>System Health</span>
+      <span id="sys-uptime" style="font-size:11px;font-weight:400;color:var(--accent)">—</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px">
+      <div style="background:var(--surface2);border-radius:6px;padding:12px;text-align:center">
+        <div class="card-label">Memory (RSS)</div>
+        <div id="sys-mem" style="font-size:18px;font-weight:700;margin-top:4px">—</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:6px;padding:12px;text-align:center">
+        <div class="card-label">Heap Used</div>
+        <div id="sys-heap" style="font-size:18px;font-weight:700;margin-top:4px;color:var(--blue)">—</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:6px;padding:12px;text-align:center">
+        <div class="card-label">Node.js</div>
+        <div id="sys-node" style="font-size:18px;font-weight:700;margin-top:4px;color:var(--muted)">—</div>
+      </div>
+    </div>
+    <div id="sys-components" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px">
+      <div class="empty-state" style="grid-column:span 4;padding:16px">Loading...</div>
+    </div>
+  </div>
+
+  <!-- SDK Examples (Sprint 47) -->
+  <div class="panel" id="sdk-panel">
+    <div class="panel-title">
+      <span>TypeScript SDK</span>
+      <span style="font-size:11px;font-weight:400;color:var(--muted)">@cashclaw/sdk</span>
+    </div>
+    <div id="sdk-examples" style="display:flex;flex-direction:column;gap:8px;max-height:400px;overflow-y:auto">
+      <div class="empty-state" style="padding:16px">Loading examples...</div>
+    </div>
+  </div>
+
 </main>
 
 <script>
@@ -1168,6 +1229,71 @@ function handleLogout() {
   if (confirm('Log out of CashClaw?')) window.location.href = '/logout';
 }
 
+// ── Paper Trading (Sprint 45) ────────────────────────────────────────────────
+async function fetchPaperTrading() {
+  try {
+    const res = await fetch('/dashboard/api/paper-trading');
+    const d = await res.json();
+    $('pt-capital').textContent = '$' + fmt(d.totalCapital);
+    $('pt-equity').textContent = '$' + fmt(d.totalEquity);
+    const pnlEl = $('pt-pnl');
+    pnlEl.textContent = fmtPnl(d.totalPnl);
+    pnlEl.className = colorClass(d.totalPnl);
+    const active = (d.sessions || []).filter(s => s.status === 'active').length;
+    $('pt-status').textContent = active + ' active session' + (active !== 1 ? 's' : '');
+    $('pt-sessions').innerHTML = (d.sessions || []).map(s => `
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface2);border-radius:6px;border-left:3px solid ${s.status === 'active' ? 'var(--accent)' : 'var(--muted)'}">
+        <div style="flex:1">
+          <div style="font-weight:600;font-size:12px">${s.strategy}</div>
+          <div style="font-size:11px;color:var(--muted)">${s.trades} trades | WR ${(s.winRate*100).toFixed(0)}%</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-weight:700;font-size:13px;color:${s.pnl >= 0 ? 'var(--accent)' : 'var(--loss)'}">${s.pnl >= 0 ? '+' : ''}$${fmt(s.pnl)}</div>
+          <div style="font-size:11px;color:var(--muted)">${(s.pnlPct >= 0 ? '+' : '')}${s.pnlPct.toFixed(2)}%</div>
+        </div>
+        <div style="width:8px;height:8px;border-radius:50%;background:${s.status === 'active' ? 'var(--accent)' : 'var(--muted)'}"></div>
+      </div>
+    `).join('');
+  } catch (e) { console.warn('Paper trading fetch error:', e); }
+}
+
+// ── System Health (Sprint 46) ────────────────────────────────────────────────
+async function fetchSystemHealth() {
+  try {
+    const res = await fetch('/dashboard/api/system-health');
+    const d = await res.json();
+    $('sys-uptime').textContent = 'Uptime: ' + d.uptimeFormatted;
+    $('sys-mem').textContent = d.memory.rss + ' MB';
+    $('sys-heap').textContent = d.memory.heapUsed + ' MB';
+    $('sys-node').textContent = d.node;
+    const statusColors = { healthy: 'var(--accent)', degraded: 'var(--warning)', down: 'var(--loss)', 'not configured': 'var(--muted)' };
+    $('sys-components').innerHTML = (d.components || []).map(c => `
+      <div style="display:flex;align-items:center;gap:6px;padding:8px 10px;background:var(--surface2);border-radius:6px">
+        <div style="width:8px;height:8px;border-radius:50%;background:${statusColors[c.status] || 'var(--muted)'}"></div>
+        <div style="flex:1;font-size:11px;font-weight:600">${c.name}</div>
+        <div style="font-size:10px;color:var(--muted)">${c.port ? ':' + c.port : c.detail || c.status}</div>
+      </div>
+    `).join('');
+  } catch (e) { console.warn('System health fetch error:', e); }
+}
+
+// ── SDK Examples (Sprint 47) ─────────────────────────────────────────────────
+async function fetchSdkExamples() {
+  try {
+    const res = await fetch('/dashboard/api/sdk-examples');
+    const d = await res.json();
+    $('sdk-examples').innerHTML = (d.examples || []).map(ex => `
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;overflow:hidden">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid var(--border)">
+          <span style="font-weight:600;font-size:12px">${ex.title}</span>
+          <span style="font-size:10px;padding:2px 6px;border-radius:3px;background:var(--border);color:var(--muted)">${ex.lang}</span>
+        </div>
+        <pre style="padding:10px 12px;margin:0;font-size:11px;line-height:1.5;overflow-x:auto;color:var(--accent);font-family:'Fira Code',monospace">${ex.code}</pre>
+      </div>
+    `).join('');
+  } catch (e) { console.warn('SDK examples fetch error:', e); }
+}
+
 // ── Referral Program (Sprint 41) ─────────────────────────────────────────────
 async function generateRefCode() {
   const token = localStorage.getItem('jwt');
@@ -1394,6 +1520,11 @@ async function fetchOnboarding() {
   fetchOnboarding();
   fetchReferralStats();
   renderApiDocs();
+  fetchPaperTrading();
+  fetchSystemHealth();
+  fetchSdkExamples();
+  setInterval(fetchPaperTrading, 15000);
+  setInterval(fetchSystemHealth, 30000);
   setInterval(fetchAll, 10000);
   setInterval(fetchOpenClaw, 30000);
   setInterval(fetchLeaderboard, 60000);
