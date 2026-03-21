@@ -728,6 +728,261 @@ const apiPaths = {
     },
   },
 
+  // ─── Auth endpoints ───────────────────────────────────────────────────────
+
+  '/api/auth/register': {
+    post: {
+      tags: ['Auth'],
+      summary: 'Register a new user',
+      security: [],
+      requestBody: {
+        required: true,
+        content: { 'application/json': { schema: {
+          type: 'object',
+          properties: {
+            email: { type: 'string', format: 'email', example: 'user@example.com' },
+            password: { type: 'string', minLength: 8, example: 'securepass123' },
+            confirmPassword: { type: 'string', example: 'securepass123' },
+            referralCode: { type: 'string', description: 'Optional referral code', example: 'ABC12345' },
+          },
+          required: ['email', 'password'],
+        } } },
+      },
+      responses: {
+        201: { description: 'User registered', content: { 'application/json': { schema: { type: 'object', properties: { token: { type: 'string' }, user: { type: 'object' }, referral: { type: 'object', nullable: true } } } } } },
+        400: { description: 'Validation error', content: { 'application/json': { schema: ErrorSchema } } },
+        409: { description: 'Email already registered', content: { 'application/json': { schema: ErrorSchema } } },
+      },
+    },
+  },
+
+  '/api/auth/login': {
+    post: {
+      tags: ['Auth'],
+      summary: 'Login and get JWT token',
+      security: [],
+      requestBody: {
+        required: true,
+        content: { 'application/json': { schema: { type: 'object', properties: { email: { type: 'string' }, password: { type: 'string' } }, required: ['email', 'password'] } } },
+      },
+      responses: {
+        200: { description: 'Login successful', content: { 'application/json': { schema: { type: 'object', properties: { token: { type: 'string' }, user: { type: 'object' } } } } } },
+        401: { description: 'Invalid credentials', content: { 'application/json': { schema: ErrorSchema } } },
+      },
+    },
+  },
+
+  '/api/auth/me': {
+    get: {
+      tags: ['Auth'],
+      summary: 'Get current user profile',
+      responses: {
+        200: { description: 'User profile', content: { 'application/json': { schema: { type: 'object', properties: { id: { type: 'string' }, email: { type: 'string' }, tier: { type: 'string' }, apiKey: { type: 'string' }, createdAt: { type: 'integer' } } } } } },
+        401: { description: 'Unauthorized' },
+      },
+    },
+  },
+
+  '/api/auth/api-key': {
+    post: {
+      tags: ['Auth'],
+      summary: 'Rotate API key',
+      responses: {
+        200: { description: 'New API key', content: { 'application/json': { schema: { type: 'object', properties: { apiKey: { type: 'string' } } } } } },
+        401: { description: 'Unauthorized' },
+      },
+    },
+  },
+
+  // ─── Backtest endpoints ─────────────────────────────────────────────────────
+
+  '/api/backtest': {
+    post: {
+      tags: ['Backtest'],
+      summary: 'Run a backtest simulation',
+      requestBody: {
+        required: true,
+        content: { 'application/json': { schema: {
+          type: 'object',
+          properties: {
+            strategy: { type: 'string', example: 'momentum-scalper' },
+            market: { type: 'string', example: 'BTC-USD' },
+            startDate: { type: 'string', format: 'date', example: '2025-01-01' },
+            endDate: { type: 'string', format: 'date', example: '2025-12-31' },
+            config: { type: 'object', properties: { initialCapital: { type: 'number', example: 10000 }, slippage: { type: 'number', example: 0.001 }, feeRate: { type: 'number', example: 0.0005 } } },
+          },
+          required: ['strategy', 'market'],
+        } } },
+      },
+      responses: {
+        200: { description: 'Backtest results', content: { 'application/json': { schema: { type: 'object', properties: { totalReturn: { type: 'number' }, winRate: { type: 'number' }, sharpeRatio: { type: 'number' }, maxDrawdown: { type: 'number' }, tradeCount: { type: 'integer' }, equityCurve: { type: 'array', items: { type: 'number' } } } } } } },
+        400: { description: 'Invalid backtest config', content: { 'application/json': { schema: ErrorSchema } } },
+      },
+    },
+  },
+
+  // ─── Copy-trading endpoints ─────────────────────────────────────────────────
+
+  '/api/leaders': {
+    get: {
+      tags: ['Copy Trading'],
+      summary: 'Get top traders leaderboard',
+      parameters: [{ name: 'limit', in: 'query', schema: { type: 'integer', default: 20 } }],
+      responses: { 200: { description: 'Ranked leaders list', content: { 'application/json': { schema: { type: 'object', properties: { leaders: { type: 'array', items: { type: 'object' } }, count: { type: 'integer' } } } } } } },
+    },
+  },
+
+  '/api/leaders/{id}': {
+    get: {
+      tags: ['Copy Trading'],
+      summary: 'Get single leader profile',
+      parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+      responses: {
+        200: { description: 'Leader profile' },
+        404: { description: 'Leader not found', content: { 'application/json': { schema: ErrorSchema } } },
+      },
+    },
+  },
+
+  '/api/copy/{leaderId}': {
+    post: {
+      tags: ['Copy Trading'],
+      summary: 'Follow a leader (Pro+ only)',
+      parameters: [{ name: 'leaderId', in: 'path', required: true, schema: { type: 'string' } }],
+      requestBody: { content: { 'application/json': { schema: { type: 'object', properties: { allocationPct: { type: 'number', description: 'Capital allocation %', example: 0.1 } } } } } },
+      responses: {
+        200: { description: 'Now following leader' },
+        403: { description: 'Pro/Enterprise tier required', content: { 'application/json': { schema: ErrorSchema } } },
+      },
+    },
+    delete: {
+      tags: ['Copy Trading'],
+      summary: 'Unfollow a leader',
+      parameters: [{ name: 'leaderId', in: 'path', required: true, schema: { type: 'string' } }],
+      responses: { 200: { description: 'Unfollowed' } },
+    },
+  },
+
+  '/api/copy/my': {
+    get: {
+      tags: ['Copy Trading'],
+      summary: 'List followed leaders',
+      responses: { 200: { description: 'Following list with P&L attribution' } },
+    },
+  },
+
+  // ─── Referral endpoints ─────────────────────────────────────────────────────
+
+  '/api/referral/generate': {
+    post: {
+      tags: ['Referral'],
+      summary: 'Generate a referral code',
+      responses: {
+        201: { description: 'Code generated', content: { 'application/json': { schema: { type: 'object', properties: { code: { type: 'string', example: 'ABC12345' }, maxUses: { type: 'integer', example: 100 } } } } } },
+      },
+    },
+  },
+
+  '/api/referral/redeem': {
+    post: {
+      tags: ['Referral'],
+      summary: 'Redeem a referral code',
+      requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { code: { type: 'string' } }, required: ['code'] } } } },
+      responses: {
+        200: { description: 'Code redeemed' },
+        400: { description: 'Invalid or expired code', content: { 'application/json': { schema: ErrorSchema } } },
+      },
+    },
+  },
+
+  '/api/referral/stats': {
+    get: {
+      tags: ['Referral'],
+      summary: 'Get referral stats for current user',
+      responses: { 200: { description: 'Referral stats with conversions and revenue' } },
+    },
+  },
+
+  '/api/referral/my-codes': {
+    get: {
+      tags: ['Referral'],
+      summary: 'List all referral codes owned by user',
+      responses: { 200: { description: 'Code list' } },
+    },
+  },
+
+  // ─── OpenClaw AI endpoints ──────────────────────────────────────────────────
+
+  '/api/openclaw/analyze': {
+    post: {
+      tags: ['OpenClaw AI'],
+      summary: 'AI-powered trading analysis',
+      description: 'Trigger AI analysis of recent trading activity. Returns structured insights.',
+      responses: {
+        200: { description: 'AI insights', content: { 'application/json': { schema: { type: 'object', properties: { ok: { type: 'boolean' }, insights: { type: 'string' }, model: { type: 'string' }, tokensUsed: { type: 'integer' } } } } } },
+        429: { description: 'AI quota exceeded' },
+        502: { description: 'AI gateway error', content: { 'application/json': { schema: ErrorSchema } } },
+      },
+    },
+  },
+
+  '/api/openclaw/chat': {
+    post: {
+      tags: ['OpenClaw AI'],
+      summary: 'Conversational AI chat (Pro/Enterprise)',
+      requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { message: { type: 'string' }, context: { type: 'string', enum: ['general', 'strategy', 'portfolio', 'market'] }, history: { type: 'array', items: { type: 'object', properties: { role: { type: 'string' }, content: { type: 'string' } } } } }, required: ['message'] } } } },
+      responses: {
+        200: { description: 'AI response', content: { 'application/json': { schema: { type: 'object', properties: { ok: { type: 'boolean' }, reply: { type: 'string' }, model: { type: 'string' }, tokensUsed: { type: 'integer' } } } } } },
+        429: { description: 'AI quota exceeded' },
+      },
+    },
+  },
+
+  '/api/openclaw/signals': {
+    get: {
+      tags: ['OpenClaw AI'],
+      summary: 'Get AI-generated trade signals',
+      parameters: [
+        { name: 'market', in: 'query', schema: { type: 'string' }, description: 'Filter by market' },
+        { name: 'limit', in: 'query', schema: { type: 'integer', default: 50 } },
+      ],
+      responses: { 200: { description: 'Trade signals with stats' } },
+    },
+  },
+
+  '/api/openclaw/signals/generate': {
+    post: {
+      tags: ['OpenClaw AI'],
+      summary: 'Trigger AI signal generation',
+      requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { market: { type: 'string', example: 'BTC-USD' }, strategy: { type: 'string' }, data: { type: 'object' } }, required: ['market'] } } } },
+      responses: {
+        200: { description: 'Generated signal' },
+        429: { description: 'AI quota exceeded' },
+      },
+    },
+  },
+
+  '/api/openclaw/status': {
+    get: {
+      tags: ['OpenClaw AI'],
+      summary: 'OpenClaw AI health and config',
+      responses: { 200: { description: 'AI subsystem status' } },
+    },
+  },
+
+  '/api/openclaw/tune': {
+    post: {
+      tags: ['OpenClaw AI'],
+      summary: 'AI-powered strategy parameter tuning',
+      requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', properties: { name: { type: 'string', description: 'Strategy name' }, mode: { type: 'string', default: 'manual' } }, required: ['name'] } } } },
+      responses: {
+        200: { description: 'Tuning suggestions' },
+        429: { description: 'AI quota exceeded' },
+        502: { description: 'AI gateway error' },
+      },
+    },
+  },
+
   '/admin/users': {
     get: {
       tags: ['Admin'],

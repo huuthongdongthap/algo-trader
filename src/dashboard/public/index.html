@@ -282,11 +282,38 @@
 </head>
 <body>
 
+<!-- ── Auth Overlay ─────────────────────────────────────────────────────── -->
+<div id="auth-overlay" style="display:none;position:fixed;inset:0;background:var(--bg);z-index:999;display:flex;align-items:center;justify-content:center">
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:16px;padding:40px;width:380px;max-width:90vw">
+    <div style="text-align:center;margin-bottom:24px">
+      <div class="logo" style="font-size:28px;margin-bottom:8px">CashClaw</div>
+      <div style="color:var(--muted);font-size:13px">Algo-Trading RaaS Platform</div>
+    </div>
+    <div id="auth-tabs" style="display:flex;gap:8px;margin-bottom:20px">
+      <button onclick="showAuthTab('login')" id="tab-login" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--accent);background:var(--accent);color:#000;font-weight:600;cursor:pointer;font-size:13px">Login</button>
+      <button onclick="showAuthTab('register')" id="tab-register" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text);font-weight:600;cursor:pointer;font-size:13px">Register</button>
+    </div>
+    <form id="auth-form" onsubmit="handleAuth(event)">
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <input id="auth-email" type="email" placeholder="Email" required style="padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px;outline:none" />
+        <input id="auth-password" type="password" placeholder="Password (min 8 chars)" required minlength="8" style="padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px;outline:none" />
+        <input id="auth-referral" type="text" placeholder="Referral code (optional)" style="padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:var(--surface2);color:var(--text);font-size:13px;outline:none;display:none" />
+        <div id="auth-error" style="color:var(--loss);font-size:12px;display:none"></div>
+        <button type="submit" id="auth-submit" style="padding:10px;border-radius:8px;border:none;background:var(--accent);color:#000;font-weight:700;font-size:14px;cursor:pointer">Login</button>
+      </div>
+    </form>
+    <div style="text-align:center;margin-top:16px;font-size:12px;color:var(--muted)">
+      <a href="/api/docs" target="_blank" style="color:var(--blue);text-decoration:none">API Docs</a>
+      &nbsp;|&nbsp; Free tier: paper trading + dashboard
+    </div>
+  </div>
+</div>
+
 <!-- ── Top bar ──────────────────────────────────────────────────────────── -->
 <header class="topbar">
   <div class="topbar-left">
     <div class="logo">CashClaw</div>
-    <span class="tier-badge" id="tier-badge">Pro</span>
+    <span class="tier-badge" id="tier-badge">Free</span>
   </div>
   <div class="topbar-right">
     <div class="ws-indicator">
@@ -294,9 +321,43 @@
       <span id="ws-status">Connecting…</span>
     </div>
     <span id="last-updated"></span>
+    <span id="user-email" style="font-size:12px;color:var(--muted);cursor:pointer" onclick="toggleProfile()"></span>
     <button class="btn-logout" onclick="handleLogout()"><span>Logout</span></button>
   </div>
 </header>
+
+<!-- ── User Profile Drawer ─────────────────────────────────────────────── -->
+<div id="profile-drawer" style="display:none;position:fixed;top:56px;right:0;width:340px;max-height:calc(100vh - 56px);overflow-y:auto;background:var(--card);border-left:1px solid var(--border);border-bottom:1px solid var(--border);border-radius:0 0 0 12px;padding:20px;z-index:200;box-shadow:-4px 4px 20px rgba(0,0,0,0.3)">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+    <div style="font-weight:700;font-size:14px">Profile</div>
+    <button onclick="toggleProfile()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px">x</button>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:12px">
+    <div style="padding:12px;background:var(--surface2);border-radius:8px">
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px">Email</div>
+      <div id="profile-email" style="font-size:13px;margin-top:4px">—</div>
+    </div>
+    <div style="padding:12px;background:var(--surface2);border-radius:8px">
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px">Subscription Tier</div>
+      <div id="profile-tier" style="font-size:13px;margin-top:4px;font-weight:600">—</div>
+    </div>
+    <div style="padding:12px;background:var(--surface2);border-radius:8px">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px">API Key</div>
+        <button onclick="copyApiKey()" style="font-size:11px;padding:2px 8px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--blue);cursor:pointer">Copy</button>
+      </div>
+      <div id="profile-apikey" style="font-size:11px;margin-top:4px;font-family:monospace;word-break:break-all;color:var(--accent)">—</div>
+    </div>
+    <div style="padding:12px;background:var(--surface2);border-radius:8px">
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px">Member Since</div>
+      <div id="profile-since" style="font-size:13px;margin-top:4px">—</div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button onclick="rotateApiKey()" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:transparent;color:var(--text);font-size:12px;cursor:pointer">Rotate API Key</button>
+      <a href="/api/docs" target="_blank" style="flex:1;padding:8px;border-radius:8px;border:1px solid var(--blue);background:transparent;color:var(--blue);font-size:12px;cursor:pointer;text-align:center;text-decoration:none">API Docs</a>
+    </div>
+  </div>
+</div>
 
 <!-- ── Main ─────────────────────────────────────────────────────────────── -->
 <main>
@@ -1262,10 +1323,111 @@ async function toggleStrategy(name, enabled) {
   }
 }
 
-// ── Logout ────────────────────────────────────────────────────────────────────
+// ── Auth system ───────────────────────────────────────────────────────────────
+const API_BASE = window.location.port === '3001' ? 'http://localhost:3000' : '';
+let _authToken = localStorage.getItem('cc_token');
+let _authUser = JSON.parse(localStorage.getItem('cc_user') || 'null');
+let _authMode = 'login';
+
+function showAuthTab(mode) {
+  _authMode = mode;
+  const tabLogin = $('tab-login');
+  const tabReg = $('tab-register');
+  const refInput = $('auth-referral');
+  const submitBtn = $('auth-submit');
+  if (mode === 'login') {
+    tabLogin.style.background = 'var(--accent)'; tabLogin.style.color = '#000'; tabLogin.style.borderColor = 'var(--accent)';
+    tabReg.style.background = 'transparent'; tabReg.style.color = 'var(--text)'; tabReg.style.borderColor = 'var(--border)';
+    refInput.style.display = 'none';
+    submitBtn.textContent = 'Login';
+  } else {
+    tabReg.style.background = 'var(--accent)'; tabReg.style.color = '#000'; tabReg.style.borderColor = 'var(--accent)';
+    tabLogin.style.background = 'transparent'; tabLogin.style.color = 'var(--text)'; tabLogin.style.borderColor = 'var(--border)';
+    refInput.style.display = 'block';
+    submitBtn.textContent = 'Create Account';
+  }
+  $('auth-error').style.display = 'none';
+}
+
+async function handleAuth(e) {
+  e.preventDefault();
+  const email = $('auth-email').value;
+  const password = $('auth-password').value;
+  const errorEl = $('auth-error');
+  errorEl.style.display = 'none';
+  const endpoint = _authMode === 'login' ? '/api/auth/login' : '/api/auth/register';
+  const body = { email, password };
+  if (_authMode === 'register') {
+    const ref = $('auth-referral').value.trim();
+    if (ref) body.referralCode = ref;
+  }
+  try {
+    const res = await fetch(API_BASE + endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const d = await res.json();
+    if (!res.ok) { errorEl.textContent = d.error || 'Request failed'; errorEl.style.display = 'block'; return; }
+    _authToken = d.token;
+    _authUser = d.user;
+    localStorage.setItem('cc_token', _authToken);
+    localStorage.setItem('cc_user', JSON.stringify(_authUser));
+    applyAuthState();
+  } catch (err) {
+    errorEl.textContent = 'Connection failed — check API server'; errorEl.style.display = 'block';
+  }
+}
+
+function applyAuthState() {
+  const overlay = $('auth-overlay');
+  if (_authToken && _authUser) {
+    overlay.style.display = 'none';
+    $('user-email').textContent = _authUser.email || '';
+    $('tier-badge').textContent = (_authUser.tier || 'free').toUpperCase();
+    $('profile-email').textContent = _authUser.email || '—';
+    $('profile-tier').textContent = (_authUser.tier || 'free').toUpperCase();
+    $('profile-apikey').textContent = _authUser.apiKey || '—';
+    $('profile-since').textContent = _authUser.createdAt ? new Date(_authUser.createdAt).toLocaleDateString() : '—';
+  } else {
+    overlay.style.display = 'flex';
+  }
+}
+
+function toggleProfile() {
+  const drawer = $('profile-drawer');
+  drawer.style.display = drawer.style.display === 'none' ? 'block' : 'none';
+}
+
+function copyApiKey() {
+  const key = $('profile-apikey').textContent;
+  if (key && key !== '—') navigator.clipboard.writeText(key);
+}
+
+async function rotateApiKey() {
+  if (!_authToken || !confirm('Generate a new API key? The old one will stop working.')) return;
+  try {
+    const res = await fetch(API_BASE + '/api/auth/api-key', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + _authToken },
+    });
+    const d = await res.json();
+    if (d.apiKey) {
+      _authUser.apiKey = d.apiKey;
+      localStorage.setItem('cc_user', JSON.stringify(_authUser));
+      $('profile-apikey').textContent = d.apiKey;
+    }
+  } catch {}
+}
+
 function handleLogout() {
-  // Stub: redirect to auth page when implemented
-  if (confirm('Log out of CashClaw?')) window.location.href = '/logout';
+  if (!confirm('Log out of CashClaw?')) return;
+  _authToken = null;
+  _authUser = null;
+  localStorage.removeItem('cc_token');
+  localStorage.removeItem('cc_user');
+  $('profile-drawer').style.display = 'none';
+  applyAuthState();
 }
 
 // ── Paper Trading (Sprint 45) ────────────────────────────────────────────────
@@ -1629,6 +1791,7 @@ async function sendAiChat() {
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 (function init() {
+  applyAuthState();
   fetchAll();
   fetchOpenClaw();
   fetchLeaderboard();

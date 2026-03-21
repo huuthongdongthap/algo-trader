@@ -116,7 +116,7 @@ export function createDocsHandler(): (
 ) => void {
   // Memoize the spec — it never changes at runtime
   const specJson = getOpenApiSpec();
-  const htmlPage = buildHtmlPage('/docs/openapi.json');
+  const htmlPage = buildHtmlPage('/api/docs/openapi.json');
 
   return function docsHandler(
     _req: IncomingMessage,

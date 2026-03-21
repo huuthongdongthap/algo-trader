@@ -9,6 +9,10 @@ import { createRateLimitMiddleware } from './api-rate-limiter-middleware.js';
 import { handleRequest } from './routes.js';
 import { UserStore } from '../users/user-store.js';
 import { handleAdminRoutes } from './admin-routes.js';
+import { LeaderBoard } from '../copy-trading/leader-board.js';
+import { FollowerManager } from '../copy-trading/follower-manager.js';
+import { seedDemoLeaders } from '../copy-trading/seed-demo-leaders.js';
+import type { CopyTradingHandlers } from './copy-trading-routes.js';
 import { applySecurityHeaders } from './security-headers-middleware.js';
 import { createBodyLimitMiddleware } from './request-body-limit-middleware.js';
 import { checkTierGate } from './tier-gate-middleware.js';
@@ -109,6 +113,12 @@ export function createServer(
   const rateLimitMiddleware = createRateLimitMiddleware();
   const bodyLimitMiddleware = createBodyLimitMiddleware(1024 * 1024);
 
+  // Copy-trading leaderboard + demo leaders (idempotent)
+  const leaderBoard = new LeaderBoard();
+  const followerManager = new FollowerManager(leaderBoard);
+  const copyTradingHandlers: CopyTradingHandlers = { leaderBoard, followerManager };
+  seedDemoLeaders(leaderBoard);
+
   const server = createHttpServer(async (req: IncomingMessage, res: ServerResponse) => {
     // 1. CORS headers on every response
     applyCors(req, res);
@@ -169,7 +179,7 @@ export function createServer(
         return;
       }
 
-      await handleRequest(req, res, engine, pathname, userStore);
+      await handleRequest(req, res, engine, pathname, userStore, copyTradingHandlers);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Internal server error';
       sendInternalError(res, message);

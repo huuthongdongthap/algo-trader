@@ -38,6 +38,24 @@ function resolveJwtSecret(): string {
   return process.env['JWT_SECRET']!;
 }
 
+// ─── Referral integration ────────────────────────────────────────────────────
+
+import { ReferralStore } from '../referral/referral-store.js';
+import { RewardCalculator } from '../referral/reward-calculator.js';
+import { ReferralManager } from '../referral/referral-manager.js';
+
+let _referralManager: ReferralManager | null = null;
+
+function getReferralManager(): ReferralManager {
+  if (!_referralManager) {
+    const dbPath = process.env['REFERRAL_DB_PATH'] ?? 'data/referral.db';
+    const store = new ReferralStore(dbPath);
+    const calc = new RewardCalculator(store);
+    _referralManager = new ReferralManager(store, calc);
+  }
+  return _referralManager;
+}
+
 // ─── POST /api/auth/register ──────────────────────────────────────────────────
 
 export async function handleRegister(
@@ -45,7 +63,7 @@ export async function handleRegister(
   res: ServerResponse,
   userStore: UserStore,
 ): Promise<void> {
-  let body: { email?: string; password?: string; confirmPassword?: string };
+  let body: { email?: string; password?: string; confirmPassword?: string; referralCode?: string };
   try {
     body = JSON.parse(await readBody(req)) as typeof body;
   } catch {
@@ -53,7 +71,7 @@ export async function handleRegister(
     return;
   }
 
-  const { email, password, confirmPassword } = body;
+  const { email, password, confirmPassword, referralCode } = body;
 
   if (!email || !password) {
     sendJson(res, 400, { error: 'email and password are required' });
@@ -78,9 +96,22 @@ export async function handleRegister(
   const user = userStore.createUserWithPassword(email.toLowerCase().trim(), passwordHash);
   const token = createJwt(user, resolveJwtSecret());
 
+  // Auto-redeem referral code if provided
+  let referral: { referrerId: string; code: string } | null = null;
+  if (referralCode && typeof referralCode === 'string') {
+    try {
+      const mgr = getReferralManager();
+      const link = mgr.redeemCode(referralCode.trim(), user.id);
+      referral = { referrerId: link.referrerId, code: link.code };
+    } catch {
+      // Non-blocking: invalid/expired code doesn't prevent registration
+    }
+  }
+
   sendJson(res, 201, {
     token,
     user: { id: user.id, email: user.email, tier: user.tier, apiKey: user.apiKey },
+    ...(referral ? { referral } : {}),
   });
 }
 
