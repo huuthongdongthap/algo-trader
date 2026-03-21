@@ -17,6 +17,9 @@ const PUBLIC_PATHS = new Set([
   '/api/webhooks/polar',
   '/api/auth/register',
   '/api/auth/login',
+  '/api/docs',
+  '/api/docs/openapi.json',
+  '/api/metrics',
 ]);
 
 /**
