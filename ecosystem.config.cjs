@@ -3,9 +3,10 @@ module.exports = {
   apps: [
     {
       name: 'algo-trade',
-      script: 'npx',
-      args: 'tsx src/app.ts',
+      script: 'src/app.ts',
+      interpreter: 'node_modules/.bin/tsx',
       cwd: '/Users/macbook/projects/algo-trader',
+      exec_mode: 'fork',
       // Default env (development)
       env: {
         NODE_ENV: 'development',
