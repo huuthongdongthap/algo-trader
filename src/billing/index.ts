@@ -1,9 +1,7 @@
-// Barrel export for billing module
-export { StripeClient } from './stripe-client.js';
-export type { StripeCustomer, StripeSubscription, StripeError } from './stripe-client.js';
-
-export { SubscriptionManager } from './subscription-manager.js';
-export type { SubscriptionStatus, UserSubscription } from './subscription-manager.js';
+// Barrel export for billing module (Polar.sh only — Stripe removed Sprint 56)
+export { PolarClient } from './polar-client.js';
+export { productIdToTier, tierToProductId } from './polar-product-map.js';
+export { verifyPolarSignature, handlePolarWebhook } from './polar-webhook.js';
 
 export { InvoiceTracker } from './invoice-tracker.js';
 export type { InvoiceEvent, InvoiceStatus } from './invoice-tracker.js';

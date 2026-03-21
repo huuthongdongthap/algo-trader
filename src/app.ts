@@ -31,8 +31,10 @@ import type { ServersBundle } from './wiring/servers-wiring.js';
 import type { NotificationsBundle } from './wiring/notifications-wiring.js';
 import { wireOpenClaw, type OpenClawBundle } from './wiring/openclaw-wiring.js';
 import { setOpenClawDeps } from './api/routes.js';
+import { setMetricsUserStore } from './api/metrics-route.js';
 import { getMarketplaceService } from './marketplace/marketplace-service.js';
 import { seedDemoStrategies } from './marketplace/seed-demo-strategies.js';
+import { UserStore } from './users/user-store.js';
 
 // ── Ports ──────────────────────────────────────────────────────────────────
 
@@ -134,12 +136,19 @@ export async function startApp(): Promise<void> {
   _engine = new TradingEngine();
   logger.info('Trading engine initialised', 'App');
 
+  // 5b. UserStore — shared across API server + dashboard for real analytics
+  const userDbPath = process.env['USER_DB_PATH'] ?? 'data/users.db';
+  const userStore = new UserStore(userDbPath);
+  logger.info('UserStore initialised', 'App', { path: userDbPath });
+  setMetricsUserStore(userStore);
+
   // 6. API server (port 3000) — auth middleware + rate limiter wired inside createServer
-  _apiServer = createServer(API_PORT, _engine);
+  const jwtSecret = process.env['JWT_SECRET'] ?? 'dev-secret-change-me';
+  _apiServer = createServer({ port: API_PORT, engine: _engine, userStore, jwtSecret });
   logger.info('API server started', 'App', { port: API_PORT });
 
-  // 7. Dashboard server (port 3001)
-  _dashServer = createDashboardServer(DASHBOARD_PORT, new DashboardDataProvider(_engine));
+  // 7. Dashboard server (port 3001) — UserStore enables real revenue analytics
+  _dashServer = createDashboardServer(DASHBOARD_PORT, new DashboardDataProvider(_engine), userStore);
   logger.info('Dashboard server started', 'App', { port: DASHBOARD_PORT });
 
   // 8. Webhook server (port 3004)

@@ -6,6 +6,8 @@ import { readFile } from 'node:fs/promises';
 import { join, extname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { DashboardDataProvider } from './dashboard-data.js';
+import type { UserStore } from '../users/user-store.js';
+import { AdminAnalytics } from '../admin/admin-analytics.js';
 
 /** Map file extensions to MIME content-types */
 const MIME_TYPES: Record<string, string> = {
@@ -100,28 +102,23 @@ function getSdkExamples() {
   ]};
 }
 
-// ── Revenue summary (Sprint 37) ─────────────────────────────────────────────
+// ── Revenue summary (Sprint 37 → Sprint 55: wired to real data) ─────────────
 
-function getRevenueSummary() {
-  // Demo revenue data — in production, wired to AdminAnalytics + UserStore
-  const tiers = { free: 42, pro: 18, enterprise: 3 };
-  const mrr = tiers.pro * 29 + tiers.enterprise * 199;
+function getRevenueSummary(analytics: AdminAnalytics | null) {
+  if (!analytics) {
+    return { mrr: 0, arr: 0, arrTarget: 1_000_000, arrProgress: 0, totalUsers: 0, tiers: { free: 0, pro: 0, enterprise: 0 }, marketplaceRevenue: 0, timeline: [] };
+  }
+  const stats = analytics.getUserStats();
+  const mrr = analytics.getMRR();
   const arr = mrr * 12;
   const target = 1_000_000;
-  const timeline: { date: string; revenue: number }[] = [];
-  const now = Date.now();
-  for (let i = 29; i >= 0; i--) {
-    const d = new Date(now - i * 86_400_000);
-    // Simulate growth curve
-    const base = mrr * (1 - i * 0.015);
-    timeline.push({ date: d.toISOString().slice(0, 10), revenue: Math.max(0, Math.round(base)) });
-  }
+  const timeline = analytics.getRevenueTimeline(30);
   return {
     mrr, arr, arrTarget: target,
     arrProgress: Math.round((arr / target) * 10000) / 100,
-    totalUsers: tiers.free + tiers.pro + tiers.enterprise,
-    tiers,
-    marketplaceRevenue: 1240, // cents from strategy sales
+    totalUsers: stats.totalUsers,
+    tiers: stats.byTier,
+    marketplaceRevenue: 0,
     timeline,
   };
 }
@@ -185,9 +182,11 @@ async function serveStatic(res: ServerResponse, filePath: string): Promise<void>
  * Create and start the dashboard HTTP server.
  * @param port - TCP port to listen on
  * @param dataProvider - DashboardDataProvider instance for API responses
+ * @param userStore - Optional UserStore for real revenue/user analytics
  * @returns running http.Server instance
  */
-export function createDashboardServer(port: number, dataProvider: DashboardDataProvider): Server {
+export function createDashboardServer(port: number, dataProvider: DashboardDataProvider, userStore?: UserStore): Server {
+  const analytics = userStore ? new AdminAnalytics(userStore) : null;
   const server = createHttpServer(async (req: IncomingMessage, res: ServerResponse) => {
     const url = req.url ?? '/';
     const method = req.method ?? 'GET';
@@ -254,9 +253,9 @@ export function createDashboardServer(port: number, dataProvider: DashboardDataP
         return;
       }
 
-      // GET /dashboard/api/revenue — admin revenue dashboard data
+      // GET /dashboard/api/revenue — admin revenue dashboard data (real data from UserStore)
       if (url === '/dashboard/api/revenue') {
-        sendJson(res, 200, getRevenueSummary());
+        sendJson(res, 200, getRevenueSummary(analytics));
         return;
       }
 
