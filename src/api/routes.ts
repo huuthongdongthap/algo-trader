@@ -23,6 +23,8 @@ import { handleOnboardingRoutes } from './onboarding-routes.js';
 import { handlePolymarketStatsRoutes } from './polymarket-stats-routes.js';
 import { handleOpenClawRequest, type OpenClawDeps } from '../openclaw/api-endpoints.js';
 import { checkApiRateLimit } from './api-rate-limiter.js';
+import { handleAnalyticsRoutes } from './analytics-routes.js';
+import { handleAlertHistoryRoutes } from './alert-history-routes.js';
 
 // ─── OpenClaw deps setter (called from app.ts after bootstrap) ───────────────
 let _openClawDeps: OpenClawDeps | null = null;
@@ -205,6 +207,12 @@ export async function handleRequest(
       if (!handled) sendNotFound(res);
     } else if (pathname.startsWith('/api/polymarket/')) {
       const handled = await handlePolymarketStatsRoutes(req, res, pathname, method);
+      if (!handled) sendNotFound(res);
+    } else if (pathname.startsWith('/api/analytics/')) {
+      const handled = handleAnalyticsRoutes(req, res, pathname, method);
+      if (!handled) sendNotFound(res);
+    } else if (pathname.startsWith('/api/alerts/')) {
+      const handled = handleAlertHistoryRoutes(req, res, pathname, method);
       if (!handled) sendNotFound(res);
     } else if (pathname.startsWith('/api/openclaw/')) {
       if (!_openClawDeps) { sendJson(res, 503, { error: 'OpenClaw AI not configured' }); return; }

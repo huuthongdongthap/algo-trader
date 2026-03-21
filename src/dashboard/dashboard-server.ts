@@ -324,6 +324,22 @@ export function createDashboardServer(port: number, dataProvider: DashboardDataP
         return;
       }
 
+      // GET /dashboard/api/usage — API usage metering summary (admin view)
+      if (url === '/dashboard/api/usage') {
+        if (analytics) {
+          const stats = analytics.getUserStats();
+          sendJson(res, 200, {
+            totalUsers: stats.totalUsers,
+            byTier: stats.byTier,
+            activeUsers24h: stats.totalUsers, // approximation from user store
+            timestamp: Date.now(),
+          });
+        } else {
+          sendJson(res, 200, { totalUsers: 0, byTier: { free: 0, pro: 0, enterprise: 0 }, activeUsers24h: 0, timestamp: Date.now() });
+        }
+        return;
+      }
+
       // Static file serving — map / to index.html
       const staticPath = url === '/' ? '/index.html' : url;
       // Prevent directory traversal

@@ -37,6 +37,9 @@ import { seedDemoStrategies } from './marketplace/seed-demo-strategies.js';
 import { UserStore } from './users/user-store.js';
 import { LeaderBoard } from './copy-trading/leader-board.js';
 import { seedDemoLeaders } from './copy-trading/seed-demo-leaders.js';
+import { setAnalyticsEngine } from './api/analytics-routes.js';
+import { AlertHistory } from './notifications/alert-history.js';
+import { setAlertHistory } from './api/alert-history-routes.js';
 
 // ── Ports ──────────────────────────────────────────────────────────────────
 
@@ -137,6 +140,16 @@ export async function startApp(): Promise<void> {
   // 5. Trading engine
   _engine = new TradingEngine();
   logger.info('Trading engine initialised', 'App');
+
+  // 5a. Wire performance analytics API to engine
+  setAnalyticsEngine(_engine);
+  logger.info('Performance analytics API wired', 'App');
+
+  // 5a2. Alert history — ring buffer capturing EventBus alerts/trades/errors
+  const alertHistory = new AlertHistory();
+  alertHistory.wireEventBus(eventBus);
+  setAlertHistory(alertHistory);
+  logger.info('Alert history wired', 'App');
 
   // 5b. UserStore — shared across API server + dashboard for real analytics
   const userDbPath = process.env['USER_DB_PATH'] ?? 'data/users.db';

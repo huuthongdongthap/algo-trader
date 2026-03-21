@@ -1082,6 +1082,95 @@ const apiPaths = {
       },
     },
   },
+
+  '/dashboard/api/usage': {
+    get: {
+      tags: ['Dashboard'],
+      summary: 'Get API usage metering summary',
+      description: 'Returns total users, tier breakdown, and active users count for admin usage monitoring.',
+      responses: {
+        200: {
+          description: 'Usage metering summary',
+          content: { 'application/json': { schema: { type: 'object',
+            properties: {
+              totalUsers: { type: 'integer' },
+              byTier: { type: 'object', properties: { free: { type: 'integer' }, pro: { type: 'integer' }, enterprise: { type: 'integer' } } },
+              activeUsers24h: { type: 'integer' },
+              timestamp: { type: 'integer' },
+            },
+          } } },
+        },
+      },
+    },
+  },
+
+  '/api/analytics/performance': {
+    get: {
+      tags: ['Analytics'],
+      summary: 'Get performance analytics (Sharpe, Sortino, drawdown)',
+      description: 'Returns risk-adjusted ratios, equity curve stats, and drawdown metrics from trade history. Use ?detail=full for daily returns series. Use ?startEquity=N to set initial equity (default 10000).',
+      parameters: [
+        { name: 'startEquity', in: 'query', schema: { type: 'number', default: 10000 }, description: 'Starting equity for return calculations' },
+        { name: 'detail', in: 'query', schema: { type: 'string', enum: ['full'] }, description: 'Set to "full" to include daily returns array' },
+      ],
+      responses: {
+        200: {
+          description: 'Performance report with risk-adjusted ratios',
+          content: { 'application/json': { schema: { type: 'object',
+            properties: {
+              sharpeRatio: { type: 'number' },
+              sortinoRatio: { type: 'number' },
+              calmarRatio: { type: 'number' },
+              maxDrawdown: { type: 'number' },
+              avgDrawdown: { type: 'number' },
+              annualReturn: { type: 'number' },
+              tradeCount: { type: 'integer' },
+            },
+          } } },
+        },
+      },
+    },
+  },
+
+  '/api/alerts/history': {
+    get: {
+      tags: ['Alerts'],
+      summary: 'Get alert/notification history',
+      description: 'Returns past alerts, trade notifications, and error events. Supports filtering by type and timestamp.',
+      parameters: [
+        { name: 'limit', in: 'query', schema: { type: 'integer', default: 50, maximum: 200 }, description: 'Max alerts to return' },
+        { name: 'type', in: 'query', schema: { type: 'string', enum: ['alert', 'trade', 'error'] }, description: 'Filter by alert type' },
+        { name: 'since', in: 'query', schema: { type: 'integer' }, description: 'Only alerts after this Unix timestamp (ms)' },
+      ],
+      responses: {
+        200: {
+          description: 'Alert history with total count',
+          content: { 'application/json': { schema: { type: 'object',
+            properties: {
+              alerts: { type: 'array', items: { type: 'object', properties: { id: { type: 'integer' }, type: { type: 'string' }, message: { type: 'string' }, timestamp: { type: 'integer' } } } },
+              total: { type: 'integer' },
+            },
+          } } },
+        },
+      },
+    },
+  },
+
+  '/api/alerts/types': {
+    get: {
+      tags: ['Alerts'],
+      summary: 'Get available alert types',
+      description: 'Returns list of unique alert types currently in history buffer.',
+      responses: {
+        200: {
+          description: 'Alert type list',
+          content: { 'application/json': { schema: { type: 'object',
+            properties: { types: { type: 'array', items: { type: 'string' } } },
+          } } },
+        },
+      },
+    },
+  },
 };
 
 // ─── Public export ────────────────────────────────────────────────────────────
