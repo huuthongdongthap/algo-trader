@@ -566,6 +566,69 @@
     </div>
   </div>
 
+  <!-- Referral Program (Sprint 41) -->
+  <div class="panel" id="referral-panel">
+    <div class="panel-title">
+      <span>Referral Program</span>
+      <span style="font-size:11px;font-weight:400;color:var(--accent)">Earn 20% commission</span>
+    </div>
+    <div style="display:flex;gap:16px;margin-bottom:16px">
+      <div style="flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:14px">
+        <div class="card-label" style="margin-bottom:8px">Your Referral Code</div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <input id="ref-code" type="text" value="—" readonly style="background:var(--bg);color:var(--accent);border:1px solid var(--border);border-radius:6px;padding:8px 12px;font-size:16px;font-weight:700;font-family:monospace;letter-spacing:2px;flex:1;text-align:center">
+          <button onclick="copyRefCode()" style="background:var(--accent);color:#000;border:none;border-radius:6px;padding:8px 12px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap">Copy</button>
+        </div>
+        <div style="margin-top:8px">
+          <button onclick="generateRefCode()" id="ref-gen-btn" style="background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:6px;padding:6px 12px;font-size:11px;cursor:pointer;width:100%">Generate New Code</button>
+        </div>
+      </div>
+      <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div style="background:var(--surface2);border-radius:6px;padding:12px;text-align:center">
+          <div style="font-size:20px;font-weight:700;color:var(--accent)" id="ref-conversions">0</div>
+          <div class="card-label">Referrals</div>
+        </div>
+        <div style="background:var(--surface2);border-radius:6px;padding:12px;text-align:center">
+          <div style="font-size:20px;font-weight:700;color:var(--purple)" id="ref-revenue">$0</div>
+          <div class="card-label">Earned</div>
+        </div>
+        <div style="background:var(--surface2);border-radius:6px;padding:12px;text-align:center;grid-column:span 2">
+          <div class="card-label" style="margin-bottom:4px">Share Link</div>
+          <div style="font-size:11px;color:var(--muted);word-break:break-all" id="ref-link">—</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- API Documentation Link (Sprint 42) -->
+  <div class="panel" id="api-docs-panel">
+    <div class="panel-title">
+      <span>API Documentation</span>
+      <span style="font-size:11px;font-weight:400;color:var(--muted)">50+ endpoints</span>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px">
+      <div style="background:var(--surface2);border-radius:6px;padding:12px;text-align:center">
+        <div style="font-size:18px;font-weight:700;color:var(--accent)">15</div>
+        <div class="card-label">Trading</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:6px;padding:12px;text-align:center">
+        <div style="font-size:18px;font-weight:700;color:var(--blue)">11</div>
+        <div class="card-label">OpenClaw AI</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:6px;padding:12px;text-align:center">
+        <div style="font-size:18px;font-weight:700;color:var(--purple)">8</div>
+        <div class="card-label">Marketplace</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:6px;padding:12px;text-align:center">
+        <div style="font-size:18px;font-weight:700;color:var(--warning)">16+</div>
+        <div class="card-label">Other</div>
+      </div>
+    </div>
+    <div id="api-docs-list" style="display:flex;flex-direction:column;gap:4px;max-height:300px;overflow-y:auto">
+      <div class="empty-state" style="padding:16px">Loading API docs...</div>
+    </div>
+  </div>
+
 </main>
 
 <script>
@@ -1105,6 +1168,100 @@ function handleLogout() {
   if (confirm('Log out of CashClaw?')) window.location.href = '/logout';
 }
 
+// ── Referral Program (Sprint 41) ─────────────────────────────────────────────
+async function generateRefCode() {
+  const token = localStorage.getItem('jwt');
+  const apiKey = localStorage.getItem('apiKey');
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  else if (apiKey) headers['Authorization'] = 'ApiKey ' + apiKey;
+  try {
+    const res = await fetch('/api/referral/generate', { method: 'POST', headers });
+    const d = await res.json();
+    if (d.code) {
+      $('ref-code').value = d.code;
+      $('ref-link').textContent = location.origin + '/?ref=' + d.code;
+    }
+  } catch (e) { console.warn('Referral generate error:', e); }
+}
+
+function copyRefCode() {
+  const code = $('ref-code').value;
+  if (code && code !== '—') {
+    navigator.clipboard.writeText(location.origin + '/?ref=' + code);
+    const btn = event.target;
+    btn.textContent = 'Copied!';
+    setTimeout(() => btn.textContent = 'Copy', 1500);
+  }
+}
+
+async function fetchReferralStats() {
+  const token = localStorage.getItem('jwt');
+  const apiKey = localStorage.getItem('apiKey');
+  const headers = {};
+  if (token) headers['Authorization'] = 'Bearer ' + token;
+  else if (apiKey) headers['Authorization'] = 'ApiKey ' + apiKey;
+  try {
+    const res = await fetch('/api/referral/my-codes', { headers });
+    if (!res.ok) return;
+    const d = await res.json();
+    const codes = d.codes || [];
+    if (codes.length > 0) {
+      $('ref-code').value = codes[0].code;
+      $('ref-link').textContent = location.origin + '/?ref=' + codes[0].code;
+    }
+    const statsRes = await fetch('/api/referral/stats', { headers });
+    if (statsRes.ok) {
+      const s = await statsRes.json();
+      $('ref-conversions').textContent = s.totalConversions || 0;
+      $('ref-revenue').textContent = '$' + (s.totalRevenue || '0.00');
+    }
+  } catch (e) { /* silent — user may not be authed */ }
+}
+
+// ── API Docs List (Sprint 42) ────────────────────────────────────────────────
+function renderApiDocs() {
+  const endpoints = [
+    { method: 'POST', path: '/api/auth/register', tier: 'public', desc: 'Register new account' },
+    { method: 'POST', path: '/api/auth/login', tier: 'public', desc: 'Login, get JWT' },
+    { method: 'GET', path: '/health', tier: 'public', desc: 'Health check' },
+    { method: 'GET', path: '/health/deep', tier: 'auth', desc: 'Deep health check' },
+    { method: 'POST', path: '/api/strategy/start', tier: 'auth', desc: 'Start a strategy' },
+    { method: 'POST', path: '/api/strategy/stop', tier: 'auth', desc: 'Stop a strategy' },
+    { method: 'GET', path: '/api/strategies', tier: 'auth', desc: 'List strategies' },
+    { method: 'POST', path: '/api/backtest', tier: 'pro', desc: 'Run backtest' },
+    { method: 'GET', path: '/api/portfolio', tier: 'auth', desc: 'Portfolio summary' },
+    { method: 'GET', path: '/api/portfolio/positions', tier: 'auth', desc: 'Active positions' },
+    { method: 'GET', path: '/api/copy-trading/leaders', tier: 'auth', desc: 'Leaderboard' },
+    { method: 'POST', path: '/api/copy-trading/follow', tier: 'pro', desc: 'Follow a trader' },
+    { method: 'POST', path: '/api/copy-trading/unfollow', tier: 'pro', desc: 'Unfollow trader' },
+    { method: 'GET', path: '/api/marketplace/browse', tier: 'public', desc: 'Browse strategies' },
+    { method: 'POST', path: '/api/marketplace/publish', tier: 'pro', desc: 'Publish strategy' },
+    { method: 'POST', path: '/api/marketplace/purchase/:id', tier: 'auth', desc: 'Purchase strategy' },
+    { method: 'GET', path: '/api/openclaw/status', tier: 'pro', desc: 'OpenClaw AI status' },
+    { method: 'POST', path: '/api/openclaw/analyze', tier: 'pro', desc: 'AI market analysis' },
+    { method: 'POST', path: '/api/openclaw/tune', tier: 'enterprise', desc: 'AI tune strategy' },
+    { method: 'GET', path: '/api/openclaw/usage', tier: 'pro', desc: 'AI usage meter' },
+    { method: 'GET', path: '/api/admin/stats', tier: 'admin', desc: 'Admin user stats' },
+    { method: 'GET', path: '/api/admin/revenue', tier: 'admin', desc: 'Revenue analytics' },
+    { method: 'POST', path: '/api/referral/generate', tier: 'auth', desc: 'Generate referral code' },
+    { method: 'POST', path: '/api/referral/redeem', tier: 'auth', desc: 'Redeem referral code' },
+    { method: 'GET', path: '/api/referral/stats', tier: 'auth', desc: 'Referral stats' },
+    { method: 'GET', path: '/api/onboarding/quickstart', tier: 'auth', desc: 'Onboarding guide' },
+    { method: 'POST', path: '/api/checkout', tier: 'public', desc: 'Create Polar checkout' },
+  ];
+  const colors = { GET: 'var(--accent)', POST: 'var(--blue)', PUT: 'var(--warning)', DELETE: 'var(--loss)' };
+  const tierColors = { public: 'var(--muted)', auth: 'var(--text)', pro: 'var(--accent)', enterprise: 'var(--purple)', admin: 'var(--loss)' };
+  $('api-docs-list').innerHTML = endpoints.map(e => `
+    <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--surface2);border-radius:4px;font-size:11px">
+      <span style="color:${colors[e.method] || 'var(--text)'};font-weight:700;width:36px">${e.method}</span>
+      <span style="color:var(--text);font-family:monospace;flex:1">${e.path}</span>
+      <span style="color:${tierColors[e.tier] || 'var(--muted)'};font-size:10px;padding:1px 6px;border-radius:3px;background:var(--bg)">${e.tier}</span>
+      <span style="color:var(--muted);width:140px;text-align:right">${e.desc}</span>
+    </div>
+  `).join('');
+}
+
 // ── Revenue Dashboard (Sprint 37) ────────────────────────────────────────────
 async function fetchRevenue() {
   try {
@@ -1235,6 +1392,8 @@ async function fetchOnboarding() {
   fetchRevenue();
   fetchMarketplace();
   fetchOnboarding();
+  fetchReferralStats();
+  renderApiDocs();
   setInterval(fetchAll, 10000);
   setInterval(fetchOpenClaw, 30000);
   setInterval(fetchLeaderboard, 60000);
