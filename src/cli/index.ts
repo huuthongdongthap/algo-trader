@@ -7,6 +7,7 @@ import { startCommand } from './commands/start.js';
 import { statusCommand } from './commands/status.js';
 import { backtestCommand } from './commands/backtest.js';
 import { configCommand } from './commands/config-cmd.js';
+import { hedgeScanCommand } from './commands/hedge-scan.js';
 
 const require = createRequire(import.meta.url);
 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
@@ -25,5 +26,6 @@ program.addCommand(startCommand);
 program.addCommand(statusCommand);
 program.addCommand(backtestCommand);
 program.addCommand(configCommand);
+program.addCommand(hedgeScanCommand);
 
 program.parse(process.argv);

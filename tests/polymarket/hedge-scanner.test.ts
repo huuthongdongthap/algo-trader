@@ -71,6 +71,7 @@ describe('HedgeScanner', () => {
       expect(result.scannedAt).toBeGreaterThan(0);
       expect(result.marketsScanned).toBe(2);
       expect(Array.isArray(result.portfolios)).toBe(true);
+      expect(result.cached).toBe(false);
       expect(ai.chat).toHaveBeenCalledTimes(1);
     });
 
@@ -83,6 +84,33 @@ describe('HedgeScanner', () => {
 
       const result = await scanner.scanForMarket(makeGammaMarket());
       expect(result.portfolios).toHaveLength(0);
+    });
+
+    it('should use LLM cache on second call', async () => {
+      const ai = makeMockRouter();
+      const scanner = new HedgeScanner(ai);
+      const mockMarkets = [makeGammaMarket({ id: 'other' })];
+      (scanner as any).fetchRelatedMarkets = vi.fn().mockResolvedValue(mockMarkets);
+
+      const target = makeGammaMarket();
+      await scanner.scanForMarket(target);
+      expect(ai.chat).toHaveBeenCalledTimes(1);
+
+      const result2 = await scanner.scanForMarket(target);
+      expect(result2.cached).toBe(true);
+      // Should NOT call LLM again
+      expect(ai.chat).toHaveBeenCalledTimes(1);
+    });
+
+    it('should clear cache', async () => {
+      const ai = makeMockRouter();
+      const scanner = new HedgeScanner(ai);
+      (scanner as any).fetchRelatedMarkets = vi.fn().mockResolvedValue([makeGammaMarket({ id: 'o' })]);
+
+      await scanner.scanForMarket(makeGammaMarket());
+      expect(scanner.getCacheSize()).toBe(1);
+      scanner.clearCache();
+      expect(scanner.getCacheSize()).toBe(0);
     });
 
     it('should return portfolios when LLM finds implications', async () => {
