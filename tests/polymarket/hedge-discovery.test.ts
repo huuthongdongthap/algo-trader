@@ -22,19 +22,20 @@ function makeGammaMarket(overrides: Partial<GammaMarket> = {}): GammaMarket {
 describe('extractJsonFromResponse', () => {
   it('should parse raw JSON', () => {
     const result = extractJsonFromResponse('{"implied_by":[],"implies":[]}');
-    expect(result).toEqual({ implied_by: [], implies: [] });
+    expect(result).toEqual({ impliedBy: [], implies: [] });
   });
 
   it('should parse JSON in markdown code block', () => {
     const text = 'Here is the analysis:\n```json\n{"implied_by":[],"implies":[]}\n```\nDone.';
     const result = extractJsonFromResponse(text);
-    expect(result).toEqual({ implied_by: [], implies: [] });
+    expect(result).toEqual({ impliedBy: [], implies: [] });
   });
 
   it('should extract JSON from mixed text', () => {
     const text = 'Analysis: {"implied_by":[{"market_id":"m-1","market_question":"Q?","explanation":"test","counterexample_attempt":"none"}],"implies":[]}';
     const result = extractJsonFromResponse(text);
-    expect(result?.implied_by).toHaveLength(1);
+    expect(result?.impliedBy).toHaveLength(1);
+    expect(result?.impliedBy[0].marketId).toBe('m-1');
   });
 
   it('should return null for non-JSON text', () => {

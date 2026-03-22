@@ -26,3 +26,14 @@ export type { PipelineConfig, PipelineStatus } from './trading-pipeline.js';
 
 export { WinTracker, getWinTracker } from './win-tracker.js';
 export type { TrackedTrade, WinRateStats, TradeOutcome } from './win-tracker.js';
+
+export { GammaClient } from './gamma-client.js';
+export type { GammaMarket, GammaMarketGroup } from './gamma-client.js';
+
+export { HedgeScanner } from './hedge-scanner.js';
+export type { HedgeScanConfig, HedgeScanResult } from './hedge-scanner.js';
+
+export { scanForHedges } from './hedge-discovery.js';
+export type { ImplicationResult, CoverRelation } from './hedge-discovery.js';
+
+export type { HedgePortfolio, CoverageMetrics } from './hedge-coverage.js';

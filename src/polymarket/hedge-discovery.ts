@@ -86,7 +86,7 @@ For EACH relationship: try to construct a scenario that violates it. Only includ
 // JSON extraction
 // ---------------------------------------------------------------------------
 
-/** Extract JSON object from LLM response (handles markdown code blocks). */
+/** Extract JSON object from LLM response (handles markdown code blocks + snake_case→camelCase). */
 export function extractJsonFromResponse(text: string): ImplicationResult | null {
   let cleaned = text.trim();
 
@@ -96,15 +96,41 @@ export function extractJsonFromResponse(text: string): ImplicationResult | null 
   cleaned = cleaned.trim();
 
   // Try direct parse
-  try { return JSON.parse(cleaned) as ImplicationResult; } catch { /* continue */ }
+  let raw: Record<string, unknown> | null = null;
+  try { raw = JSON.parse(cleaned); } catch { /* continue */ }
 
   // Try regex extraction
-  const match = cleaned.match(/\{[\s\S]*\}/);
-  if (match) {
-    try { return JSON.parse(match[0]) as ImplicationResult; } catch { /* continue */ }
+  if (!raw) {
+    const match = cleaned.match(/\{[\s\S]*\}/);
+    if (match) {
+      try { raw = JSON.parse(match[0]); } catch { /* continue */ }
+    }
   }
 
-  return null;
+  if (!raw) return null;
+
+  // Normalize snake_case keys from LLM to camelCase TypeScript types
+  return normalizeImplicationResult(raw);
+}
+
+/** Map snake_case LLM JSON → camelCase ImplicationResult */
+function normalizeImplicationResult(raw: Record<string, unknown>): ImplicationResult {
+  const impliedBy = (raw['implied_by'] ?? raw['impliedBy'] ?? []) as Record<string, unknown>[];
+  const implies = (raw['implies'] ?? []) as Record<string, unknown>[];
+
+  return {
+    impliedBy: impliedBy.map(normalizeItem),
+    implies: implies.map(normalizeItem),
+  };
+}
+
+function normalizeItem(raw: Record<string, unknown>): ImplicationItem {
+  return {
+    marketId: String(raw['market_id'] ?? raw['marketId'] ?? ''),
+    marketQuestion: String(raw['market_question'] ?? raw['marketQuestion'] ?? ''),
+    explanation: String(raw['explanation'] ?? ''),
+    counterexampleAttempt: String(raw['counterexample_attempt'] ?? raw['counterexampleAttempt'] ?? ''),
+  };
 }
 
 // ---------------------------------------------------------------------------
