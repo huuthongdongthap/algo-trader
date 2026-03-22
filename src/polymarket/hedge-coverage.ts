@@ -1,3 +1,4 @@
+
 // Hedge coverage calculator — ported from PolyClaw (chainstacklabs/polyclaw)
 // Calculates coverage metrics and tier classification for covering portfolios
 //
@@ -51,6 +52,8 @@ export interface MarketPrices {
   slug: string;
   yesPrice: number;
   noPrice: number;
+  yesTokenId?: string;
+  noTokenId?: string;
 }
 
 export interface HedgePortfolio {
@@ -74,6 +77,8 @@ export interface HedgePortfolio {
   expectedProfit: number;
   tier: number;
   tierLabel: TierLabel;
+  targetMarket: MarketPrices;
+  coverMarket: MarketPrices;
 }
 
 // ---------------------------------------------------------------------------
@@ -177,6 +182,8 @@ export function buildPortfolio(
     ...metrics,
     tier,
     tierLabel,
+    targetMarket,
+    coverMarket,
   };
 }
 

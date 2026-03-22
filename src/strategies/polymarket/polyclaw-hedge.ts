@@ -188,7 +188,7 @@ export class PolyClawHedgeStrategy {
     });
 
     await this.client.postOrder({
-      tokenId: portfolio.coverMarket.yesTokenId,
+      tokenId: portfolio.coverMarket.yesTokenId || portfolio.coverId,
       price: coverPrice.toFixed(4),
       size: coverTokens,
       side: coverSide,
