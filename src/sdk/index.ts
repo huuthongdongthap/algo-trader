@@ -17,6 +17,17 @@ export type {
   PnlResponse,
   StrategyActionRequest,
   StrategyActionResponse,
+  // DEX
+  DexChainsResponse,
+  DexQuoteResponse,
+  DexSwapResponse,
+  // Kalshi
+  KalshiMarketsResponse,
+  KalshiBalanceResponse,
+  KalshiPositionsResponse,
+  KalshiOrderResponse,
+  KalshiScanResponse,
+  KalshiCrossScanResponse,
   // Future stubs
   MarketplaceListResponse,
   BacktestRequest,

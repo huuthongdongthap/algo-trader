@@ -5,6 +5,8 @@
 // POST /api/kalshi/order — place an order
 // GET /api/kalshi/scan — scan for arbitrage opportunities
 // POST /api/kalshi/cross-scan — scan cross-platform arb (Kalshi vs Polymarket)
+// DELETE /api/kalshi/order/:id — cancel an open order
+// GET /api/kalshi/orders — list tracked open orders
 
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { sendJson, readJsonBody } from './http-response-helpers.js';
@@ -118,6 +120,28 @@ export function handleKalshiRoutes(
         sendJson(res, 200, { opportunities, count: opportunities.length });
       } catch (err) {
         sendJson(res, 500, { error: String(err) });
+      }
+    })();
+    return true;
+  }
+
+  // GET /api/kalshi/orders — list tracked open orders
+  if (pathname === '/api/kalshi/orders' && method === 'GET') {
+    const orders = _deps!.orderManager.getOpenOrders();
+    sendJson(res, 200, { orders, count: orders.length });
+    return true;
+  }
+
+  // DELETE /api/kalshi/order/:id — cancel an open order
+  const cancelMatch = pathname.match(/^\/api\/kalshi\/order\/([^/]+)$/);
+  if (cancelMatch && method === 'DELETE') {
+    void (async () => {
+      try {
+        const orderId = cancelMatch[1]!;
+        const success = await _deps!.client.cancelOrder(orderId);
+        sendJson(res, 200, { ok: success, orderId });
+      } catch (err) {
+        sendJson(res, 400, { error: String(err) });
       }
     })();
     return true;

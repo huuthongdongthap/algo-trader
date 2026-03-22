@@ -1764,9 +1764,64 @@ apiPaths['/api/kalshi/order'] = {
     } } } },
     responses: { 200: { description: 'Order confirmation' } } },
 };
+apiPaths['/api/kalshi/orders'] = {
+  get: { tags: ['Kalshi'], summary: 'List tracked open orders (Pro tier)',
+    responses: { 200: { description: 'Open orders list', content: { 'application/json': { schema: { type: 'object', properties: { orders: { type: 'array' }, count: { type: 'integer' } } } } } } } },
+};
+
+apiPaths['/api/kalshi/order/{orderId}'] = {
+  delete: {
+    tags: ['Kalshi'],
+    summary: 'Cancel an open order (Pro tier)',
+    parameters: [{ name: 'orderId', in: 'path', required: true, schema: { type: 'string' } }],
+    responses: {
+      200: { description: 'Order cancelled', content: { 'application/json': { schema: { type: 'object', properties: { ok: { type: 'boolean' }, orderId: { type: 'string' } } } } } },
+      400: { description: 'Cancel failed' },
+    },
+  },
+};
+
 apiPaths['/api/kalshi/scan'] = {
   get: { tags: ['Kalshi'], summary: 'Scan for Kalshi arbitrage opportunities (Pro tier)',
     responses: { 200: { description: 'Opportunity list' } } },
+};
+
+apiPaths['/api/kalshi/cross-scan'] = {
+  post: {
+    tags: ['Kalshi'],
+    summary: 'Cross-platform arb scan: Kalshi vs Polymarket (Pro tier)',
+    description: 'Compares Kalshi market prices with provided Polymarket prices to find arbitrage opportunities across platforms.',
+    requestBody: {
+      required: true,
+      content: {
+        'application/json': {
+          schema: {
+            type: 'object',
+            required: ['prices'],
+            properties: {
+              prices: {
+                type: 'array',
+                items: {
+                  type: 'object',
+                  required: ['conditionId', 'title', 'midPrice'],
+                  properties: {
+                    conditionId: { type: 'string', description: 'Polymarket condition ID' },
+                    title: { type: 'string', description: 'Market title for keyword matching' },
+                    midPrice: { type: 'number', description: 'YES mid price 0-1' },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+    responses: {
+      200: { description: 'Cross-platform arb opportunities', content: { 'application/json': { schema: { type: 'object', properties: { opportunities: { type: 'array' }, count: { type: 'integer' } } } } } },
+      400: { description: 'Missing or empty prices array' },
+      403: { description: 'Pro tier required' },
+    },
+  },
 };
 
 // ─── Public export ────────────────────────────────────────────────────────────
