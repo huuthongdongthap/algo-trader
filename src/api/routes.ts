@@ -39,6 +39,8 @@ import { handleExchangeRoutes } from './exchange-routes.js';
 import { handleTradingRoomRoutes } from './trading-room-routes.js';
 import { handleOptimizerRoutes } from './optimizer-routes.js';
 import { handleTemplateRoutes } from './template-routes.js';
+import { handleDexRoutes } from './dex-routes.js';
+import { handleKalshiRoutes } from './kalshi-routes.js';
 
 // ─── Export deps setter (called from app.ts after bootstrap) ────────────────
 let _exportDeps: ExportDeps | null = null;
@@ -273,6 +275,12 @@ export async function handleRequest(
       if (!handled) sendNotFound(res);
     } else if (pathname.startsWith('/api/templates')) {
       const handled = handleTemplateRoutes(req, res, pathname, method);
+      if (!handled) sendNotFound(res);
+    } else if (pathname.startsWith('/api/dex/')) {
+      const handled = handleDexRoutes(req, res, pathname, method);
+      if (!handled) sendNotFound(res);
+    } else if (pathname.startsWith('/api/kalshi/')) {
+      const handled = handleKalshiRoutes(req, res, pathname, method);
       if (!handled) sendNotFound(res);
     } else if (pathname.startsWith('/api/openclaw/')) {
       if (!_openClawDeps) { sendJson(res, 503, { error: 'OpenClaw AI not configured' }); return; }

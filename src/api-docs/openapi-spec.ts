@@ -1653,6 +1653,65 @@ apiPaths['/api/templates/{id}'] = {
     responses: { 200: { description: 'Template details' }, 404: { description: 'Not found' } } },
 };
 
+// ─── DEX ──────────────────────────────────────────────────────────────────────
+apiPaths['/api/dex/chains'] = {
+  get: { tags: ['DEX'], summary: 'List configured DEX chains',
+    responses: { 200: { description: 'Chain list' } } },
+};
+apiPaths['/api/dex/quote'] = {
+  post: { tags: ['DEX'], summary: 'Get swap quote (calcMinOutput)',
+    requestBody: { required: true, content: { 'application/json': { schema: {
+      type: 'object', properties: {
+        amountIn: { type: 'string', example: '1000000000000000000' },
+        slippageBps: { type: 'integer', example: 50 },
+      }, required: ['amountIn'],
+    } } } },
+    responses: { 200: { description: 'Quote result' } } },
+};
+apiPaths['/api/dex/swap'] = {
+  post: { tags: ['DEX'], summary: 'Execute a DEX swap (Pro tier)',
+    requestBody: { required: true, content: { 'application/json': { schema: {
+      type: 'object', properties: {
+        chain: { type: 'string', example: 'ethereum' },
+        tokenIn: { type: 'string' }, tokenOut: { type: 'string' },
+        amountIn: { type: 'string' }, slippageBps: { type: 'integer' },
+        recipient: { type: 'string' },
+      }, required: ['chain', 'tokenIn', 'tokenOut', 'amountIn'],
+    } } } },
+    responses: { 200: { description: 'Swap result' }, 403: { description: 'Pro tier required' } } },
+};
+
+// ─── Kalshi ───────────────────────────────────────────────────────────────────
+apiPaths['/api/kalshi/markets'] = {
+  get: { tags: ['Kalshi'], summary: 'List active Kalshi markets (Pro tier)',
+    responses: { 200: { description: 'Market list' }, 403: { description: 'Pro tier required' } } },
+};
+apiPaths['/api/kalshi/balance'] = {
+  get: { tags: ['Kalshi'], summary: 'Get Kalshi account balance (Pro tier)',
+    responses: { 200: { description: 'Balance info' } } },
+};
+apiPaths['/api/kalshi/positions'] = {
+  get: { tags: ['Kalshi'], summary: 'Get open Kalshi positions (Pro tier)',
+    responses: { 200: { description: 'Position list' } } },
+};
+apiPaths['/api/kalshi/order'] = {
+  post: { tags: ['Kalshi'], summary: 'Place a Kalshi order (Pro tier)',
+    requestBody: { required: true, content: { 'application/json': { schema: {
+      type: 'object', properties: {
+        ticker: { type: 'string', example: 'INXU-25MAR28-T4500' },
+        side: { type: 'string', enum: ['yes', 'no'] },
+        type: { type: 'string', enum: ['limit', 'market'], default: 'limit' },
+        price: { type: 'integer', example: 45, description: 'Price in cents' },
+        count: { type: 'integer', example: 10 },
+      }, required: ['ticker', 'side', 'price', 'count'],
+    } } } },
+    responses: { 200: { description: 'Order confirmation' } } },
+};
+apiPaths['/api/kalshi/scan'] = {
+  get: { tags: ['Kalshi'], summary: 'Scan for Kalshi arbitrage opportunities (Pro tier)',
+    responses: { 200: { description: 'Opportunity list' } } },
+};
+
 // ─── Public export ────────────────────────────────────────────────────────────
 
 /** Returns the complete OpenAPI 3.0 specification as a plain object */

@@ -56,6 +56,12 @@ import { setPnlSnapshotProvider } from './api/pnl-snapshot-routes.js';
 import { savePnlSnapshot, type PnlSnapshot } from './portfolio/pnl-snapshot-store.js';
 import { ExchangeClient } from './cex/exchange-client.js';
 import { setExchangeClient } from './api/exchange-routes.js';
+import { SwapRouter } from './dex/swap-router.js';
+import { setSwapRouter } from './api/dex-routes.js';
+import { createKalshiClient } from './kalshi/index.js';
+import { setKalshiDeps } from './api/kalshi-routes.js';
+import { TradingRoom } from './trading-room/room-wiring.js';
+import { setTradingRoomOrchestrator } from './api/trading-room-routes.js';
 
 // ── Ports ──────────────────────────────────────────────────────────────────
 
@@ -228,6 +234,32 @@ export async function startApp(): Promise<void> {
   }
   logger.info('Exchange client wired', 'App', { connected: exchangeClient.listConnected().length });
 
+  // 5a9. DEX SwapRouter — multi-chain swap routing (paper mode unless RPC configured)
+  const dexChainConfig: import('./dex/swap-router.js').ChainConfig = {};
+  if (process.env['ETH_RPC_URL']) {
+    dexChainConfig.evm = {
+      ethereum: { rpcUrl: process.env['ETH_RPC_URL']!, privateKey: process.env['ETH_PRIVATE_KEY'] ?? '' },
+    } as any;
+  }
+  if (process.env['SOLANA_RPC_URL']) {
+    dexChainConfig.solana = {
+      rpcUrl: process.env['SOLANA_RPC_URL']!,
+      privateKey: process.env['SOLANA_PRIVATE_KEY'] ?? '',
+    } as any;
+  }
+  const swapRouter = new SwapRouter(dexChainConfig);
+  setSwapRouter(swapRouter);
+  logger.info('DEX SwapRouter wired', 'App', { chains: swapRouter.getConfiguredChains() });
+
+  // 5a10. Kalshi prediction market client (paper mode by default)
+  const kalshiBundle = createKalshiClient({
+    apiKey: process.env['KALSHI_API_KEY'],
+    privateKey: process.env['KALSHI_PRIVATE_KEY'],
+    paperMode: process.env['LIVE_TRADING'] !== 'true',
+  });
+  setKalshiDeps(kalshiBundle);
+  logger.info('Kalshi client wired', 'App', { paperMode: process.env['LIVE_TRADING'] !== 'true' });
+
   // 5b. UserStore — shared across API server + dashboard for real analytics
   const userDbPath = process.env['USER_DB_PATH'] ?? 'data/users.db';
   const userStore = new UserStore(userDbPath);
@@ -305,6 +337,22 @@ export async function startApp(): Promise<void> {
   logger.info('OpenClaw AI subsystem ready', 'App', {
     gateway: _openClaw.deps.controller ? 'configured' : 'none',
   });
+
+  // 14c. Trading Room AGI orchestrator — wires engine + exchanges + signal pipeline + OpenClaw
+  {
+    const { AgiOrchestrator } = await import('./trading-room/agi-orchestrator.js');
+    const { SignalPipeline } = await import('./trading-room/signal-pipeline.js');
+    const { ExchangeRegistry } = await import('./trading-room/exchange-registry.js');
+    const registry = new ExchangeRegistry();
+    const pipeline = new SignalPipeline();
+    if (_openClaw?.deps.controller) {
+      const orchestrator = new AgiOrchestrator(_engine, registry, pipeline, _openClaw.deps.controller as any);
+      setTradingRoomOrchestrator(orchestrator);
+      logger.info('AgiOrchestrator wired for Trading Room', 'App');
+    } else {
+      logger.info('AgiOrchestrator skipped — OpenClaw controller not available', 'App');
+    }
+  }
 
   // 14b. Dashboard server (port 3001) — wired AFTER OpenClaw for live AI data
   const dashDeps: DashboardDeps = {
