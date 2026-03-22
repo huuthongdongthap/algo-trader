@@ -175,6 +175,22 @@ export class MarketplaceService {
     }));
   }
 
+  /** Get top-rated active strategies sorted by rating desc */
+  getTopStrategies(limit = 10): Omit<MarketplaceListing, 'configJson'>[] {
+    const rows = this.db.prepare(
+      `SELECT id,author_id,name,description,price_cents,category,downloads,rating,created_at,active
+       FROM marketplace_listings WHERE active=1 ORDER BY rating DESC, downloads DESC LIMIT ?`
+    ).all(limit) as Record<string, unknown>[];
+    return rows.map(rowToListingPublic);
+  }
+
+  /** Update strategy rating score (0-100 fitness score from backtest) */
+  updateRating(id: string, rating: number): void {
+    this.db.prepare(`UPDATE marketplace_listings SET rating=? WHERE id=?`).run(
+      Math.max(0, Math.min(100, rating)), id,
+    );
+  }
+
   close(): void { this.db.close(); }
 }
 

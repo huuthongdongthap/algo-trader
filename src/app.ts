@@ -40,6 +40,9 @@ import { seedDemoLeaders } from './copy-trading/seed-demo-leaders.js';
 import { setAnalyticsEngine } from './api/analytics-routes.js';
 import { AlertHistory } from './notifications/alert-history.js';
 import { setAlertHistory } from './api/alert-history-routes.js';
+import { setExportDeps } from './api/routes.js';
+import { UserWebhookRegistry } from './webhooks/user-webhook-registry.js';
+import { setUserWebhookRegistry } from './api/user-webhook-routes.js';
 
 // ── Ports ──────────────────────────────────────────────────────────────────
 
@@ -65,6 +68,7 @@ let _notifications: NotificationsBundle | null = null;
 let _orchestrator: StrategyOrchestrator | null = null;
 let _wsWiring: WsEventWiring | null = null;
 let _openClaw: OpenClawBundle | null = null;
+let _userWebhookRegistry: UserWebhookRegistry | null = null;
 let _stopping = false;
 
 // ── Banner ─────────────────────────────────────────────────────────────────
@@ -106,6 +110,7 @@ export async function stopApp(reason = 'manual'): Promise<void> {
     if (_orchestrator) { _orchestrator.stopAll(); _orchestrator = null; }
     if (_wsWiring) { _wsWiring.dispose(); _wsWiring = null; }
     if (_notifications) { stopNotifications(_notifications); _notifications = null; }
+    if (_userWebhookRegistry) { _userWebhookRegistry.stop(); _userWebhookRegistry = null; }
     if (_scheduler) { _scheduler.stop(); _scheduler = null; }
     if (_recovery)  { _recovery.stopAutoSave(); _recovery.clearState(); _recovery = null; }
 
@@ -150,6 +155,20 @@ export async function startApp(): Promise<void> {
   alertHistory.wireEventBus(eventBus);
   setAlertHistory(alertHistory);
   logger.info('Alert history wired', 'App');
+
+  // 5a3. Export API — wire trade/PnL/portfolio export to main router
+  setExportDeps({
+    getTrades: () => _engine!.getExecutor().getTradeLog(),
+    getPnlSnapshots: () => [],
+    getPortfolioSummary: () => ({ totalEquity: '0', totalUnrealizedPnl: '0', openPositions: 0, strategies: [] }),
+  });
+  logger.info('Export API wired', 'App');
+
+  // 5a4. User webhook registry — outbound notifications to user-registered URLs
+  _userWebhookRegistry = new UserWebhookRegistry();
+  _userWebhookRegistry.wireEventBus(eventBus);
+  setUserWebhookRegistry(_userWebhookRegistry);
+  logger.info('User webhook registry wired', 'App');
 
   // 5b. UserStore — shared across API server + dashboard for real analytics
   const userDbPath = process.env['USER_DB_PATH'] ?? 'data/users.db';

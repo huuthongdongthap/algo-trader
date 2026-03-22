@@ -37,6 +37,14 @@ export async function handleMarketplaceRoutes(
     return true;
   }
 
+  // GET /api/marketplace/top — top-rated strategies by fitness score
+  if (pathname === '/api/marketplace/top' && method === 'GET') {
+    const limit = Math.min(50, Math.max(1, parseInt(String(parsed.query['limit'] ?? '10'), 10)));
+    const items = svc.getTopStrategies(limit);
+    sendJson(res, 200, { items, count: items.length });
+    return true;
+  }
+
   // GET /api/marketplace/my-published
   if (pathname === '/api/marketplace/my-published' && method === 'GET') {
     const items = svc.getMyPublished(userId);

@@ -1205,6 +1205,56 @@ const apiPaths = {
     },
   },
 
+  // ── Export API ───────────────────────────────────────────────────────────
+  '/api/export/trades': {
+    get: {
+      tags: ['Export'],
+      summary: 'Export trade history as CSV/JSON/TSV',
+      parameters: [
+        { name: 'format', in: 'query', schema: { type: 'string', enum: ['csv', 'json', 'tsv'] } },
+        { name: 'from', in: 'query', schema: { type: 'integer' }, description: 'Start timestamp (ms)' },
+        { name: 'to', in: 'query', schema: { type: 'integer' }, description: 'End timestamp (ms)' },
+        { name: 'strategy', in: 'query', schema: { type: 'string' } },
+      ],
+      responses: { 200: { description: 'File download' } },
+    },
+  },
+  '/api/export/pnl': {
+    get: { tags: ['Export'], summary: 'Export P&L snapshots', parameters: [{ name: 'format', in: 'query', schema: { type: 'string', enum: ['csv', 'json'] } }], responses: { 200: { description: 'File download' } } },
+  },
+  '/api/export/portfolio': {
+    get: { tags: ['Export'], summary: 'Export portfolio summary', parameters: [{ name: 'format', in: 'query', schema: { type: 'string', enum: ['csv', 'json'] } }], responses: { 200: { description: 'File download' } } },
+  },
+
+  // ── User Webhooks ──────────────────────────────────────────────────────
+  '/api/webhooks/register': {
+    post: {
+      tags: ['User Webhooks'],
+      summary: 'Register a callback URL for trade/alert notifications',
+      requestBody: { required: true, content: { 'application/json': { schema: { type: 'object', required: ['url'], properties: { url: { type: 'string' }, events: { type: 'array', items: { type: 'string', enum: ['trade', 'alert', 'error'] } } } } } } },
+      responses: { 201: { description: 'Webhook registered' }, 400: { description: 'Missing URL' } },
+    },
+  },
+  '/api/webhooks/my': {
+    get: { tags: ['User Webhooks'], summary: 'List my registered webhooks', responses: { 200: { description: 'Webhook list' } } },
+  },
+  '/api/webhooks/{id}': {
+    delete: { tags: ['User Webhooks'], summary: 'Remove a webhook registration', parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }], responses: { 200: { description: 'Removed' }, 404: { description: 'Not found' } } },
+  },
+  '/api/webhooks/stats': {
+    get: { tags: ['User Webhooks'], summary: 'Webhook delivery statistics', responses: { 200: { description: 'Stats' } } },
+  },
+
+  // ── Marketplace Top ────────────────────────────────────────────────────
+  '/api/marketplace/top': {
+    get: {
+      tags: ['Marketplace'],
+      summary: 'Top-rated strategies by fitness score',
+      parameters: [{ name: 'limit', in: 'query', schema: { type: 'integer', default: 10 } }],
+      responses: { 200: { description: 'Top strategies list' } },
+    },
+  },
+
   // ── Webhook Status ──────────────────────────────────────────────────────
   '/webhook/status': {
     get: {

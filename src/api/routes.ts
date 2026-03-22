@@ -25,6 +25,12 @@ import { handleOpenClawRequest, type OpenClawDeps } from '../openclaw/api-endpoi
 import { checkApiRateLimit } from './api-rate-limiter.js';
 import { handleAnalyticsRoutes } from './analytics-routes.js';
 import { handleAlertHistoryRoutes } from './alert-history-routes.js';
+import { handleExportRequest, type ExportDeps } from '../export/export-api.js';
+import { handleUserWebhookRoutes } from './user-webhook-routes.js';
+
+// ─── Export deps setter (called from app.ts after bootstrap) ────────────────
+let _exportDeps: ExportDeps | null = null;
+export function setExportDeps(deps: ExportDeps): void { _exportDeps = deps; }
 
 // ─── OpenClaw deps setter (called from app.ts after bootstrap) ───────────────
 let _openClawDeps: OpenClawDeps | null = null;
@@ -213,6 +219,12 @@ export async function handleRequest(
       if (!handled) sendNotFound(res);
     } else if (pathname.startsWith('/api/alerts/')) {
       const handled = handleAlertHistoryRoutes(req, res, pathname, method);
+      if (!handled) sendNotFound(res);
+    } else if (pathname.startsWith('/api/export/')) {
+      if (!_exportDeps) { sendJson(res, 503, { error: 'Export not configured' }); return; }
+      handleExportRequest(req, res, _exportDeps);
+    } else if (pathname.startsWith('/api/webhooks/') && !pathname.startsWith('/api/webhooks/polar') && !pathname.startsWith('/api/webhooks/tradingview')) {
+      const handled = handleUserWebhookRoutes(req, res, pathname, method);
       if (!handled) sendNotFound(res);
     } else if (pathname.startsWith('/api/openclaw/')) {
       if (!_openClawDeps) { sendJson(res, 503, { error: 'OpenClaw AI not configured' }); return; }
