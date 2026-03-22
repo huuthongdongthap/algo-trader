@@ -41,6 +41,8 @@ import { handleOptimizerRoutes } from './optimizer-routes.js';
 import { handleTemplateRoutes } from './template-routes.js';
 import { handleDexRoutes } from './dex-routes.js';
 import { handleKalshiRoutes } from './kalshi-routes.js';
+import { handleConsensusRoutes } from './consensus-routes.js';
+import { handleSubscriptionRoutes } from './subscription-routes.js';
 
 // ─── Export deps setter (called from app.ts after bootstrap) ────────────────
 let _exportDeps: ExportDeps | null = null;
@@ -244,6 +246,9 @@ export async function handleRequest(
       const handled = await handlePortfolioRoutes(req, res, pathname, method);
       if (!handled) sendNotFound(res);
     } else if (pathname.startsWith('/api/signals/')) {
+      // Consensus endpoint under /api/signals/consensus
+      const consensusHandled = await handleConsensusRoutes(req, res, pathname, method);
+      if (consensusHandled) return;
       const handled = await handleSignalRoutes(req, res, pathname, method);
       if (!handled) sendNotFound(res);
     } else if (pathname.startsWith('/api/onboarding/')) {
@@ -305,6 +310,9 @@ export async function handleRequest(
       if (!handled) sendNotFound(res);
     } else if (pathname.startsWith('/api/kalshi/')) {
       const handled = handleKalshiRoutes(req, res, pathname, method);
+      if (!handled) sendNotFound(res);
+    } else if (pathname.startsWith('/api/subscription/')) {
+      const handled = await handleSubscriptionRoutes(req, res, pathname, method);
       if (!handled) sendNotFound(res);
     } else if (pathname.startsWith('/api/openclaw/')) {
       if (!_openClawDeps) { sendJson(res, 503, { error: 'OpenClaw AI not configured' }); return; }
