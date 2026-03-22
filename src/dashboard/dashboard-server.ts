@@ -197,6 +197,7 @@ const DEMO_STRATEGIES = [
   { id: 'strat-mean-rev', name: 'Mean Reversion Alpha', author: 'QuantSage', category: 'crypto', priceCents: 3900, rating: 4.3, downloads: 167, description: 'Statistical mean-reversion strategy using Bollinger Bands and Z-score for entry timing.' },
   { id: 'strat-trend', name: 'Trend Following MACD', author: 'SteadyEddie', category: 'crypto', priceCents: 0, rating: 4.1, downloads: 412, description: 'Free trend-following strategy using MACD crossovers with multi-timeframe confirmation.' },
   { id: 'strat-kalshi', name: 'Kalshi Event Trader', author: 'ArbKing', category: 'other', priceCents: 5900, rating: 4.6, downloads: 78, description: 'Event-driven strategy for Kalshi markets with sentiment analysis and probability modeling.' },
+  { id: 'strat-polyclaw-hedge', name: 'PolyClaw Hedge T1/T2', author: 'CashClaw', category: 'polymarket', priceCents: 9900, rating: 4.9, downloads: 42, description: 'AI-powered hedge discovery using LLM implication analysis. Finds logically necessary relationships between Polymarket events for 95%+ coverage portfolios. Includes Kelly position sizing and two-tier cache.' },
 ];
 
 function getMarketplaceBrowse() {
