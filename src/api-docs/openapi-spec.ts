@@ -1949,6 +1949,43 @@ apiPaths['/api/onboarding/quickstart'] = {
     responses: { 200: { description: 'Quickstart guide with steps and tier info' } } },
 };
 
+// ─── AI Consensus endpoints ──────────────────────────────────────────────────
+
+apiPaths['/api/signals/consensus'] = {
+  post: { tags: ['AI Signals'], summary: 'Compute multi-source consensus signal',
+    description: 'Combines ML scoring + OpenClaw AI analysis for a weighted consensus verdict (strong_buy/buy/hold/sell/strong_sell).',
+    requestBody: { required: true, content: { 'application/json': { schema: {
+      type: 'object', properties: {
+        symbol: { type: 'string', example: 'BTC-USD' },
+        includeAi: { type: 'boolean', description: 'Include OpenClaw AI analysis (slower, more accurate)', default: false },
+      }, required: ['symbol'],
+    } } } },
+    responses: {
+      200: { description: 'Consensus result with verdict, confidence, and reasoning' },
+      404: { description: 'No signal data for symbol' },
+    } },
+};
+
+// ─── Subscription lifecycle endpoints ────────────────────────────────────────
+
+apiPaths['/api/subscription/status'] = {
+  get: { tags: ['Billing'], summary: 'Get current subscription status',
+    description: 'Returns subscription state, tier, usage metering, and trial/period expiry.',
+    responses: { 200: { description: 'Subscription record with usage stats' }, 401: { description: 'Unauthorized' } } },
+};
+
+apiPaths['/api/subscription/usage'] = {
+  get: { tags: ['Billing'], summary: 'Get usage history for billing period',
+    description: 'Returns API call counts, trade counts, and capital deployed per billing period.',
+    responses: { 200: { description: 'Array of usage snapshots' } } },
+};
+
+apiPaths['/api/subscription/trial'] = {
+  post: { tags: ['Billing'], summary: 'Start a 14-day Pro trial',
+    description: 'Initiates a free trial with Pro tier access for 14 days.',
+    responses: { 201: { description: 'Trial subscription record' }, 409: { description: 'User already has active subscription' } } },
+};
+
 // ─── Public export ────────────────────────────────────────────────────────────
 
 /** Returns the complete OpenAPI 3.0 specification as a plain object */
