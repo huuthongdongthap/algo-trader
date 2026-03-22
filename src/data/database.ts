@@ -48,6 +48,9 @@ CREATE INDEX IF NOT EXISTS idx_trades_strategy  ON trades(strategy);
 CREATE INDEX IF NOT EXISTS idx_trades_ts        ON trades(timestamp);
 CREATE INDEX IF NOT EXISTS idx_positions_market ON positions(market);
 CREATE INDEX IF NOT EXISTS idx_pnl_strategy     ON pnl_snapshots(strategy);
+CREATE TABLE IF NOT EXISTS hedge_cache (
+  key TEXT PRIMARY KEY, data TEXT NOT NULL, expires_at INTEGER NOT NULL
+);
 `;
 
 export class AlgoDatabase {
@@ -146,6 +149,27 @@ export class AlgoDatabase {
       .prepare(`SELECT state FROM strategy_state WHERE strategy=?`)
       .get(strategy) as { state: string } | undefined;
     return row ? (JSON.parse(row.state) as Record<string, unknown>) : null;
+  }
+
+  // Hedge cache (persistent LLM response cache)
+  getHedgeCache(key: string): string | null {
+    const row = this.db
+      .prepare('SELECT data FROM hedge_cache WHERE key=? AND expires_at > ?')
+      .get(key, Date.now()) as { data: string } | undefined;
+    return row?.data ?? null;
+  }
+
+  setHedgeCache(key: string, data: string, ttlMs: number): void {
+    this.db
+      .prepare('INSERT OR REPLACE INTO hedge_cache (key, data, expires_at) VALUES (?, ?, ?)')
+      .run(key, data, Date.now() + ttlMs);
+  }
+
+  pruneHedgeCache(): number {
+    const result = this.db
+      .prepare('DELETE FROM hedge_cache WHERE expires_at <= ?')
+      .run(Date.now());
+    return result.changes;
   }
 
   close(): void { this.db.close(); }

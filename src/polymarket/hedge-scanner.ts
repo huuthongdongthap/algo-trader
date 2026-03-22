@@ -1,13 +1,14 @@
 // Hedge Scanner: wires PolyClaw hedge-discovery into the Polymarket trading pipeline
 // Uses GammaClient for market browsing + AiRouter for LLM implication analysis
-// Produces ranked HedgePortfolio[] for a given target market
-// Includes in-memory LLM cache (TTL-based) to reduce API costs by ~70%
+// Two-tier cache: L1 in-memory Map (fast) + L2 SQLite (persistent across restarts)
+// Reduces LLM API costs by ~70-80%
 
 import { GammaClient, type GammaMarket } from './gamma-client.js';
 import { scanForHedges } from './hedge-discovery.js';
 import { sortPortfolios, filterByTier, type HedgePortfolio } from './hedge-coverage.js';
 import type { AiRouter } from '../openclaw/ai-router.js';
 import type { KellyPositionSizer, SizingResult } from './kelly-position-sizer.js';
+import type { AlgoDatabase } from '../data/database.js';
 import { logger } from '../core/logger.js';
 import { createHash } from 'crypto';
 
@@ -22,10 +23,12 @@ export interface HedgeScanConfig {
   maxTier?: number;
   /** Gamma API timeout in ms */
   gammaTimeout?: number;
-  /** LLM cache TTL in ms (default 30 min) */
+  /** LLM cache TTL in ms (default 1 hour) */
   cacheTtlMs?: number;
   /** Max concurrent LLM calls for batch scan */
   concurrency?: number;
+  /** Optional SQLite database for persistent L2 cache */
+  db?: AlgoDatabase;
 }
 
 export interface HedgeScanResult {
@@ -42,13 +45,13 @@ interface CacheEntry {
   expiresAt: number;
 }
 
-const DEFAULTS: Required<HedgeScanConfig> = {
+const DEFAULTS = {
   maxRelatedMarkets: 30,
   maxTier: 3,
   gammaTimeout: 15_000,
-  cacheTtlMs: 30 * 60_000, // 30 minutes
+  cacheTtlMs: 60 * 60_000, // 1 hour
   concurrency: 3,
-};
+} as const;
 
 // ---------------------------------------------------------------------------
 // HedgeScanner
@@ -57,20 +60,32 @@ const DEFAULTS: Required<HedgeScanConfig> = {
 export class HedgeScanner {
   private readonly gamma: GammaClient;
   private readonly ai: AiRouter;
-  private readonly config: Required<HedgeScanConfig>;
-  private readonly cache = new Map<string, CacheEntry>();
+  private readonly db: AlgoDatabase | null;
+  private readonly cacheTtlMs: number;
+  private readonly maxTier: number;
+  private readonly maxRelatedMarkets: number;
+  private readonly concurrency: number;
+  /** L1: fast in-memory cache */
+  private readonly memCache = new Map<string, CacheEntry>();
 
   constructor(ai: AiRouter, config: HedgeScanConfig = {}) {
     this.ai = ai;
-    this.config = { ...DEFAULTS, ...config };
-    this.gamma = new GammaClient(this.config.gammaTimeout);
+    this.db = config.db ?? null;
+    this.cacheTtlMs = config.cacheTtlMs ?? DEFAULTS.cacheTtlMs;
+    this.maxTier = config.maxTier ?? DEFAULTS.maxTier;
+    this.maxRelatedMarkets = config.maxRelatedMarkets ?? DEFAULTS.maxRelatedMarkets;
+    this.concurrency = config.concurrency ?? DEFAULTS.concurrency;
+    this.gamma = new GammaClient(config.gammaTimeout ?? DEFAULTS.gammaTimeout);
   }
 
-  /** Get number of cached entries */
-  getCacheSize(): number { return this.cache.size; }
+  /** Get number of L1 cached entries */
+  getCacheSize(): number { return this.memCache.size; }
 
-  /** Clear LLM cache */
-  clearCache(): void { this.cache.clear(); }
+  /** Clear both L1 (memory) and L2 (SQLite) caches */
+  clearCache(): void {
+    this.memCache.clear();
+    this.db?.pruneHedgeCache();
+  }
 
   /**
    * Scan for hedge opportunities for a given market slug.
@@ -93,33 +108,48 @@ export class HedgeScanner {
     const otherMarkets = await this.fetchRelatedMarkets(targetMarket.id);
     const cacheKey = this.buildCacheKey(targetMarket.id, otherMarkets);
 
-    // Check cache
-    const cached = this.cache.get(cacheKey);
-    if (cached && cached.expiresAt > Date.now()) {
-      logger.debug('LLM cache hit', 'HedgeScanner', { target: targetMarket.question });
-      return {
-        targetMarket,
-        portfolios: cached.portfolios,
-        marketsScanned: cached.marketsScanned,
-        scannedAt: Date.now(),
-        cached: true,
-      };
+    // L1: check in-memory cache
+    const memHit = this.memCache.get(cacheKey);
+    if (memHit && memHit.expiresAt > Date.now()) {
+      logger.debug('L1 cache hit (memory)', 'HedgeScanner', { target: targetMarket.question });
+      return this.buildResult(targetMarket, memHit.portfolios, memHit.marketsScanned, true);
     }
 
-    logger.debug('Calling LLM for implication analysis', 'HedgeScanner', {
+    // L2: check SQLite persistent cache
+    if (this.db) {
+      const dbHit = this.db.getHedgeCache(cacheKey);
+      if (dbHit) {
+        const parsed = JSON.parse(dbHit) as { portfolios: HedgePortfolio[]; marketsScanned: number };
+        // Promote to L1
+        this.memCache.set(cacheKey, { ...parsed, expiresAt: Date.now() + this.cacheTtlMs });
+        logger.debug('L2 cache hit (SQLite)', 'HedgeScanner', { target: targetMarket.question });
+        return this.buildResult(targetMarket, parsed.portfolios, parsed.marketsScanned, true);
+      }
+    }
+
+    // Cache miss — call LLM
+    logger.debug('Cache miss — calling LLM', 'HedgeScanner', {
       target: targetMarket.question,
       candidates: otherMarkets.length,
     });
 
     const portfolios = await scanForHedges(targetMarket, otherMarkets, this.ai);
-    const sorted = sortPortfolios(filterByTier(portfolios, this.config.maxTier));
+    const sorted = sortPortfolios(filterByTier(portfolios, this.maxTier));
 
-    // Store in cache
-    this.cache.set(cacheKey, {
+    // Store in L1
+    this.memCache.set(cacheKey, {
       portfolios: sorted,
       marketsScanned: otherMarkets.length,
-      expiresAt: Date.now() + this.config.cacheTtlMs,
+      expiresAt: Date.now() + this.cacheTtlMs,
     });
+    // Store in L2 (persistent)
+    if (this.db) {
+      this.db.setHedgeCache(
+        cacheKey,
+        JSON.stringify({ portfolios: sorted, marketsScanned: otherMarkets.length }),
+        this.cacheTtlMs,
+      );
+    }
     this.pruneExpiredCache();
 
     logger.info('Hedge scan complete', 'HedgeScanner', {
@@ -127,13 +157,7 @@ export class HedgeScanner {
       portfoliosFound: sorted.length,
     });
 
-    return {
-      targetMarket,
-      portfolios: sorted,
-      marketsScanned: otherMarkets.length,
-      scannedAt: Date.now(),
-      cached: false,
-    };
+    return this.buildResult(targetMarket, sorted, otherMarkets.length, false);
   }
 
   /**
@@ -145,7 +169,7 @@ export class HedgeScanner {
     const queue = [...slugs];
 
     while (queue.length > 0) {
-      const batch = queue.splice(0, this.config.concurrency);
+      const batch = queue.splice(0, this.concurrency);
       const batchResults = await Promise.allSettled(
         batch.map(slug => this.scanBySlug(slug)),
       );
@@ -185,11 +209,20 @@ export class HedgeScanner {
 
   // ── Private ──────────────────────────────────────────────────────────────
 
+  private buildResult(
+    targetMarket: GammaMarket,
+    portfolios: HedgePortfolio[],
+    marketsScanned: number,
+    cached: boolean,
+  ): HedgeScanResult {
+    return { targetMarket, portfolios, marketsScanned, scannedAt: Date.now(), cached };
+  }
+
   private async fetchRelatedMarkets(excludeId: string): Promise<GammaMarket[]> {
-    const trending = await this.gamma.getTrending(this.config.maxRelatedMarkets + 10);
+    const trending = await this.gamma.getTrending(this.maxRelatedMarkets + 10);
     return trending
       .filter(m => m.id !== excludeId && m.active && !m.resolved)
-      .slice(0, this.config.maxRelatedMarkets);
+      .slice(0, this.maxRelatedMarkets);
   }
 
   private buildCacheKey(targetId: string, others: GammaMarket[]): string {
@@ -220,9 +253,10 @@ export class HedgeScanner {
 
   private pruneExpiredCache(): void {
     const now = Date.now();
-    for (const [key, entry] of this.cache) {
-      if (entry.expiresAt <= now) this.cache.delete(key);
+    for (const [key, entry] of this.memCache) {
+      if (entry.expiresAt <= now) this.memCache.delete(key);
     }
+    this.db?.pruneHedgeCache();
   }
 }
 
