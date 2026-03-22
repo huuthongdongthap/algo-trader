@@ -11,6 +11,7 @@ import {
   parseCustomSignal,
 } from './signal-parser.js';
 import type { SignalTemplate } from './signal-parser.js';
+import { WebhookRetryQueue } from './webhook-retry.js';
 
 /** Callback invoked for each validated incoming signal */
 export type SignalHandler = (signal: TradingSignal) => void | Promise<void>;
@@ -94,10 +95,20 @@ async function handleWebhookRequest(
   req: IncomingMessage,
   res: ServerResponse,
   onSignal: SignalHandler,
+  retryQueue?: WebhookRetryQueue,
 ): Promise<void> {
   const { method } = req;
   const parsed = parse(req.url ?? '/', true);
   const pathname = parsed.pathname ?? '/';
+
+  // GET /webhook/status — delivery stats (no auth required)
+  if (method === 'GET' && pathname === '/webhook/status') {
+    sendJson(res, 200, {
+      stats: retryQueue?.getStats() ?? { pending: 0, delivered: 0, failed: 0 },
+      pending: retryQueue?.getPending().length ?? 0,
+    });
+    return;
+  }
 
   // Only POST allowed on webhook endpoints
   if (method !== 'POST') {
@@ -180,8 +191,11 @@ async function handleWebhookRequest(
  * @returns running http.Server instance
  */
 export function createWebhookServer(port: number, onSignal: SignalHandler): Server {
+  const retryQueue = new WebhookRetryQueue();
+  retryQueue.start();
+
   const server = createHttpServer((req, res) => {
-    handleWebhookRequest(req, res, onSignal).catch((err) => {
+    handleWebhookRequest(req, res, onSignal, retryQueue).catch((err) => {
       const message = err instanceof Error ? err.message : 'Unexpected error';
       if (!res.headersSent) {
         sendJson(res, 500, { error: 'Internal Server Error', message });
@@ -193,6 +207,9 @@ export function createWebhookServer(port: number, onSignal: SignalHandler): Serv
     console.log(`[Webhook] Server listening on port ${port}`);
   });
 
+  // Attach retryQueue for cleanup
+  (server as any)._retryQueue = retryQueue;
+
   return server;
 }
 
@@ -200,6 +217,8 @@ export function createWebhookServer(port: number, onSignal: SignalHandler): Serv
  * Gracefully stop the webhook server.
  */
 export function stopWebhookServer(server: Server): Promise<void> {
+  const retryQueue = (server as any)._retryQueue as WebhookRetryQueue | undefined;
+  retryQueue?.stop();
   return new Promise((resolve, reject) => {
     server.close((err) => (err ? reject(err) : resolve()));
   });

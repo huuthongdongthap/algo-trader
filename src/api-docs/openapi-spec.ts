@@ -1171,6 +1171,54 @@ const apiPaths = {
       },
     },
   },
+
+  // ── Marketplace Export/Import ────────────────────────────────────────────
+  '/api/marketplace/export/{id}': {
+    get: {
+      tags: ['Marketplace'],
+      summary: 'Export strategy config as JSON',
+      description: 'Export full strategy configuration. Only available to author or purchaser.',
+      parameters: [{ name: 'id', in: 'path', required: true, schema: { type: 'string' } }],
+      responses: {
+        200: { description: 'Strategy export bundle', content: { 'application/json': { schema: { type: 'object',
+          properties: { exportVersion: { type: 'integer' }, name: { type: 'string' }, description: { type: 'string' }, category: { type: 'string' }, config: { type: 'object' }, exportedAt: { type: 'integer' } },
+        } } } },
+        403: { description: 'Not authorized to export' },
+        404: { description: 'Strategy not found' },
+      },
+    },
+  },
+  '/api/marketplace/import': {
+    post: {
+      tags: ['Marketplace'],
+      summary: 'Import strategy config and publish as new listing',
+      description: 'Import a strategy export bundle. Pro/Enterprise tier required.',
+      requestBody: { required: true, content: { 'application/json': { schema: { type: 'object',
+        required: ['name', 'config'],
+        properties: { name: { type: 'string' }, description: { type: 'string' }, category: { type: 'string' }, config: { type: 'object' }, priceCents: { type: 'integer' } },
+      } } } },
+      responses: {
+        201: { description: 'Strategy imported and published' },
+        400: { description: 'Missing required fields' },
+        403: { description: 'Tier requirement not met' },
+      },
+    },
+  },
+
+  // ── Webhook Status ──────────────────────────────────────────────────────
+  '/webhook/status': {
+    get: {
+      tags: ['Webhooks'],
+      summary: 'Webhook delivery stats',
+      description: 'Returns retry queue stats: pending, delivered, failed counts.',
+      security: [],
+      responses: {
+        200: { description: 'Delivery stats', content: { 'application/json': { schema: { type: 'object',
+          properties: { stats: { type: 'object', properties: { pending: { type: 'integer' }, delivered: { type: 'integer' }, failed: { type: 'integer' } } }, pending: { type: 'integer' } },
+        } } } },
+      },
+    },
+  },
 };
 
 // ─── Public export ────────────────────────────────────────────────────────────

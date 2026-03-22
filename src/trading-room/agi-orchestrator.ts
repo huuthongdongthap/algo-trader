@@ -38,6 +38,7 @@ export class AgiOrchestrator {
   private lastCycleAt: number | null = null;
   private lastAutoTuneAt: number | null = null;
   private completedSignals = 0;
+  private watchSymbols: string[] = [];
 
   constructor(
     private readonly engine: TradingEngine,
@@ -66,6 +67,7 @@ export class AgiOrchestrator {
       logger.info(`Preflight OK — ${healthy.length} exchange(s)`, 'AgiOrchestrator');
     }
 
+    this.watchSymbols = config.watchSymbols ?? [];
     await this.engine.start({ dryRun: config.mode === 'semi-auto' });
     this.live = true;
     this.startedAt = Date.now();
@@ -128,23 +130,30 @@ export class AgiOrchestrator {
 
     logger.debug(`Cycle #${this.cycleCount} — ${healthy.length} exchange(s)`, 'AgiOrchestrator');
 
-    // TODO: replace with real signal generators (strategies, ML, AI router)
+    // Multi-source signal generation: OpenClaw AI sentiment + strategy engine signals
     for (const entry of healthy) {
       try {
-        const sentiment = await this.openclaw.quickCheck(
-          `In one word, is ${entry.name} BTC/USDT currently bullish, bearish, or neutral?`,
-        );
-        const side = sentiment.toLowerCase().includes('bullish') ? 'buy' : 'sell';
-        const signal: TradingSignal = {
-          id: `${entry.name}-${this.cycleCount}-${Date.now()}`,
-          source: 'openclaw',
-          symbol: 'BTC/USDT',
-          side,
-          confidence: 0.6,
-          timestamp: Date.now(),
-          meta: { exchange: entry.name, sentiment },
-        };
-        this.pipeline.addSignal(signal);
+        const symbols = this.watchSymbols.length > 0 ? this.watchSymbols : ['BTC/USDT'];
+        for (const symbol of symbols) {
+          const sentiment = await this.openclaw.quickCheck(
+            `In one word, is ${entry.name} ${symbol} currently bullish, bearish, or neutral?`,
+          );
+          const isBullish = sentiment.toLowerCase().includes('bullish');
+          const isNeutral = sentiment.toLowerCase().includes('neutral');
+          if (isNeutral) continue; // skip neutral signals
+          const side = isBullish ? 'buy' : 'sell';
+          const confidence = isBullish ? 0.65 : 0.6;
+          const signal: TradingSignal = {
+            id: `${entry.name}-${symbol}-${this.cycleCount}-${Date.now()}`,
+            source: 'openclaw',
+            symbol,
+            side,
+            confidence,
+            timestamp: Date.now(),
+            meta: { exchange: entry.name, sentiment, marketType: 'cex' },
+          };
+          this.pipeline.addSignal(signal);
+        }
       } catch (err) {
         logger.warn(`Cycle signal error on ${entry.name}: ${err}`, 'AgiOrchestrator');
       }

@@ -120,5 +120,66 @@ export async function handleMarketplaceRoutes(
     return true;
   }
 
+  // GET /api/marketplace/export/:id — export strategy config as JSON (author or purchaser only)
+  const exportMatch = pathname.match(/^\/api\/marketplace\/export\/([^/]+)$/);
+  if (exportMatch && method === 'GET') {
+    const id = exportMatch[1]!;
+    const listing = svc.getStrategy(id);
+    if (!listing) {
+      sendJson(res, 404, { error: 'Not Found', message: 'Strategy not found' });
+      return true;
+    }
+    // Only author or purchaser can export
+    const isPurchaser = svc.getMyPurchased(userId).some(p => p.purchase.strategyId === id);
+    if (listing.authorId !== userId && !isPurchaser) {
+      sendJson(res, 403, { error: 'Forbidden', message: 'You must be the author or have purchased this strategy to export' });
+      return true;
+    }
+    const config = JSON.parse(listing.configJson) as Record<string, unknown>;
+    sendJson(res, 200, {
+      exportVersion: 1,
+      name: listing.name,
+      description: listing.description,
+      category: listing.category,
+      config,
+      exportedAt: Date.now(),
+    });
+    return true;
+  }
+
+  // POST /api/marketplace/import — import strategy config and publish as new listing
+  if (pathname === '/api/marketplace/import' && method === 'POST') {
+    if (!PUBLISH_TIERS.has(userTier)) {
+      sendJson(res, 403, { error: 'Forbidden', message: 'Pro or Enterprise tier required to import strategies' });
+      return true;
+    }
+    let body: Record<string, unknown>;
+    try {
+      body = await readJsonBody(req);
+    } catch {
+      sendJson(res, 400, { error: 'Bad Request', message: 'Invalid JSON body' });
+      return true;
+    }
+    const { name, description, category, config, priceCents } = body;
+    if (!name || !config) {
+      sendJson(res, 400, { error: 'Bad Request', message: 'Missing required fields: name, config' });
+      return true;
+    }
+    try {
+      const listing = svc.publishStrategy(
+        userId,
+        String(name),
+        String(description ?? 'Imported strategy'),
+        config as Record<string, unknown>,
+        typeof priceCents === 'number' ? priceCents : 0,
+        (category as MarketplaceCategory) ?? 'other',
+      );
+      sendJson(res, 201, { listing, imported: true });
+    } catch (err) {
+      sendJson(res, 500, { error: 'Internal Server Error', message: err instanceof Error ? err.message : 'Unknown error' });
+    }
+    return true;
+  }
+
   return false;
 }

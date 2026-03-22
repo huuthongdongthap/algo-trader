@@ -1,7 +1,8 @@
 // SignalPipeline: Signal → Validate → Risk-check → Execute → Confirm
 // Processes trading signals through ordered stages with monitoring hooks
 
-import type { OrderSide } from '../core/types.js';
+import type { OrderSide, MarketType } from '../core/types.js';
+import type { TradeExecutor, TradeRequest } from '../engine/trade-executor.js';
 import { logger } from '../core/logger.js';
 
 /** A raw signal entering the pipeline from any strategy or AI source */
@@ -47,6 +48,14 @@ export class SignalPipeline {
   /** Completed / rejected signal history (capped at 200) */
   private history: PipelineRecord[] = [];
   private stageCallbacks: StageCallback[] = [];
+  private executor: TradeExecutor | null = null;
+  private dryRun = true;
+
+  /** Inject TradeExecutor for real order submission */
+  setExecutor(executor: TradeExecutor, dryRun = true): void {
+    this.executor = executor;
+    this.dryRun = dryRun;
+  }
 
   /** Register a monitoring hook — called after every stage transition */
   onStageComplete(cb: StageCallback): void {
@@ -150,14 +159,29 @@ export class SignalPipeline {
   }
 
   /**
-   * Execute: placeholder hook — real execution wires into TradeExecutor.
-   * Simulates a short network round-trip.
+   * Execute: routes signal to TradeExecutor if available, otherwise simulates.
    */
   private async stageExecute(record: PipelineRecord): Promise<void> {
-    // TODO: inject TradeExecutor and call executor.submitOrder(...)
-    await new Promise(r => setTimeout(r, 5));
-    record.notes.push(`executed: ${record.signal.side} ${record.signal.symbol}`);
-    logger.debug(`Executed signal ${record.signal.id}`, 'SignalPipeline');
+    const { signal } = record;
+    if (this.executor) {
+      const marketType: MarketType = (signal.meta?.['marketType'] as MarketType) ?? 'cex';
+      const exchange = (signal.meta?.['exchange'] as string) ?? 'default';
+      const request: TradeRequest = {
+        marketType,
+        exchange,
+        symbol: signal.symbol,
+        side: signal.side,
+        size: signal.size ?? '0.001',
+        strategy: (signal.source ?? 'pipeline') as TradeRequest['strategy'],
+        dryRun: this.dryRun,
+      };
+      const result = await this.executor.execute(request);
+      record.notes.push(`executed: ${result.orderId} fill=${result.fillPrice}x${result.fillSize}`);
+    } else {
+      await new Promise(r => setTimeout(r, 5));
+      record.notes.push(`executed: ${signal.side} ${signal.symbol} (no executor)`);
+    }
+    logger.debug(`Executed signal ${signal.id}`, 'SignalPipeline');
   }
 
   /** Confirm: mark the order as acknowledged */
