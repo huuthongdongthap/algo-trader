@@ -1,0 +1,45 @@
+{
+  "name": "AlgoTrade",
+  "stage": "zero",
+  "stage_label": "Zero → PSF (Product-Signal Fit)",
+  "model": "Open Source Engine + RaaS Subscription",
+  "target_arr": "$1M",
+  "currency": "USD",
+  "icp": "Crypto-savvy retail traders who want AI-powered prediction market edges without coding",
+  "moat": "OpenClaw local LLM analysis + Kelly sizing + long-tail market selection algorithm",
+  "pricing": {
+    "starter": { "price": 49, "interval": "month", "label": "Starter" },
+    "pro": { "price": 149, "interval": "month", "label": "Pro" },
+    "elite": { "price": 499, "interval": "month", "label": "Elite" }
+  },
+  "billing": "Polar.sh",
+  "strategy": {
+    "focus": "AI prediction edge on long-tail Polymarket markets (<$100K volume, 7-30 day resolution)",
+    "not": "Market making / HFT (arb window 2.7s, 73% captured by sub-100ms bots — unwinnable)",
+    "edge": "Information quality advantage where LLM analysis speed (500ms-2s) is irrelevant"
+  },
+  "tech": {
+    "runtime": "Bun (TypeScript)",
+    "llm": "OpenClaw (local Qwen/DeepSeek via MLX on M1 Max)",
+    "sizing": "Kelly Criterion (half-Kelly)",
+    "market": "Polymarket CLOB API",
+    "tests": "2396/2398 passing (Vitest)"
+  },
+  "agents": {
+    "CEO": "Strategy, positioning, $1M ARR target ownership",
+    "Product": "Feature roadmap, RaaS packaging, UX for traders",
+    "Engineering": "CTO — fix tests, paper trading loop, live execution",
+    "Revenue": "RaaS subscriptions + own-account trading P&L",
+    "Ops": "Monitoring, uptime, OpenClaw inference health"
+  },
+  "status": {
+    "trades_executed": 0,
+    "api_keys_configured": false,
+    "paper_trading": false,
+    "revenue": "$0",
+    "codebase_files": 411,
+    "test_pass_rate": "2396/2398"
+  },
+  "created": "2026-03-23",
+  "updated": "2026-03-23"
+}
