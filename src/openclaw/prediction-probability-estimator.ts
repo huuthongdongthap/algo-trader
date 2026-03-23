@@ -42,7 +42,7 @@ interface RawEstimateJson {
 }
 
 // Minimum |edge| to generate a signal (skip near-zero edges)
-const MIN_EDGE_THRESHOLD = 0.03;
+const MIN_EDGE_THRESHOLD = 0.05;
 
 export class PredictionProbabilityEstimator {
   private readonly router: AiRouter;
@@ -62,8 +62,9 @@ export class PredictionProbabilityEstimator {
     const res = await this.router.chat({
       prompt,
       systemPrompt: [
-        'You are a calibrated prediction market analyst.',
-        'Estimate probabilities objectively based on available information.',
+        'You are a superforecaster with calibrated probability estimates.',
+        'Estimate the TRUE probability of events using base rates, evidence, and reasoning.',
+        'Do NOT ask for or assume any market price. Give your independent estimate.',
         'Respond ONLY with valid JSON — no markdown, no extra text.',
       ].join(' '),
       complexity: 'standard',
@@ -99,6 +100,8 @@ export class PredictionProbabilityEstimator {
   // ── Private ──────────────────────────────────────────────────────────────────
 
   private buildPrompt(input: PredictionInput): string {
+    // BLIND strategy: do NOT show market price to avoid anchoring bias.
+    // The model estimates independently; edge is computed externally.
     const lines = [
       `Prediction market question: "${input.question}"`,
     ];
@@ -106,13 +109,13 @@ export class PredictionProbabilityEstimator {
       lines.push(`Resolution criteria: ${input.resolutionCriteria}`);
     }
     lines.push(
-      `Current market-implied probability (YES price): ${(input.yesPrice * 100).toFixed(1)}%`,
       '',
-      'Estimate the true probability this market resolves YES.',
-      'Consider base rates, recent news, logical consistency, and market efficiency.',
+      'Estimate the probability this event occurs.',
+      'Think step by step: base rate, recent evidence, key factors.',
+      'Do NOT guess what the market thinks. Give YOUR independent estimate.',
       '',
       'Respond with ONLY this JSON:',
-      '{"probability":0.0-1.0,"confidence":0.0-1.0,"reasoning":"brief explanation max 120 chars"}',
+      '{"probability":0.0-1.0,"confidence":0.0-1.0,"reasoning":"3 sentences max with key factors"}',
     );
     return lines.join('\n');
   }
