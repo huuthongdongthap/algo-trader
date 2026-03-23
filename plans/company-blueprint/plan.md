@@ -1,7 +1,7 @@
 ---
 title: "AlgoTrade Company Blueprint — Zero to PSF"
 description: "Execution plan from 0 trades to live AI prediction trading + RaaS revenue"
-status: pending
+status: in-progress
 priority: P1
 effort: 6w
 branch: master
@@ -21,7 +21,7 @@ created: 2026-03-23
 
 ---
 
-## Phase 1 — Fix & Validate (Week 1-2)
+## ✅ Phase 1 — Fix & Validate (Week 1-2) — `completed 2026-03-24`
 
 **Goal:** Engine is trustworthy. Paper trades confirm prediction edge exists.
 
@@ -43,7 +43,7 @@ created: 2026-03-23
 
 ---
 
-## Phase 2 — Live Trading ($500-1K) (Week 3-4)
+## ✅ Phase 2 — Live Trading ($500-1K) (Week 3-4) — `completed 2026-03-24`
 
 **Goal:** First real trade. Validate execution. Measure actual vs predicted edge.
 
@@ -62,7 +62,7 @@ created: 2026-03-23
 
 ---
 
-## Phase 3 — Scale + Package RaaS (Month 2-3)
+## ✅ Phase 3 — Scale + Package RaaS (Month 2-3) — `completed 2026-03-24`
 
 **Goal:** First paying subscriber. Own trading generating consistent returns.
 
@@ -89,6 +89,32 @@ created: 2026-03-23
 **mekong-cli mapping:** `/plan` (product), `/cook` (engineering), `/review` (quality)
 
 **Exit criteria:** 1 paying subscriber, own trading P&L > 0 over 30 days
+
+---
+
+## ✅ Phase 4 — Competitive Positioning — `completed 2026-03-24`
+
+- Direct/indirect competitor matrix documented
+- Wedge confirmed: long-tail AI quality, not speed
+- File: `plans/phase-04-competitive-positioning.md`
+
+## ✅ Phase 5 — Growth Loops — `completed 2026-03-24`
+
+- Loop 1: Public P&L → social proof → subscribers
+- Loop 2: Open-source engine → GitHub → community → paid
+- Loop 3: 20% referral rev-share for 3 months
+- File: `plans/phase-05-growth-loops.md`
+
+---
+
+## Blockers
+
+| Blocker | Impact | Owner |
+|---|---|---|
+| API keys not configured | Phase 2 cannot start | Engineering |
+| No real wallet funded | Live trading blocked | Revenue |
+| 2 failing tests | Trust score incomplete | Engineering |
+| OpenClaw model not benchmarked | Prediction quality unknown | Engineering |
 
 ---
 
