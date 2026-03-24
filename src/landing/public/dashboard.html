@@ -881,21 +881,46 @@ let pollTimer = null;
 
 async function connectBot(cfg) {
   if (!cfg.api) { updateBotStatus('off', 'No API URL'); return; }
-  updateBotStatus('wait', 'Connecting...');
+  if (!cfg.license) {
+    updateBotStatus('off', 'No license key');
+    document.getElementById('ctl-label').textContent = 'Enter license key in Settings to connect';
+    loadDemoData();
+    return;
+  }
+  updateBotStatus('wait', 'Validating license...');
   try {
     const res = await fetch(cfg.api + '/api/health', { signal: AbortSignal.timeout(5000) });
-    if (res.ok) {
+    if (!res.ok) { updateBotStatus('off', 'API error ' + res.status); loadDemoData(); return; }
+
+    // Validate license against API
+    const licRes = await fetch(cfg.api + '/api/license/validate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: cfg.license }),
+      signal: AbortSignal.timeout(5000),
+    }).catch(() => null);
+
+    const licData = licRes ? await licRes.json().catch(() => null) : null;
+
+    if (licData && licData.valid) {
       botConnected = true;
       updateBotStatus('on', 'Connected');
-      toast('Bot connected!');
+      toast('License valid! Connected.');
+      document.getElementById('ctl-license').innerHTML = `<span class="badge pro">${licData.tier}</span> ${licData.remainingDays}d left`;
       startPolling(cfg);
-      validateLicense(cfg);
+    } else if (licData && !licData.valid) {
+      updateBotStatus('off', 'Invalid license');
+      document.getElementById('ctl-label').textContent = licData.error || 'License invalid — check Settings';
+      loadDemoData();
     } else {
-      updateBotStatus('off', 'API error ' + res.status);
+      // API doesn't have /api/license/validate — allow connection (self-hosted without license server)
+      botConnected = true;
+      updateBotStatus('on', 'Connected');
+      toast('Connected (no license validation)');
+      startPolling(cfg);
     }
   } catch(e) {
     updateBotStatus('off', 'Unreachable');
-    // Show demo data for preview
     loadDemoData();
   }
 }
