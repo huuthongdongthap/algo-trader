@@ -160,6 +160,12 @@ const server = createServer(async (req, res) => {
   const url = new URL(req.url, `http://localhost:${PORT}`);
   const path = url.pathname;
 
+  if (path === '/' || path === '') {
+    res.writeHead(302, { 'Location': 'https://cashclaw.cc/dashboard' });
+    res.end();
+    return;
+  }
+
   if (path === '/api/health') {
     json(res, 200, { status: 'ok', timestamp: new Date().toISOString(), version: '1.0.0' });
   } else if (path === '/api/stats') {
