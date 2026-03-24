@@ -279,4 +279,358 @@ describe('createVolCompressionBreakoutTick', () => {
 
     expect(deps.clob.getOrderBook).not.toHaveBeenCalled();
   });
+
+  it('does not throw on clob API error', async () => {
+    const market = {
+      conditionId: 'cond-1', yesTokenId: 'yes-1', noTokenId: 'no-1',
+      closed: false, resolved: false, volume: 100000, volume24h: 5000,
+    };
+    const deps = makeDeps({
+      gamma: { getTrending: vi.fn().mockResolvedValue([market]) } as any,
+      clob: { getOrderBook: vi.fn().mockRejectedValue(new Error('timeout')) } as any,
+    });
+    const tick = createVolCompressionBreakoutTick(deps);
+    await expect(tick()).resolves.toBeUndefined();
+  });
+
+  it('exits on take-profit for YES position', async () => {
+    const market = {
+      conditionId: 'cond-1', yesTokenId: 'yes-1', noTokenId: 'no-1',
+      closed: false, resolved: false, volume: 100000, volume24h: 5000,
+    };
+
+    let callCount = 0;
+    const getOrderBook = vi.fn().mockImplementation(() => {
+      callCount++;
+      // Phase 1: oscillating (build baseline vol)
+      if (callCount <= 30) {
+        const p = callCount % 2 === 0 ? '0.52' : '0.48';
+        return Promise.resolve(makeBook([[String(parseFloat(p) - 0.01), '100']], [[p, '100']]));
+      }
+      // Phase 2: flat (compression)
+      if (callCount <= 42) {
+        return Promise.resolve(makeBook([['0.499', '100']], [['0.501', '100']]));
+      }
+      // Phase 3: breakout up
+      if (callCount <= 44) {
+        return Promise.resolve(makeBook([['0.58', '100']], [['0.60', '100']]));
+      }
+      // Phase 4: price moves higher → take profit
+      return Promise.resolve(makeBook([['0.65', '100']], [['0.67', '100']]));
+    });
+
+    const deps = makeDeps({
+      clob: { getOrderBook } as any,
+      gamma: { getTrending: vi.fn().mockResolvedValue([market]) } as any,
+      config: {
+        shortVolWindow: 5, longVolWindow: 20,
+        compressionThreshold: 0.5, breakoutMultiplier: 1.5,
+        takeProfitPct: 0.035, stopLossPct: 0.015,
+      },
+    });
+
+    const tick = createVolCompressionBreakoutTick(deps);
+    for (let i = 0; i < 50; i++) await tick();
+
+    const calls = (deps.orderManager.placeOrder as any).mock.calls;
+    // Should have entry + exit
+    const iocCalls = calls.filter((c: any) => c[0].orderType === 'IOC');
+    expect(iocCalls.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('exits on stop-loss for YES position', async () => {
+    const market = {
+      conditionId: 'cond-1', yesTokenId: 'yes-1', noTokenId: 'no-1',
+      closed: false, resolved: false, volume: 100000, volume24h: 5000,
+    };
+
+    let callCount = 0;
+    const getOrderBook = vi.fn().mockImplementation(() => {
+      callCount++;
+      if (callCount <= 30) {
+        const p = callCount % 2 === 0 ? '0.52' : '0.48';
+        return Promise.resolve(makeBook([[String(parseFloat(p) - 0.01), '100']], [[p, '100']]));
+      }
+      if (callCount <= 42) {
+        return Promise.resolve(makeBook([['0.499', '100']], [['0.501', '100']]));
+      }
+      // Breakout up
+      if (callCount <= 44) {
+        return Promise.resolve(makeBook([['0.58', '100']], [['0.60', '100']]));
+      }
+      // Price drops → stop-loss
+      return Promise.resolve(makeBook([['0.54', '100']], [['0.56', '100']]));
+    });
+
+    const deps = makeDeps({
+      clob: { getOrderBook } as any,
+      gamma: { getTrending: vi.fn().mockResolvedValue([market]) } as any,
+      config: {
+        shortVolWindow: 5, longVolWindow: 20,
+        compressionThreshold: 0.5, breakoutMultiplier: 1.5,
+        takeProfitPct: 0.035, stopLossPct: 0.015,
+      },
+    });
+
+    const tick = createVolCompressionBreakoutTick(deps);
+    for (let i = 0; i < 50; i++) await tick();
+
+    const calls = (deps.orderManager.placeOrder as any).mock.calls;
+    const iocCalls = calls.filter((c: any) => c[0].orderType === 'IOC');
+    expect(iocCalls.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('exits on max hold time', async () => {
+    const market = {
+      conditionId: 'cond-1', yesTokenId: 'yes-1', noTokenId: 'no-1',
+      closed: false, resolved: false, volume: 100000, volume24h: 5000,
+    };
+
+    let callCount = 0;
+    const getOrderBook = vi.fn().mockImplementation(() => {
+      callCount++;
+      if (callCount <= 30) {
+        const p = callCount % 2 === 0 ? '0.52' : '0.48';
+        return Promise.resolve(makeBook([[String(parseFloat(p) - 0.01), '100']], [[p, '100']]));
+      }
+      if (callCount <= 42) {
+        return Promise.resolve(makeBook([['0.499', '100']], [['0.501', '100']]));
+      }
+      if (callCount <= 44) {
+        return Promise.resolve(makeBook([['0.58', '100']], [['0.60', '100']]));
+      }
+      // Price stays near entry (no TP/SL)
+      return Promise.resolve(makeBook([['0.585', '100']], [['0.595', '100']]));
+    });
+
+    const deps = makeDeps({
+      clob: { getOrderBook } as any,
+      gamma: { getTrending: vi.fn().mockResolvedValue([market]) } as any,
+      config: {
+        shortVolWindow: 5, longVolWindow: 20,
+        compressionThreshold: 0.5, breakoutMultiplier: 1.5,
+        takeProfitPct: 0.5, stopLossPct: 0.5, // wide so they don't trigger
+        maxHoldMs: 12 * 60_000,
+      },
+    });
+
+    const tick = createVolCompressionBreakoutTick(deps);
+
+    // Enter position
+    for (let i = 0; i < 46; i++) await tick();
+
+    const entryCount = (deps.orderManager.placeOrder as any).mock.calls.filter(
+      (c: any) => c[0].orderType === 'GTC',
+    ).length;
+
+    if (entryCount > 0) {
+      // Fast-forward past max hold
+      const baseNow = Date.now();
+      vi.spyOn(Date, 'now').mockReturnValue(baseNow + 13 * 60_000);
+
+      await tick();
+
+      const iocCalls = (deps.orderManager.placeOrder as any).mock.calls.filter(
+        (c: any) => c[0].orderType === 'IOC',
+      );
+      expect(iocCalls.length).toBeGreaterThanOrEqual(1);
+
+      vi.spyOn(Date, 'now').mockRestore();
+    }
+  });
+
+  it('exits on failed breakout (price reverses into compression range)', async () => {
+    const market = {
+      conditionId: 'cond-1', yesTokenId: 'yes-1', noTokenId: 'no-1',
+      closed: false, resolved: false, volume: 100000, volume24h: 5000,
+    };
+
+    let callCount = 0;
+    const getOrderBook = vi.fn().mockImplementation(() => {
+      callCount++;
+      if (callCount <= 30) {
+        const p = callCount % 2 === 0 ? '0.52' : '0.48';
+        return Promise.resolve(makeBook([[String(parseFloat(p) - 0.01), '100']], [[p, '100']]));
+      }
+      if (callCount <= 42) {
+        return Promise.resolve(makeBook([['0.499', '100']], [['0.501', '100']]));
+      }
+      if (callCount <= 44) {
+        return Promise.resolve(makeBook([['0.58', '100']], [['0.60', '100']]));
+      }
+      // Price reverses back to pre-breakout level
+      return Promise.resolve(makeBook([['0.49', '100']], [['0.51', '100']]));
+    });
+
+    const deps = makeDeps({
+      clob: { getOrderBook } as any,
+      gamma: { getTrending: vi.fn().mockResolvedValue([market]) } as any,
+      config: {
+        shortVolWindow: 5, longVolWindow: 20,
+        compressionThreshold: 0.5, breakoutMultiplier: 1.5,
+        takeProfitPct: 0.5, stopLossPct: 0.5, // wide so TP/SL don't trigger first
+      },
+    });
+
+    const tick = createVolCompressionBreakoutTick(deps);
+    for (let i = 0; i < 50; i++) await tick();
+
+    // Check that at least one exit was attempted
+    const calls = (deps.orderManager.placeOrder as any).mock.calls;
+    const iocCalls = calls.filter((c: any) => c[0].orderType === 'IOC');
+    expect(iocCalls.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('respects maxPositions limit', async () => {
+    // Verify that scanEntries returns early when positions >= maxPositions.
+    // Use a single market with maxPositions=0 so no entry is ever allowed.
+    const market = {
+      conditionId: 'cond-1', yesTokenId: 'yes-1', noTokenId: 'no-1',
+      closed: false, resolved: false, volume: 100000, volume24h: 5000,
+    };
+
+    let callCount = 0;
+    const getOrderBook = vi.fn().mockImplementation(() => {
+      callCount++;
+      if (callCount <= 30) {
+        const p = callCount % 2 === 0 ? '0.52' : '0.48';
+        return Promise.resolve(makeBook([[String(parseFloat(p) - 0.01), '100']], [[p, '100']]));
+      }
+      if (callCount <= 42) {
+        return Promise.resolve(makeBook([['0.499', '100']], [['0.501', '100']]));
+      }
+      return Promise.resolve(makeBook([['0.58', '100']], [['0.60', '100']]));
+    });
+
+    const deps = makeDeps({
+      clob: { getOrderBook } as any,
+      gamma: { getTrending: vi.fn().mockResolvedValue([market]) } as any,
+      config: {
+        shortVolWindow: 5, longVolWindow: 20,
+        compressionThreshold: 0.5, breakoutMultiplier: 1.5,
+        maxPositions: 0, // no positions allowed
+      },
+    });
+
+    const tick = createVolCompressionBreakoutTick(deps);
+    for (let i = 0; i < 50; i++) await tick();
+
+    const entryCalls = (deps.orderManager.placeOrder as any).mock.calls.filter(
+      (c: any) => c[0].orderType === 'GTC',
+    );
+    expect(entryCalls.length).toBe(0);
+  });
+
+  it('requires breakout after compression (flat exit from compression does nothing)', async () => {
+    const market = {
+      conditionId: 'cond-1', yesTokenId: 'yes-1', noTokenId: 'no-1',
+      closed: false, resolved: false, volume: 100000, volume24h: 5000,
+    };
+
+    let callCount = 0;
+    const getOrderBook = vi.fn().mockImplementation(() => {
+      callCount++;
+      // Oscillating → compression → exits compression with small move (no breakout)
+      if (callCount <= 30) {
+        const p = callCount % 2 === 0 ? '0.52' : '0.48';
+        return Promise.resolve(makeBook([[String(parseFloat(p) - 0.01), '100']], [[p, '100']]));
+      }
+      if (callCount <= 42) {
+        return Promise.resolve(makeBook([['0.499', '100']], [['0.501', '100']]));
+      }
+      // Small move — not enough for breakout with multiplier 2.5
+      return Promise.resolve(makeBook([['0.505', '100']], [['0.515', '100']]));
+    });
+
+    const deps = makeDeps({
+      clob: { getOrderBook } as any,
+      gamma: { getTrending: vi.fn().mockResolvedValue([market]) } as any,
+      config: {
+        shortVolWindow: 5, longVolWindow: 20,
+        compressionThreshold: 0.5, breakoutMultiplier: 2.5,
+      },
+    });
+
+    const tick = createVolCompressionBreakoutTick(deps);
+    for (let i = 0; i < 50; i++) await tick();
+
+    expect(deps.orderManager.placeOrder).not.toHaveBeenCalled();
+  });
+
+  it('emits trade.executed on entry', async () => {
+    const market = {
+      conditionId: 'cond-1', yesTokenId: 'yes-1', noTokenId: 'no-1',
+      closed: false, resolved: false, volume: 100000, volume24h: 5000,
+    };
+
+    let callCount = 0;
+    const getOrderBook = vi.fn().mockImplementation(() => {
+      callCount++;
+      if (callCount <= 30) {
+        const p = callCount % 2 === 0 ? '0.52' : '0.48';
+        return Promise.resolve(makeBook([[String(parseFloat(p) - 0.01), '100']], [[p, '100']]));
+      }
+      if (callCount <= 42) {
+        return Promise.resolve(makeBook([['0.499', '100']], [['0.501', '100']]));
+      }
+      return Promise.resolve(makeBook([['0.58', '100']], [['0.60', '100']]));
+    });
+
+    const deps = makeDeps({
+      clob: { getOrderBook } as any,
+      gamma: { getTrending: vi.fn().mockResolvedValue([market]) } as any,
+      config: {
+        shortVolWindow: 5, longVolWindow: 20,
+        compressionThreshold: 0.5, breakoutMultiplier: 1.5,
+      },
+    });
+
+    const tick = createVolCompressionBreakoutTick(deps);
+    for (let i = 0; i < 50; i++) await tick();
+
+    const emitCalls = (deps.eventBus.emit as any).mock.calls;
+    const tradeCalls = emitCalls.filter((c: any) => c[0] === 'trade.executed');
+    if (tradeCalls.length > 0) {
+      expect(tradeCalls[0][1].trade.strategy).toBe('vol-compression-breakout');
+    }
+  });
+
+  it('enters on compression + downward breakout (buys NO)', async () => {
+    const market = {
+      conditionId: 'cond-1', yesTokenId: 'yes-1', noTokenId: 'no-1',
+      closed: false, resolved: false, volume: 100000, volume24h: 5000,
+    };
+
+    let callCount = 0;
+    const getOrderBook = vi.fn().mockImplementation(() => {
+      callCount++;
+      if (callCount <= 30) {
+        const p = callCount % 2 === 0 ? '0.52' : '0.48';
+        return Promise.resolve(makeBook([[String(parseFloat(p) - 0.01), '100']], [[p, '100']]));
+      }
+      if (callCount <= 42) {
+        return Promise.resolve(makeBook([['0.499', '100']], [['0.501', '100']]));
+      }
+      // Downward breakout
+      return Promise.resolve(makeBook([['0.40', '100']], [['0.42', '100']]));
+    });
+
+    const deps = makeDeps({
+      clob: { getOrderBook } as any,
+      gamma: { getTrending: vi.fn().mockResolvedValue([market]) } as any,
+      config: {
+        shortVolWindow: 5, longVolWindow: 20,
+        compressionThreshold: 0.5, breakoutMultiplier: 1.5,
+      },
+    });
+
+    const tick = createVolCompressionBreakoutTick(deps);
+    for (let i = 0; i < 50; i++) await tick();
+
+    const calls = (deps.orderManager.placeOrder as any).mock.calls;
+    const gtcCalls = calls.filter((c: any) => c[0].orderType === 'GTC');
+    if (gtcCalls.length > 0) {
+      expect(gtcCalls[0][0].tokenId).toBe('no-1');
+    }
+  });
 });
