@@ -15,3 +15,9 @@ export { RiskAgent } from './risk-agent.js';
 export { CalibrateAgent } from './calibrate-agent.js';
 export { ReportAgent } from './report-agent.js';
 export { DoctorAgent } from './doctor-agent.js';
+
+// Dark edge agents (P1)
+export { NegRiskScanAgent } from './neg-risk-scan-agent.js';
+export { EndgameAgent } from './endgame-agent.js';
+export { ResolutionArbAgent } from './resolution-arb-agent.js';
+export { WhaleWatchAgent } from './whale-watch-agent.js';

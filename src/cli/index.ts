@@ -23,6 +23,12 @@ import { CalibrateAgent } from '../agents/calibrate-agent.js';
 import { ReportAgent } from '../agents/report-agent.js';
 import { DoctorAgent } from '../agents/doctor-agent.js';
 
+// Dark edge agents (P1)
+import { NegRiskScanAgent } from '../agents/neg-risk-scan-agent.js';
+import { EndgameAgent } from '../agents/endgame-agent.js';
+import { ResolutionArbAgent } from '../agents/resolution-arb-agent.js';
+import { WhaleWatchAgent } from '../agents/whale-watch-agent.js';
+
 // Agent-dispatched command creators
 import { createScanCommand } from './commands/scan-cmd.js';
 import { createMonitorCommand } from './commands/monitor-cmd.js';
@@ -31,6 +37,12 @@ import { createRiskCommand } from './commands/risk-cmd.js';
 import { createCalibrateCommand } from './commands/calibrate-cmd.js';
 import { createReportCommand } from './commands/report-cmd.js';
 import { createDoctorCommand } from './commands/doctor-cmd.js';
+
+// Dark edge command creators (P1)
+import { createNegRiskScanCommand } from './commands/neg-risk-scan-cmd.js';
+import { createEndgameCommand } from './commands/endgame-cmd.js';
+import { createResolutionArbCommand } from './commands/resolution-arb-cmd.js';
+import { createWhaleWatchCommand } from './commands/whale-watch-cmd.js';
 
 const require = createRequire(import.meta.url);
 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
@@ -61,6 +73,10 @@ dispatcher.register(new RiskAgent());
 dispatcher.register(new CalibrateAgent());
 dispatcher.register(new ReportAgent());
 dispatcher.register(new DoctorAgent());
+dispatcher.register(new NegRiskScanAgent());
+dispatcher.register(new EndgameAgent());
+dispatcher.register(new ResolutionArbAgent());
+dispatcher.register(new WhaleWatchAgent());
 
 // Agent-dispatched commands
 createScanCommand(program, dispatcher);
@@ -70,6 +86,10 @@ createRiskCommand(program, dispatcher);
 createCalibrateCommand(program, dispatcher);
 createReportCommand(program, dispatcher);
 createDoctorCommand(program, dispatcher);
+createNegRiskScanCommand(program, dispatcher);
+createEndgameCommand(program, dispatcher);
+createResolutionArbCommand(program, dispatcher);
+createWhaleWatchCommand(program, dispatcher);
 
 // Meta command: list all registered specialist agents
 program

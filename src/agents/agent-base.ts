@@ -1,7 +1,8 @@
 // Agent base types — foundation for Mekong-style AgentDispatcher architecture
 // All specialist agents implement SpecialistAgent interface
 
-export type AgentTaskType = 'scan' | 'estimate' | 'monitor' | 'risk' | 'calibrate' | 'report' | 'doctor';
+export type AgentTaskType = 'scan' | 'estimate' | 'monitor' | 'risk' | 'calibrate' | 'report' | 'doctor'
+  | 'neg-risk-scan' | 'endgame' | 'resolution-arb' | 'whale-watch';
 
 export interface AgentTask {
   id: string;
