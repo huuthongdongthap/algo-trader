@@ -43,7 +43,7 @@ async function estimate(model, question) {
         { role: 'system', content: SYSTEM_PROMPT },
         { role: 'user', content: buildPrompt(question) },
       ],
-      max_tokens: 300,
+      max_tokens: model.includes('DeepSeek') ? 2000 : 300,
       temperature: 0.3,
     }),
     signal: AbortSignal.timeout(120000),
@@ -53,12 +53,16 @@ async function estimate(model, question) {
   if (!res.ok) return { error: `HTTP ${res.status}`, latency };
 
   const data = await res.json();
-  const raw = data.choices?.[0]?.message?.content || '';
+  // DeepSeek R1 may put chain-of-thought in content and JSON after </think>
+  const msg = data.choices?.[0]?.message || {};
+  const raw = (msg.content || '') + (msg.reasoning || '');
 
   try {
-    const match = raw.replace(/```(?:json)?\n?/g, '').replace(/<think>[\s\S]*?<\/think>/g, '').match(/\{[\s\S]*\}/);
-    if (!match) return { error: 'No JSON', raw: raw.slice(0, 100), latency };
-    const parsed = JSON.parse(match[0]);
+    // Strip think blocks, markdown fences, then find JSON
+    const cleaned = raw.replace(/```(?:json)?\n?/g, '').replace(/<think>[\s\S]*?<\/think>/g, '');
+    const match = cleaned.match(/\{[\s\S]*?\}/g)?.find(m => m.includes('probability'));
+    if (!match) return { error: 'No JSON', raw: raw.slice(-100), latency };
+    const parsed = JSON.parse(match);
     return {
       probability: Math.max(0.01, Math.min(0.99, parsed.probability ?? 0.5)),
       confidence: parsed.confidence ?? 0.5,
