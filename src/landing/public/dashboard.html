@@ -326,7 +326,31 @@ tr:hover{background:#161619}
     </div></label>
   </div></div>
 
-  <div class="card"><div class="card-header">A6 — Export Private Key for Bot</div><div class="card-body">
+  <div class="card"><div class="card-header">A6 — Get Polymarket API Keys (for automated trading)</div><div class="card-body">
+    <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer"><input type="checkbox" class="wiz-check" data-step="a6api"><div>
+    <div style="color:var(--bright);font-weight:600;margin-bottom:4px">Register as API trader on Polymarket CLOB</div>
+    <div style="color:var(--dim);font-size:11px;margin-bottom:6px">The bot uses Polymarket's CLOB (Central Limit Order Book) API. You need API credentials to place automated orders.</div>
+    <div style="background:#050505;padding:10px;border:1px solid #1a1a1a;border-radius:2px;font-size:11px">
+      <div style="margin-bottom:6px"><span style="color:var(--amber)">1.</span> Enable VPN → go to <a href="https://polymarket.com" target="_blank">polymarket.com</a></div>
+      <div style="margin-bottom:6px"><span style="color:var(--amber)">2.</span> Connect your MetaMask wallet (should already be connected from Step A5)</div>
+      <div style="margin-bottom:6px"><span style="color:var(--amber)">3.</span> Go to <b style="color:var(--bright)">Settings → API Keys</b> (or visit <a href="https://polymarket.com/settings/api" target="_blank">polymarket.com/settings/api</a>)</div>
+      <div style="margin-bottom:6px"><span style="color:var(--amber)">4.</span> Click <b>"Create API Key"</b></div>
+      <div style="margin-bottom:6px"><span style="color:var(--amber)">5.</span> Copy these 3 values and save them securely:</div>
+      <div style="padding:8px;background:#0a0a0a;border-radius:2px;font-family:var(--mono);font-size:11px;margin-bottom:6px">
+        <div style="color:var(--amber)">POLYMARKET_API_KEY</div>
+        <div style="color:var(--dim);margin-bottom:4px">= the API key string</div>
+        <div style="color:var(--amber)">POLYMARKET_API_SECRET</div>
+        <div style="color:var(--dim);margin-bottom:4px">= the secret (shown only once!)</div>
+        <div style="color:var(--amber)">POLYMARKET_PASSPHRASE</div>
+        <div style="color:var(--dim)">= the passphrase you set</div>
+      </div>
+      <div style="color:var(--green)">&#10003; You'll add these to your bot's .env file in Step B4.</div>
+    </div>
+    <div style="color:var(--red);font-size:10px;margin-top:4px">&#9888; API Secret is shown ONLY ONCE when created. Copy it immediately. If lost, create a new key.</div>
+    </div></label>
+  </div></div>
+
+  <div class="card"><div class="card-header">A7 — Export Wallet Private Key for Bot</div><div class="card-body">
     <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer"><input type="checkbox" class="wiz-check" data-step="a6"><div>
     <div style="color:var(--bright);font-weight:600;margin-bottom:4px">Export private key from MetaMask for automated trading</div>
     <div style="color:var(--dim);font-size:11px;margin-bottom:6px">Bot needs the private key to sign trades on your behalf. Use a dedicated wallet — don't put all your funds in it.</div>
@@ -470,20 +494,39 @@ npx tsc</code>
   <!-- SHARED STEPS (both Mac and VPS) -->
   <div id="setup-shared" style="display:none">
 
-  <div class="card"><div class="card-header">Step 4 — Create Polymarket Wallet</div><div class="card-body">
+  <div class="card"><div class="card-header">Step 4 — Configure .env File (ALL credentials)</div><div class="card-body">
     <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;margin-bottom:8px"><input type="checkbox" class="wiz-check" data-step="4"><div>
-    <div style="color:var(--bright);font-weight:600;margin-bottom:4px">Generate a new Polygon wallet for trading</div>
-    <div style="color:var(--dim);font-size:11px;margin-bottom:6px">This creates a wallet specifically for the bot. <span style="color:var(--red)">SAVE THE PRIVATE KEY!</span> You cannot recover it.</div>
-    <code style="display:block;background:#050505;padding:8px;border-radius:2px;font-size:11px;color:var(--green);border:1px solid #1a1a1a;white-space:pre;overflow-x:auto"># Generate wallet (from algo-trader directory)
-node -e "
-const { ethers } = require('ethers');
-const w = ethers.Wallet.createRandom();
-console.log('Address:', w.address);
-console.log('Private Key:', w.privateKey);
-console.log('');
-console.log('SAVE PRIVATE KEY SECURELY!');
-"</code>
-    <div style="color:var(--red);font-size:10px;margin-top:4px">&#9888; Write down the private key on paper. Store in a password manager. Never share it.</div>
+    <div style="color:var(--bright);font-weight:600;margin-bottom:4px">Create .env file with all your keys and settings</div>
+    <div style="color:var(--dim);font-size:11px;margin-bottom:6px">From your algo-trader directory, create a .env file with ALL credentials from previous steps.</div>
+    <code style="display:block;background:#050505;padding:8px;border-radius:2px;font-size:11px;color:var(--green);border:1px solid #1a1a1a;white-space:pre;overflow-x:auto"># Create .env file in algo-trader directory
+cat > .env << 'EOF'
+# === License (from admin) ===
+LICENSE_KEY=paste-your-license-key-here
+LICENSE_SECRET=paste-your-license-secret-here
+
+# === Polymarket CLOB API (from Step A6) ===
+POLYMARKET_API_KEY=paste-your-api-key-here
+POLYMARKET_PASSPHRASE=paste-your-passphrase-here
+
+# === Wallet (from Step A7) ===
+POLY_PRIVATE_KEY=0xpaste-your-private-key-here
+
+# === Trading Settings ===
+CAPITAL_USDC=500
+
+# === LLM Server (local) ===
+# Mac MLX:
+LLM_URL=http://localhost:11435/v1
+# VPS Ollama:
+# LLM_URL=http://localhost:11434/v1
+EOF
+
+# Verify file created
+cat .env</code>
+    <div style="background:#1a0a0a;padding:6px 10px;border:1px solid #3a1a1a;border-radius:2px;font-size:10px;margin-top:6px">
+      <span style="color:var(--red);font-weight:600">SECURITY:</span>
+      <span style="color:var(--dim)">.env contains all your secrets. NEVER commit to git. NEVER share. The .gitignore already excludes it.</span>
+    </div>
     </div></label>
   </div></div>
 
@@ -1145,8 +1188,11 @@ const TRANSLATIONS = {
     'Withdraw USDC from Binance to your MetaMask wallet via Polygon network': 'Rút USDC từ Binance vào ví MetaMask qua mạng Polygon',
     'A5 — Create Polymarket Account': 'A5 — Tạo Tài Khoản Polymarket',
     'Sign up for Polymarket and connect MetaMask wallet': 'Đăng ký Polymarket và kết nối ví MetaMask',
-    'A6 — Export Private Key for Bot': 'A6 — Lấy Private Key Cho Bot',
+    'A6 — Get Polymarket API Keys (for automated trading)': 'A6 — Lấy API Keys Polymarket (cho giao dịch tự động)',
+    'Register as API trader on Polymarket CLOB': 'Đăng ký API trader trên Polymarket CLOB',
+    'A7 — Export Wallet Private Key for Bot': 'A7 — Xuất Private Key Ví Cho Bot',
     'Export private key from MetaMask for automated trading': 'Xuất private key từ MetaMask để bot tự động giao dịch',
+    'Step 4 — Configure .env File (ALL credentials)': 'Bước 4 — Cấu Hình File .env (TẤT CẢ credentials)',
     // Phase B
     'Phase B — Choose Hardware for Bot': 'Phase B — Chọn Phần Cứng Chạy Bot',
     'The AI bot needs powerful hardware to run DeepSeek R1 model (18GB). Choose one:': 'Bot AI cần máy tính mạnh để chạy mô hình DeepSeek R1 (18GB). Chọn 1:',
