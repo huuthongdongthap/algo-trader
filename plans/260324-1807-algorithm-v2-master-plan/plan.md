@@ -1,7 +1,7 @@
 # Master Plan: Algorithm v2.0 — Next Iteration
 
 > BINH_PHAP_TRADING Section 7: Tactical Refinement
-> Status: in_progress | Priority: HIGH
+> Status: COMPLETE | Deployed: 2026-03-24 18:16 ICT | Commit: a4e201a
 
 ## Current State (2026-03-24)
 
@@ -14,12 +14,12 @@
 
 | Feature | BINH_PHAP ref | Status |
 |---------|--------------|--------|
-| Ensemble N=5 voting | v2.0 | NOT DONE |
-| Temperature scaling | Research | NOT DONE |
-| Category-specific prompts | v1.2 | NOT DONE |
-| Auto-resolution cron | Section 5.3 | NOT DONE |
-| Calibration auto-tuner | Section 7.1 | NOT DONE |
-| AB test cleanup (remove Qwen) | Qwen removal | NOT DONE |
+| Ensemble N=3 voting | v2.0 | DONE |
+| Temperature scaling | Research | DONE |
+| Category-specific prompts | v1.2 | DONE |
+| Auto-resolution cron | Section 5.3 | DONE |
+| Calibration auto-tuner | Section 7.1 | DONE |
+| AB test cleanup (remove Qwen) | Qwen removal | DONE |
 | News context augmentation | v2.1 | DEFER (need resolution data first) |
 
 ## Phases
@@ -30,7 +30,7 @@
 - Median aggregation (robust to outliers)
 - Confidence = agreement ratio among estimates
 - Wire into PredictionLoop as drop-in replacement for single estimate
-- Status: pending
+- Status: DONE
 
 ### Phase 2: Temperature Scaling (Brier -0.08) [HIGH]
 - File: `src/openclaw/temperature-scaler.ts`
@@ -38,7 +38,7 @@
 - Default a=1.0, b=0.0 (identity) until we have resolution data
 - Auto-fit from resolved trades when N >= 20
 - Wire into PredictionLoop post-estimation
-- Status: pending
+- Status: DONE
 
 ### Phase 3: Category-Specific Prompts [MEDIUM]
 - File: `src/openclaw/category-prompts.ts`
@@ -47,7 +47,7 @@
 - Politics: "Consider polling data, historical election patterns"
 - Tech/Science: "Consider technical feasibility, timeline precedents"
 - Entertainment: "Consider industry patterns, celebrity behavior base rates"
-- Status: pending
+- Status: DONE
 
 ### Phase 4: Auto-Resolution Cron [HIGH]
 - File: `scripts/cron-check-resolutions.mjs`
@@ -55,18 +55,18 @@
 - Check Gamma API for resolved markets
 - Update paper_trades_v3.resolved + paper_trades_v3.outcome
 - Trigger monitor-deepseek-behavior.mjs when resolved count hits milestones (10, 20, 30)
-- Status: pending
+- Status: DONE
 
 ### Phase 5: Calibration Auto-Tuner [MEDIUM]
 - File: `src/openclaw/calibration-tuner.ts`
 - After 20+ resolved trades, compute calibration curve
 - Auto-adjust: overconfident -> shrink toward 50%, underconfident -> expand
 - Feed adjustments back into temperature scaler (fit a, b params)
-- Status: pending
+- Status: DONE
 
 ### Phase 6: AB Test Cleanup [LOW]
 - Update `scripts/ab-test-models.mjs`: remove Qwen, add ensemble vs single comparison
-- Status: pending
+- Status: DONE
 
 ## Success Criteria
 
