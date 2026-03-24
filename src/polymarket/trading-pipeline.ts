@@ -13,6 +13,7 @@ import { PaperExchange } from '../paper-trading/paper-exchange.js';
 import { RiskManager } from '../core/risk-manager.js';
 import { getDatabase } from '../data/database.js';
 import { buildPolymarketAdapter } from './polymarket-execution-adapter.js';
+import { PredictionLoop } from './prediction-loop.js';
 import { logger } from '../core/logger.js';
 import type { StrategyConfig } from '../core/types.js';
 
@@ -49,6 +50,7 @@ export class TradingPipeline extends EventEmitter {
   private clobClient!: ClobClient;
   private orderbookStream!: OrderBookStream;
   private scanner!: MarketScanner;
+  private predictionLoop: PredictionLoop | null = null;
   private orderManager!: OrderManager;
   private strategyRunner!: StrategyRunner;
 
@@ -79,6 +81,9 @@ export class TradingPipeline extends EventEmitter {
       this.status = 'running';
       this.emit('started', { mode: this.cfg.paperTrading ? 'paper' : 'live' });
       logger.info(`Pipeline running ${mode}`, 'TradingPipeline');
+
+      // Start AI prediction loop — feeds fair values to MarketMaker
+      this.startPredictionFeed();
     } catch (err) {
       this.status = 'error';
       logger.error('Pipeline failed to start', 'TradingPipeline', { err: String(err) });
@@ -93,6 +98,10 @@ export class TradingPipeline extends EventEmitter {
     this.status = 'stopping';
     logger.info('Stopping trading pipeline', 'TradingPipeline');
 
+    if (this.predictionLoop) {
+      this.predictionLoop.start(() => {})(); // get stop function and call it
+      this.predictionLoop = null;
+    }
     await this.strategyRunner.stopAll().catch(err =>
       logger.error('Error stopping strategies', 'TradingPipeline', { err: String(err) }),
     );
@@ -165,6 +174,51 @@ export class TradingPipeline extends EventEmitter {
       const mm = new MarketMakerStrategy(this.clobClient, mmCfg, mmCfg.capitalAllocation);
       scan.opportunities.slice(0, 10).forEach(opp => mm.addMarket(opp));
       this.strategyRunner.register('market-maker', mm);
+    }
+  }
+
+  /** Get the running MarketMakerStrategy instance (if any) */
+  private getMarketMakerInstance(): MarketMakerStrategy | null {
+    try {
+      const strategies = (this.strategyRunner as any)?.strategies;
+      if (strategies instanceof Map) {
+        return strategies.get('market-maker') ?? null;
+      }
+    } catch {}
+    return null;
+  }
+
+  /** Start prediction loop and feed AI fair values to MarketMaker */
+  private startPredictionFeed(): void {
+    try {
+      this.predictionLoop = new PredictionLoop(this.scanner);
+      logger.info('PredictionLoop started — AI fair values feeding MarketMaker', 'TradingPipeline');
+
+      const feedLoop = async () => {
+        while (this.status === 'running') {
+          try {
+            const signals = await this.predictionLoop!.runCycle();
+            const mm = this.getMarketMakerInstance();
+            if (mm) {
+              for (const signal of signals) {
+                if (signal.direction === 'skip') continue;
+                mm.setFairValue(signal.yesTokenId, signal.ourProb, signal.confidence);
+                logger.debug('Fed AI fair value to MM', 'TradingPipeline', {
+                  market: signal.description?.slice(0, 40),
+                  aiProb: signal.ourProb.toFixed(2),
+                  edge: (signal.edge * 100).toFixed(1) + '%',
+                });
+              }
+            }
+          } catch (err) {
+            logger.error('Prediction→MM feed error', 'TradingPipeline', { err: String(err) });
+          }
+          await new Promise(r => setTimeout(r, 15 * 60 * 1000));
+        }
+      };
+      feedLoop(); // fire and forget
+    } catch (err) {
+      logger.warn('PredictionLoop failed to start — MM will use midpoint (blind mode)', 'TradingPipeline', { err: String(err) });
     }
   }
 

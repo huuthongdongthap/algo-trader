@@ -55,6 +55,8 @@ export class MarketMakerStrategy {
 
   private running = false;
   private markets: MarketMakerState[] = [];
+  /** Fair value overrides from PredictionLoop (tokenId → estimated probability) */
+  private fairValues = new Map<string, { prob: number; confidence: number; updatedAt: number }>();
   private corePositions: Position[] = [];
   private totalTrades = 0;
   private winTrades = 0;
@@ -75,6 +77,22 @@ export class MarketMakerStrategy {
       stopLossPercent: 0.05,
       maxLeverage: 1,
     });
+  }
+
+  /** Called by PredictionLoop/external to inject AI fair value estimates */
+  setFairValue(tokenId: string, prob: number, confidence: number): void {
+    this.fairValues.set(tokenId, { prob, confidence, updatedAt: Date.now() });
+  }
+
+  /** Get AI fair value if fresh (< 30 min old), otherwise null */
+  private getFairValue(tokenId: string): { prob: number; confidence: number } | null {
+    const fv = this.fairValues.get(tokenId);
+    if (!fv) return null;
+    if (Date.now() - fv.updatedAt > 30 * 60 * 1000) {
+      this.fairValues.delete(tokenId);
+      return null;
+    }
+    return fv;
   }
 
   /** Add a market to make quotes on */
@@ -164,46 +182,69 @@ export class MarketMakerStrategy {
       return;
     }
 
-    // Calculate spread: wider when volatile
-    const dynamicSpread = this.config.baseSpreadPct * (1 + volatility * this.config.volatilityMultiplier);
+    // Fair value: AI estimate (informed) > market midpoint (blind)
+    const aiFv = this.getFairValue(state.tokenId);
+    const fairPrice = aiFv ? aiFv.prob : mid;
+    const source = aiFv ? `FV:${aiFv.prob.toFixed(2)}` : `mid:${mid.toFixed(3)}`;
+
+    // Calculate spread: wider when volatile, tighter when AI is confident
+    let dynamicSpread = this.config.baseSpreadPct * (1 + volatility * this.config.volatilityMultiplier);
+    if (aiFv && aiFv.confidence > 0.7) {
+      dynamicSpread *= 0.8; // Tighter spread when AI is confident (more aggressive)
+    }
 
     // Inventory skew: if long, lower bid price to reduce buying; raise ask to offload
     const inventoryRatio = state.inventory / (this.config.quoteSizeUsdc * 2);
     const skew = inventoryRatio * this.config.baseSpreadPct * this.config.inventorySkewThreshold;
 
-    const quoteBid = mid - dynamicSpread / 2 - skew;
-    const quoteAsk = mid + dynamicSpread / 2 - skew;
+    const quoteBid = fairPrice - dynamicSpread / 2 - skew;
+    const quoteAsk = fairPrice + dynamicSpread / 2 - skew;
     const tokenSize = (this.config.quoteSizeUsdc / mid).toFixed(2);
 
-    // Place both sides
-    const [bidOrder, askOrder] = await Promise.all([
-      this.client.postOrder({
-        tokenId: state.tokenId,
-        price: quoteBid.toFixed(4),
-        size: tokenSize,
-        side: 'buy',
-        orderType: 'GTC',
-      }),
-      this.client.postOrder({
-        tokenId: state.tokenId,
-        price: quoteAsk.toFixed(4),
-        size: tokenSize,
-        side: 'sell',
-        orderType: 'GTC',
-      }),
-    ]);
+    // Place each side independently — one failure must not kill the other
+    // Cross-spread check: don't bid above best ask or ask below best bid
+    state.bidOrder = null;
+    state.askOrder = null;
 
-    state.bidOrder = bidOrder;
-    state.askOrder = askOrder;
-    state.midPrice = mid;
+    if (quoteBid > 0.01 && quoteBid < ask) {
+      try {
+        state.bidOrder = await this.client.postOrder({
+          tokenId: state.tokenId,
+          price: quoteBid.toFixed(4),
+          size: tokenSize,
+          side: 'buy',
+          orderType: 'GTC',
+        });
+        this.totalTrades++;
+      } catch (err) {
+        logger.debug('Bid post failed (may have crossed spread)', this.name, { err: String(err) });
+      }
+    }
+
+    if (quoteAsk < 0.99 && quoteAsk > bid) {
+      try {
+        state.askOrder = await this.client.postOrder({
+          tokenId: state.tokenId,
+          price: quoteAsk.toFixed(4),
+          size: tokenSize,
+          side: 'sell',
+          orderType: 'GTC',
+        });
+        this.totalTrades++;
+      } catch (err) {
+        logger.debug('Ask post failed (may have crossed spread)', this.name, { err: String(err) });
+      }
+    }
+
+    state.midPrice = fairPrice;
     state.quotedAt = Date.now();
-    this.totalTrades += 2;
 
     logger.debug('Quotes placed', this.name, {
       tokenId: state.tokenId,
       bid: quoteBid.toFixed(4),
       ask: quoteAsk.toFixed(4),
       spread: (dynamicSpread * 100).toFixed(2) + '%',
+      source,
     });
 
     this.updatePnlSnapshot();
