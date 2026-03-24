@@ -13,3 +13,9 @@ export type { BookImbalanceConfig, BookImbalanceDeps } from './book-imbalance-re
 
 export { createVwapDeviationSniperTick } from './vwap-deviation-sniper.js';
 export type { VwapDeviationConfig, VwapDeviationDeps } from './vwap-deviation-sniper.js';
+
+export { createPairsStatArbTick } from './pairs-stat-arb.js';
+export type { PairsStatArbConfig, PairsStatArbDeps } from './pairs-stat-arb.js';
+
+export { createSessionVolSniperTick } from './session-vol-sniper.js';
+export type { SessionVolSniperConfig, SessionVolSniperDeps } from './session-vol-sniper.js';
