@@ -14,7 +14,7 @@
 | Latency | ~33s/prediction | ~45-60s/prediction |
 | Setup difficulty | Easy (brew install) | Medium (Docker) |
 | Best for | Long-term (>6 months) | Quick start, testing |
-| Min spec | M1 Pro 32GB | 64GB RAM, RTX 4090 |
+| Min spec | M1 Max 64GB | 64GB RAM, RTX 4090 |
 
 ---
 
@@ -24,8 +24,8 @@
 
 | Component | Minimum | Recommended | Why |
 |-----------|---------|-------------|-----|
-| Chip | M1 Pro | M1 Max / M2 Pro | Unified memory bandwidth |
-| RAM | 32GB | 64GB | DeepSeek R1 32B 4-bit = ~18GB |
+| Chip | M1 Max / M2 Pro | M2 Max / M3 Max | Unified memory bandwidth |
+| RAM | 64GB | 64-96GB | DeepSeek R1 32B 4-bit = ~18GB + OS + Node.js = ~24GB min |
 | Storage | 256GB SSD | 512GB+ | Model files ~20GB |
 | macOS | 14.0+ | 15.0+ | MLX framework support |
 
@@ -444,11 +444,11 @@ p.getBalance('YOUR_ADDRESS').then(b => console.log('MATIC:', formatUnits(b)));
 
 | Item | Cost |
 |------|------|
-| M1 Pro 32GB Mac Mini (refurbished) | $800-1,200 |
 | M1 Max 64GB Mac Studio (refurbished) | $1,800-2,400 |
+| M2 Pro 64GB Mac Mini (refurbished) | $1,400-1,800 |
 | Electricity (~15W idle) | ~$5/month |
 | Internet | Existing connection |
-| **Total first year** | **$860-2,460** |
+| **Total first year** | **$1,460-2,460** |
 
 ### Option B: Cloud VPS (Monthly)
 
