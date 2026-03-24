@@ -5,6 +5,124 @@
 
 ---
 
+## DNA — 7 Quy Luat Bat Bien
+
+> Nhung quy luat nay KHONG BAO GIO thay doi. Du model thay doi, market thay doi,
+> platform thay doi — DNA van dung. Day la thu DeepSeek R1 phai HOC THUOC.
+
+### DNA-1: EDGE = INFORMATION ASYMMETRY (Shannon-Kelly)
+
+```
+G* = W * log2(1 + edge) — toc do tang truong toi da = edge * log
+
+Kelly: f = edge / odds
+Quarter-Kelly: f = edge / (4 * odds)
+```
+
+**Ban chat:** Loi nhuan den tu viec BIET NHIEU HON market. Khong phai tu viec trade nhieu, trade nhanh, hay trade lon. Ma tu viec co THONG TIN MA NGUOI KHAC KHONG CO.
+
+**Ap dung:** DeepSeek R1 co loi the khi no HIEU context su kien tot hon crowd. No doc luat, hieu chinh tri, biet base rate. Day la information advantage cua ta.
+
+### DNA-2: CALIBRATION > ACCURACY (Tetlock)
+
+```
+Brier Score = (1/N) * sum((forecast_i - outcome_i)^2)
+
+Calibration: Khi noi 70%, xay ra dung 70%
+Resolution: Phan biet duoc 30% vs 70%
+Tot nhat: Calibrated + Sharp (phan biet cao)
+```
+
+**Ban chat:** Khong can DUNG moi luc. Can BIET MINH DUNG BAO NHIEU. Noi "60% chac" khi that su la 60% — QUAN TRONG HON noi "chac chan" roi sai.
+
+**Ap dung:** DeepSeek R1 phai output xac suat CALIBRATED, khong phai confident. Confidence cao + sai = mat tien. Confidence vua + dung = kiem tien.
+
+### DNA-3: BASE RATE TRUOC, ADJUSTMENT SAU (Kahneman)
+
+```
+P(event) = P(base_rate) * Likelihood_ratio
+
+Buoc 1: "Bao nhieu % su kien tuong tu xay ra?" (Outside View)
+Buoc 2: "Truong hop nay co gi dac biet?" (Inside View)
+Buoc 3: "Toi co dang anchored vao ky vong bat thuong khong?" (De-bias)
+```
+
+**Ban chat:** Con nguoi (va LLM) mac loi BASE RATE NEGLECT — bo qua ty le co ban, chi tap trung vao chi tiet cu the. Day la loi PHAI TRANH nhat.
+
+**Ap dung:** Prompt DeepSeek R1 LUON bat dau bang "Base rate cua su kien tuong tu la bao nhieu?" TRUOC KHI phan tich chi tiet.
+
+### DNA-4: EDGE NHO x NHIEU LAN = LOI NHUAN LON (Renaissance)
+
+```
+E[profit] = N * avg_edge * avg_size
+  where N = so trade, avg_edge = edge trung binh
+
+Medallion: 10,000 signals * 0.1% edge = Sharpe 6
+CashClaw:  20 signals/day * 15% edge = strong edge per trade
+```
+
+**Ban chat:** Khong can 1 trade sieu lon. Can NHIEU trade voi edge NHO MA NHAT QUAN. Consistency > brilliance.
+
+**Ap dung:** Trade 5-20 markets/ngay voi edge 5-20%. Khong doi trade "hoan hao". Spread risk across nhieu markets.
+
+### DNA-5: CROWD SAI O DAU → TRADE O DO (Behavioral Economics)
+
+```
+Crowd failure modes:
+  1. Anchoring: Gia hien tai → ky vong tuong lai (mispricing near round numbers)
+  2. Recency bias: Su kien gan day → qua trong (overreact to news)
+  3. Availability bias: Su kien de nho → qua cao (celebrity markets overpriced)
+  4. Herding: Nguoi khac mua → toi mua (momentum without info)
+  5. Neglect of base rates: Chi tiet → bo qua xac suat co ban
+```
+
+**Ban chat:** Prediction markets KHONG perfect. Crowd mac 5 loi tren LIEN TUC. Day la noi edge cua ta ton tai.
+
+**Ap dung:** DeepSeek R1 duoc thiet ke DE TRANH 5 loi nay:
+- Blind estimation (tranh anchoring)
+- Base rate first (tranh neglect)
+- No market price shown (tranh herding)
+- Fermi decomposition (tranh availability bias)
+- Outside view (tranh recency bias)
+
+### DNA-6: FREQUENCY FORMAT > PROBABILITY FORMAT (Gigerenzer)
+
+```
+SAI: "Co 30% kha nang"
+DUNG: "Trong 10 truong hop tuong tu, 3 truong hop xay ra"
+
+Frequency format giup Bayesian reasoning tang 50%
+```
+
+**Ban chat:** Bo nao (va LLM) xu ly frequency ("3 trong 10") tot hon probability ("30%"). Day la ky thuat de-biasing manh nhat da duoc chung minh.
+
+**Ap dung:** Trong prompt, hoi DeepSeek R1: "Trong 100 su kien tuong tu nhu the nay, bao nhieu su kien se xay ra?" thay vi "Xac suat la bao nhieu?"
+
+### DNA-7: TRI BI TRI KI — BIET GIOI HAN CUA MINH (Ton Tu)
+
+```
+DeepSeek R1 GIOI:          DeepSeek R1 YEU:
+- Base rate estimation     - Real-time data (knowledge cutoff)
+- Logical reasoning        - Niche/obscure events
+- Political analysis       - Exact prices/numbers
+- Legal interpretation     - Sports statistics
+- Scientific assessment    - Breaking news reaction
+```
+
+**Ban chat:** Suc manh thuc su KHONG phai biet moi thu. Ma la BIET MINH KHONG BIET GI. Trade chi trong vung minh manh. Skip vung minh yeu.
+
+**Ap dung:** Filter cung: chi trade events ma DeepSeek R1 co knowledge advantage. Skip crypto, sports stats, breaking news.
+
+---
+
+> **TOM TAT DNA:** Edge = Information. Calibration > Accuracy. Base rate first.
+> Small edge x many trades. Exploit crowd biases. Use frequency format. Know your limits.
+>
+> 7 quy luat nay la XUONG SONG cua BINH_PHAP_TRADING.
+> Moi quyet dinh trade PHAI qua 7 checkpoint nay.
+
+---
+
 ## Triet Ly Core
 
 | Chuong | Nguyen Tac | Ap Dung Trading |

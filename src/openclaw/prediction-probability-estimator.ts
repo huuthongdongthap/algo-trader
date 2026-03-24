@@ -111,15 +111,16 @@ export class PredictionProbabilityEstimator {
     }
     lines.push(
       '',
-      'Estimate the probability this event occurs using this framework:',
-      '1. OUTSIDE VIEW: What is the base rate for similar events? (reference class)',
-      '2. INSIDE VIEW: What specific factors make this case different?',
-      '3. SYNTHESIS: Combine both views. Are you anchored to unusual expectations? Adjust.',
+      'Estimate using this framework:',
+      '1. BASE RATE: Out of 100 similar events in history, how many happened? (frequency format)',
+      '2. INSIDE VIEW: What specific factors make THIS case different from the reference class?',
+      '3. DE-BIAS: Are you anchored? Overconfident? Neglecting base rates? Adjust toward base rate.',
+      '4. FINAL: Combine outside + inside views. State probability.',
       '',
       'Do NOT guess what the market thinks. Give YOUR independent estimate.',
       '',
       'Respond with ONLY this JSON:',
-      '{"probability":0.0-1.0,"confidence":0.0-1.0,"reasoning":"3 sentences max with key factors"}',
+      '{"probability":0.0-1.0,"confidence":0.0-1.0,"reasoning":"base rate X/100, adjusted because..."}',
     );
     return lines.join('\n');
   }
