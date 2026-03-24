@@ -85,9 +85,19 @@ td{padding:8px;border-bottom:1px solid #1a1a2a}
 </div>
 
 <script>
-const API = window.location.origin;
-// Admin auth token — set via login or hardcode for internal use
+// Admin connects to stats server API (not same-origin CF Pages)
+const API = localStorage.getItem('admin_api') || 'https://api.cashclaw.cc';
 let AUTH_TOKEN = localStorage.getItem('admin_token') || '';
+
+// Show config prompt if no token
+if (!AUTH_TOKEN) {
+  const pw = prompt('Enter Admin Password:');
+  if (pw) { AUTH_TOKEN = pw; localStorage.setItem('admin_token', pw); }
+}
+if (!localStorage.getItem('admin_api')) {
+  const url = prompt('Enter Bot API URL:', 'https://api.cashclaw.cc');
+  if (url) localStorage.setItem('admin_api', url);
+}
 
 async function api(path, opts = {}) {
   const res = await fetch(API + path, {

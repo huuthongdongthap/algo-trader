@@ -5,10 +5,13 @@
 
 import { createServer } from 'node:http';
 import { execSync } from 'node:child_process';
+import { createHmac, timingSafeEqual } from 'node:crypto';
 
 const PORT = parseInt(process.argv[2] || '3000', 10);
 const DB_PATH = process.argv[3] || 'data/algo-trade.db';
 const LLM_URL = process.env.LLM_URL || 'http://localhost:11435';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'cashclaw-admin-2026';
+const LICENSE_SECRET = process.env.LICENSE_SECRET || 'change-me-in-production';
 
 let db;
 async function getDb() {
@@ -154,6 +157,50 @@ async function getResolutions() {
   } catch { return {}; }
 }
 
+// ── License helpers ──
+function toBase64Url(input) {
+  const buf = typeof input === 'string' ? Buffer.from(input, 'utf8') : input;
+  return buf.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+function fromBase64Url(input) {
+  const padded = input.replace(/-/g, '+').replace(/_/g, '/');
+  const pad = padded.length % 4;
+  return Buffer.from(pad === 0 ? padded : padded + '='.repeat(4 - pad), 'base64');
+}
+
+function validateLicenseKey(key, secret) {
+  const dotIdx = key.lastIndexOf('.');
+  if (dotIdx === -1) return { valid: false, error: 'Malformed key' };
+  const payloadPart = key.slice(0, dotIdx);
+  const sigPart = key.slice(dotIdx + 1);
+  const expected = toBase64Url(createHmac('sha256', secret).update(payloadPart).digest());
+  const a = Buffer.from(expected, 'utf8'), b = Buffer.from(sigPart, 'utf8');
+  if (a.length !== b.length || !timingSafeEqual(a, b)) return { valid: false, error: 'Invalid signature' };
+  const payload = JSON.parse(fromBase64Url(payloadPart).toString('utf8'));
+  if (Date.now() > payload.expiresAt) return { valid: false, error: 'License expired', payload };
+  const daysLeft = Math.floor((payload.expiresAt - Date.now()) / 86400000);
+  return { valid: true, tier: payload.tier, features: payload.features, remainingDays: daysLeft, expiresAt: new Date(payload.expiresAt).toISOString() };
+}
+
+function generateLicenseKey(userId, tier, days, secret) {
+  const TIERS = { free: { max: 1, trades: 5, feat: [] }, pro: { max: 10, trades: -1, feat: ['backtesting','multi-market'] }, enterprise: { max: -1, trades: -1, feat: ['backtesting','optimizer','webhook','multi-market'] } };
+  const t = TIERS[tier] || TIERS.pro;
+  const now = Date.now();
+  const payload = { userId, tier, features: t.feat, maxMarkets: t.max, maxTradesPerDay: t.trades, issuedAt: now, expiresAt: now + days * 86400000 };
+  const pp = toBase64Url(JSON.stringify(payload));
+  const sig = toBase64Url(createHmac('sha256', secret).update(pp).digest());
+  return { key: `${pp}.${sig}`, userId, tier, days, expiresAt: new Date(payload.expiresAt).toISOString(), maxMarkets: t.max, maxTradesPerDay: t.trades };
+}
+
+async function readBody(req) {
+  return new Promise((resolve, reject) => {
+    let data = '';
+    req.on('data', c => data += c);
+    req.on('end', () => { try { resolve(JSON.parse(data)); } catch { reject(); } });
+    req.on('error', reject);
+  });
+}
+
 const server = createServer(async (req, res) => {
   if (req.method === 'OPTIONS') { json(res, 200, {}); return; }
 
@@ -181,6 +228,42 @@ const server = createServer(async (req, res) => {
     json(res, 200, await getTrades());
   } else if (path === '/api/resolutions') {
     json(res, 200, await getResolutions());
+  // ── License validation (public) ──
+  } else if (path === '/api/license/validate' && req.method === 'POST') {
+    try {
+      const body = await readBody(req);
+      const key = body.key;
+      if (!key) { json(res, 400, { error: 'Missing key' }); return; }
+      const result = validateLicenseKey(key, LICENSE_SECRET);
+      json(res, 200, result);
+    } catch { json(res, 400, { error: 'Invalid request' }); }
+
+  // ── Admin endpoints (password protected) ──
+  } else if (path.startsWith('/api/admin/')) {
+    const authHeader = req.headers['authorization'] || '';
+    const token = authHeader.replace('Bearer ', '');
+    if (token !== ADMIN_PASSWORD) {
+      json(res, 401, { error: 'Unauthorized — set admin password in Settings' });
+      return;
+    }
+
+    if (path === '/api/admin/license/issue' && req.method === 'POST') {
+      try {
+        const body = await readBody(req);
+        const userId = body.userId || `customer_${Date.now()}`;
+        const tier = body.tier || 'pro';
+        const days = parseInt(body.days || '30', 10);
+        const key = generateLicenseKey(userId, tier, days, LICENSE_SECRET);
+        json(res, 201, key);
+      } catch { json(res, 400, { error: 'Invalid request' }); }
+
+    } else if (path === '/api/admin/licenses' && req.method === 'GET') {
+      json(res, 200, { licenses: [], count: 0, note: 'License DB not connected to stats server. Use CLI: node scripts/generate-license.mjs' });
+
+    } else {
+      json(res, 404, { error: 'Admin endpoint not found' });
+    }
+
   } else {
     json(res, 404, { error: 'Not found' });
   }
