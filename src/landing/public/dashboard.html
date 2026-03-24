@@ -202,89 +202,318 @@ tr:hover{background:#161619}
 </div>
 </div>
 
-<!-- ═══════════════════ SETUP GUIDE TAB ═══════════════════ -->
+<!-- ═══════════════════ SETUP GUIDE TAB — ZERO TO ROI ═══════════════════ -->
 <div class="tab-content" id="tab-setup">
 <div class="container">
-  <h2 style="margin-bottom:8px;color:var(--bright)">Quick Start Guide</h2>
-  <p style="color:var(--dim);margin-bottom:24px">Get your AlgoTrade bot running in 10 minutes</p>
 
+  <!-- Progress bar -->
+  <div style="margin-bottom:16px">
+    <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+      <span style="font-size:11px;color:var(--amber);font-weight:600;text-transform:uppercase;letter-spacing:1px">Zero → ROI Progress</span>
+      <span style="font-size:11px;color:var(--dim)" id="wiz-progress">0/8 complete</span>
+    </div>
+    <div style="height:4px;background:#1a1a1a;border-radius:2px"><div id="wiz-bar" style="height:100%;background:var(--amber);border-radius:2px;width:0%;transition:width .3s"></div></div>
+  </div>
+
+  <!-- PHASE 0: Prerequisites -->
   <div class="card">
-    <div class="card-header">Choose Your Deployment</div>
-    <div class="card-body">
-      <div class="form-row">
-        <div style="padding:16px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);cursor:pointer" onclick="showSetup('mac')">
-          <div style="font-size:24px;margin-bottom:8px">&#63743;</div>
-          <div style="font-weight:600;color:var(--bright)">Apple Silicon Mac</div>
-          <div style="font-size:12px;color:var(--dim);margin-top:4px">M1 Max 64GB+ | MLX inference | $0/mo</div>
+    <div class="card-header">Phase 0 — What You Need Before Starting</div>
+    <div class="card-body" style="font-size:12px">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div>
+          <div style="color:var(--amber);font-weight:600;margin-bottom:6px">You Need:</div>
+          <div>&#10003; License Key from admin (you should have this)</div>
+          <div>&#10003; $500-1,000 USDC for trading capital</div>
+          <div>&#10003; 1 hour of setup time</div>
+          <div>&#10003; Basic terminal/command line knowledge</div>
         </div>
-        <div style="padding:16px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);cursor:pointer" onclick="showSetup('vps')">
-          <div style="font-size:24px;margin-bottom:8px">&#9729;</div>
-          <div style="font-weight:600;color:var(--bright)">Cloud VPS</div>
-          <div style="font-size:12px;color:var(--dim);margin-top:4px">RTX 4090 24GB+ | Ollama | ~$150/mo</div>
+        <div>
+          <div style="color:var(--amber);font-weight:600;margin-bottom:6px">Choose Hardware:</div>
+          <div style="display:flex;gap:8px;margin-top:4px">
+            <button class="btn btn-sm" onclick="showSetup('mac')" id="btn-mac" style="flex:1">&#63743; Mac (M1 Max 64GB)</button>
+            <button class="btn btn-sm" onclick="showSetup('vps')" id="btn-vps" style="flex:1">&#9729; Cloud VPS ($150/mo)</button>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
+  <!-- Mac Steps -->
   <div id="setup-mac" style="display:none">
-    <div class="sop-step"><div class="num">1</div><div class="content"><h4>Install Dependencies</h4><p>Homebrew, Node.js 20+, Python 3.11+, MLX LM</p><code>brew install node python@3.11
-pip3 install mlx-lm</code></div></div>
-    <div class="sop-step"><div class="num">2</div><div class="content"><h4>Download DeepSeek R1 Model (~18GB)</h4><p>Start MLX server — model downloads automatically on first run</p><code>python3 -m mlx_lm.server \
-  --model mlx-community/DeepSeek-R1-Distill-Qwen-32B-4bit \
-  --port 11435 &</code></div></div>
-    <div class="sop-step"><div class="num">3</div><div class="content"><h4>Clone & Build AlgoTrade</h4><code>git clone https://github.com/longtho638-jpg/algo-trader.git
-cd algo-trader && npm install && npx tsc</code></div></div>
-    <div class="sop-step"><div class="num">4</div><div class="content"><h4>Test with Dry Run</h4><p>Replace KEY and SECRET with values from admin</p><code>node scripts/start-trading-bot.mjs \
-  --license-key=YOUR_KEY \
-  --secret=YOUR_SECRET \
-  --dry-run --capital=500</code></div></div>
-    <div class="sop-step"><div class="num">5</div><div class="content"><h4>Go Live</h4><p>Add your Polymarket wallet private key. Fund with USDC on Polygon.</p><code>node scripts/start-trading-bot.mjs \
-  --license-key=YOUR_KEY \
-  --secret=YOUR_SECRET \
-  --private-key=0xYOUR_WALLET_KEY \
-  --capital=500</code></div></div>
-    <div class="sop-step"><div class="num">6</div><div class="content"><h4>Run as Background Service</h4><p>Create a launchd plist to auto-start on boot. See full SOP in docs.</p><code>launchctl load ~/Library/LaunchAgents/com.algotrade.bot.plist
-tail -f /tmp/algotrade-bot.log</code></div></div>
-  </div>
 
+  <div class="card"><div class="card-header">Step 1 — Install Software</div><div class="card-body">
+    <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;margin-bottom:8px"><input type="checkbox" class="wiz-check" data-step="1"><div>
+    <div style="color:var(--bright);font-weight:600;margin-bottom:4px">Install Homebrew, Node.js, Python, MLX</div>
+    <div style="color:var(--dim);font-size:11px;margin-bottom:6px">Open Terminal app and paste each command. Wait for each to finish before running the next.</div>
+    <code style="display:block;background:#050505;padding:8px;border-radius:2px;font-size:11px;color:var(--green);border:1px solid #1a1a1a;white-space:pre;overflow-x:auto"># Install Homebrew (if not installed)
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Install Node.js and Python
+brew install node python@3.11
+
+# Install MLX LM server (Apple's AI framework)
+pip3 install mlx-lm
+
+# Verify installations
+node --version    # Should show v20+
+python3 --version # Should show 3.11+</code>
+    <div style="color:var(--amber);font-size:10px;margin-top:4px">&#9888; If "brew" not found after install, close and reopen Terminal</div>
+    </div></label>
+  </div></div>
+
+  <div class="card"><div class="card-header">Step 2 — Download AI Model (~18GB)</div><div class="card-body">
+    <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;margin-bottom:8px"><input type="checkbox" class="wiz-check" data-step="2"><div>
+    <div style="color:var(--bright);font-weight:600;margin-bottom:4px">Start MLX server — model downloads on first run</div>
+    <div style="color:var(--dim);font-size:11px;margin-bottom:6px">This downloads DeepSeek R1 (18GB). Takes 10-30 min on first run. After that, starts in seconds.</div>
+    <code style="display:block;background:#050505;padding:8px;border-radius:2px;font-size:11px;color:var(--green);border:1px solid #1a1a1a;white-space:pre;overflow-x:auto"># Start the AI model server (runs in background)
+python3 -m mlx_lm.server \
+  --model mlx-community/DeepSeek-R1-Distill-Qwen-32B-4bit \
+  --port 11435 &
+
+# Wait for "Listening on port 11435" message
+# Then verify it responds:
+curl http://localhost:11435/v1/models
+# Should show: {"data":[{"id":"mlx-community/DeepSeek-R1-Distill..."}]}</code>
+    <div style="color:var(--red);font-size:10px;margin-top:4px">&#9888; Requires M1 Max with 64GB RAM. 32GB will NOT work.</div>
+    </div></label>
+  </div></div>
+
+  <div class="card"><div class="card-header">Step 3 — Install AlgoTrade Bot</div><div class="card-body">
+    <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;margin-bottom:8px"><input type="checkbox" class="wiz-check" data-step="3"><div>
+    <div style="color:var(--bright);font-weight:600;margin-bottom:4px">Clone repository and build</div>
+    <code style="display:block;background:#050505;padding:8px;border-radius:2px;font-size:11px;color:var(--green);border:1px solid #1a1a1a;white-space:pre;overflow-x:auto">git clone https://github.com/longtho638-jpg/algo-trader.git
+cd algo-trader
+npm install
+npx tsc
+
+# Should complete with no errors</code>
+    </div></label>
+  </div></div>
+
+  </div><!-- end setup-mac -->
+
+  <!-- VPS Steps -->
   <div id="setup-vps" style="display:none">
-    <div class="sop-step"><div class="num">1</div><div class="content"><h4>Provision GPU VPS</h4><p>Minimum: RTX 4090 24GB VRAM, 64GB RAM, Ubuntu 22.04</p><code># Recommended providers:
-# RunPod (~$150/mo) | Lambda (~$200/mo) | Vast.ai (~$100/mo)</code></div></div>
-    <div class="sop-step"><div class="num">2</div><div class="content"><h4>Install NVIDIA Drivers + Ollama</h4><code>apt update && apt upgrade -y
+
+  <div class="card"><div class="card-header">Step 1 — Rent a GPU Server</div><div class="card-body">
+    <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;margin-bottom:8px"><input type="checkbox" class="wiz-check" data-step="1"><div>
+    <div style="color:var(--bright);font-weight:600;margin-bottom:4px">Get a VPS with RTX 4090 (24GB VRAM), 64GB RAM, Ubuntu 22.04</div>
+    <div style="color:var(--dim);font-size:11px;margin-bottom:6px">Sign up at one of these providers and create a GPU instance:</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px">
+      <a href="https://runpod.io" target="_blank" class="btn btn-sm" style="text-align:center">RunPod ~$150/mo</a>
+      <a href="https://lambdalabs.com" target="_blank" class="btn btn-sm" style="text-align:center">Lambda ~$200/mo</a>
+      <a href="https://vast.ai" target="_blank" class="btn btn-sm" style="text-align:center">Vast.ai ~$100/mo</a>
+    </div>
+    <div style="color:var(--amber);font-size:10px">&#9888; Choose Ubuntu 22.04 LTS. Must have ≥24GB VRAM.</div>
+    </div></label>
+  </div></div>
+
+  <div class="card"><div class="card-header">Step 2 — Install NVIDIA + Ollama + AI Model</div><div class="card-body">
+    <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;margin-bottom:8px"><input type="checkbox" class="wiz-check" data-step="2"><div>
+    <div style="color:var(--bright);font-weight:600;margin-bottom:4px">SSH into your VPS and install everything</div>
+    <code style="display:block;background:#050505;padding:8px;border-radius:2px;font-size:11px;color:var(--green);border:1px solid #1a1a1a;white-space:pre;overflow-x:auto">ssh root@YOUR_VPS_IP
+
+# Update system
+apt update && apt upgrade -y
+
+# Install NVIDIA drivers (skip if pre-installed)
 apt install -y nvidia-driver-535
+nvidia-smi  # Verify GPU shows up
+
+# Install Ollama (AI model server)
 curl -fsSL https://ollama.com/install.sh | sh
-ollama pull deepseek-r1:32b</code></div></div>
-    <div class="sop-step"><div class="num">3</div><div class="content"><h4>Install Node.js + AlgoTrade</h4><code>curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+
+# Download DeepSeek R1 model (~18GB)
+ollama pull deepseek-r1:32b
+
+# Verify model loaded
+curl http://localhost:11434/api/tags</code>
+    </div></label>
+  </div></div>
+
+  <div class="card"><div class="card-header">Step 3 — Install AlgoTrade Bot</div><div class="card-body">
+    <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;margin-bottom:8px"><input type="checkbox" class="wiz-check" data-step="3"><div>
+    <div style="color:var(--bright);font-weight:600;margin-bottom:4px">Install Node.js, clone repo, build</div>
+    <code style="display:block;background:#050505;padding:8px;border-radius:2px;font-size:11px;color:var(--green);border:1px solid #1a1a1a;white-space:pre;overflow-x:auto">curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
 apt install -y nodejs
+
 git clone https://github.com/longtho638-jpg/algo-trader.git
-cd algo-trader && npm install && npx tsc</code></div></div>
-    <div class="sop-step"><div class="num">4</div><div class="content"><h4>Test with Dry Run</h4><code>node scripts/start-trading-bot.mjs \
+cd algo-trader
+npm install
+npx tsc</code>
+    </div></label>
+  </div></div>
+
+  </div><!-- end setup-vps -->
+
+  <!-- SHARED STEPS (both Mac and VPS) -->
+  <div id="setup-shared" style="display:none">
+
+  <div class="card"><div class="card-header">Step 4 — Create Polymarket Wallet</div><div class="card-body">
+    <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;margin-bottom:8px"><input type="checkbox" class="wiz-check" data-step="4"><div>
+    <div style="color:var(--bright);font-weight:600;margin-bottom:4px">Generate a new Polygon wallet for trading</div>
+    <div style="color:var(--dim);font-size:11px;margin-bottom:6px">This creates a wallet specifically for the bot. <span style="color:var(--red)">SAVE THE PRIVATE KEY!</span> You cannot recover it.</div>
+    <code style="display:block;background:#050505;padding:8px;border-radius:2px;font-size:11px;color:var(--green);border:1px solid #1a1a1a;white-space:pre;overflow-x:auto"># Generate wallet (from algo-trader directory)
+node -e "
+const { ethers } = require('ethers');
+const w = ethers.Wallet.createRandom();
+console.log('Address:', w.address);
+console.log('Private Key:', w.privateKey);
+console.log('');
+console.log('SAVE PRIVATE KEY SECURELY!');
+"</code>
+    <div style="color:var(--red);font-size:10px;margin-top:4px">&#9888; Write down the private key on paper. Store in a password manager. Never share it.</div>
+    </div></label>
+  </div></div>
+
+  <div class="card"><div class="card-header">Step 5 — Fund Your Wallet</div><div class="card-body">
+    <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;margin-bottom:8px"><input type="checkbox" class="wiz-check" data-step="5"><div>
+    <div style="color:var(--bright);font-weight:600;margin-bottom:4px">Send USDC + MATIC to your Polygon wallet</div>
+    <div style="color:var(--dim);font-size:11px;margin-bottom:6px">You need USDC for trading and a small amount of MATIC for gas fees.</div>
+    <div style="background:#050505;padding:10px;border:1px solid #1a1a1a;border-radius:2px;font-size:11px;margin-bottom:6px">
+      <div style="margin-bottom:6px"><span style="color:var(--amber)">1.</span> Buy <b style="color:var(--bright)">USDC</b> on Coinbase, Binance, or any exchange</div>
+      <div style="margin-bottom:6px"><span style="color:var(--amber)">2.</span> Send USDC to your wallet address via <b style="color:var(--bright)">Polygon network</b> (NOT Ethereum!)</div>
+      <div style="margin-bottom:6px"><span style="color:var(--amber)">3.</span> Also send <b style="color:var(--bright)">0.5 MATIC</b> for gas fees (~$0.50)</div>
+      <div><span style="color:var(--amber)">4.</span> Verify: <a href="https://polygonscan.com" target="_blank">polygonscan.com</a> → search your address</div>
+    </div>
+    <div style="color:var(--amber);font-size:10px">Recommended starting capital: $500 USDC. Minimum: $100 USDC.</div>
+    </div></label>
+  </div></div>
+
+  <div class="card"><div class="card-header">Step 6 — Test Dry Run (No Real Money)</div><div class="card-body">
+    <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;margin-bottom:8px"><input type="checkbox" class="wiz-check" data-step="6"><div>
+    <div style="color:var(--bright);font-weight:600;margin-bottom:4px">Run the bot in paper mode to verify everything works</div>
+    <div style="color:var(--dim);font-size:11px;margin-bottom:6px">This runs without real money. Replace YOUR_KEY and YOUR_SECRET with values from admin.</div>
+    <code style="display:block;background:#050505;padding:8px;border-radius:2px;font-size:11px;color:var(--green);border:1px solid #1a1a1a;white-space:pre;overflow-x:auto"># From algo-trader directory:
+node scripts/start-trading-bot.mjs \
   --license-key=YOUR_KEY \
   --secret=YOUR_SECRET \
-  --dry-run --capital=500 \
-  --llm-url=http://127.0.0.1:11434/v1</code></div></div>
-    <div class="sop-step"><div class="num">5</div><div class="content"><h4>Go Live + systemd Service</h4><code># Create /etc/systemd/system/algotrade.service
-# Then:
+  --dry-run \
+  --capital=500
+
+# Expected output:
+# ╔══════════════════════════════════════════╗
+# ║         AlgoTrade Prediction Bot         ║
+# ║  License:  ✅ Valid                       ║
+# ║  Mode:     DRY RUN (paper)              ║
+# ╚══════════════════════════════════════════╝
+# 🚀 Starting prediction loop...
+
+# Wait for first prediction cycle (~2 min)
+# You should see signals appearing
+# Press Ctrl+C to stop</code>
+    <div style="color:var(--green);font-size:10px;margin-top:4px">&#10003; If you see "License: ✅ Valid" and signals appearing — everything works!</div>
+    </div></label>
+  </div></div>
+
+  <div class="card" style="border-color:var(--green)"><div class="card-header" style="color:var(--green)">Step 7 — Go Live (Real Money)</div><div class="card-body">
+    <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;margin-bottom:8px"><input type="checkbox" class="wiz-check" data-step="7"><div>
+    <div style="color:var(--green);font-weight:600;margin-bottom:4px">Start trading with real USDC on Polymarket</div>
+    <div style="color:var(--dim);font-size:11px;margin-bottom:6px">Add your wallet private key. Bot will place real orders on Polymarket.</div>
+    <code style="display:block;background:#050505;padding:8px;border-radius:2px;font-size:11px;color:var(--green);border:1px solid #1a1a1a;white-space:pre;overflow-x:auto"># LIVE TRADING — Real money!
+node scripts/start-trading-bot.mjs \
+  --license-key=YOUR_KEY \
+  --secret=YOUR_SECRET \
+  --private-key=0xYOUR_PRIVATE_KEY \
+  --capital=500</code>
+    <div style="color:var(--red);font-size:10px;margin-top:4px">&#9888; Start with small capital ($100-200) until you verify it works over 24-48 hours</div>
+    </div></label>
+  </div></div>
+
+  <div class="card" style="border-color:var(--amber)"><div class="card-header" style="color:var(--amber)">Step 8 — Run 24/7 as Background Service</div><div class="card-body">
+    <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;margin-bottom:8px"><input type="checkbox" class="wiz-check" data-step="8"><div>
+    <div style="color:var(--amber);font-weight:600;margin-bottom:4px">Auto-start on boot, run forever</div>
+    <div id="step8-mac" style="display:none">
+      <div style="color:var(--dim);font-size:11px;margin-bottom:6px">macOS: Create a launchd service</div>
+      <code style="display:block;background:#050505;padding:8px;border-radius:2px;font-size:11px;color:var(--green);border:1px solid #1a1a1a;white-space:pre;overflow-x:auto"># Download service template
+curl -o ~/Library/LaunchAgents/com.algotrade.bot.plist \
+  https://raw.githubusercontent.com/longtho638-jpg/algo-trader/main/templates/launchd.plist
+
+# Edit: replace YOUR_KEY, YOUR_SECRET, YOUR_PRIVATE_KEY
+nano ~/Library/LaunchAgents/com.algotrade.bot.plist
+
+# Start service
+launchctl load ~/Library/LaunchAgents/com.algotrade.bot.plist
+
+# Check logs
+tail -f /tmp/algotrade-bot.log</code>
+    </div>
+    <div id="step8-vps" style="display:none">
+      <div style="color:var(--dim);font-size:11px;margin-bottom:6px">Linux VPS: Create a systemd service</div>
+      <code style="display:block;background:#050505;padding:8px;border-radius:2px;font-size:11px;color:var(--green);border:1px solid #1a1a1a;white-space:pre;overflow-x:auto"># Create service file
+cat > /etc/systemd/system/algotrade.service << 'EOF'
+[Unit]
+Description=AlgoTrade Bot
+After=network.target ollama.service
+[Service]
+Type=simple
+WorkingDirectory=/root/algo-trader
+Environment=LICENSE_KEY=YOUR_KEY
+Environment=LICENSE_SECRET=YOUR_SECRET
+Environment=POLY_PRIVATE_KEY=0xYOUR_KEY
+Environment=CAPITAL_USDC=500
+ExecStart=/usr/bin/node scripts/start-trading-bot.mjs
+Restart=always
+RestartSec=30
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Enable and start
+systemctl daemon-reload
 systemctl enable algotrade
 systemctl start algotrade
-journalctl -u algotrade -f</code></div></div>
+
+# Check status and logs
+systemctl status algotrade
+journalctl -u algotrade -f</code>
+    </div>
+    <div style="color:var(--green);font-size:10px;margin-top:6px">&#10003; Done! Bot runs 24/7, auto-restarts on crash, survives reboots.</div>
+    </div></label>
+  </div></div>
+
+  <!-- Completion banner -->
+  <div id="wiz-complete" style="display:none;text-align:center;padding:24px;background:#0a2a0a;border:1px solid var(--green);border-radius:2px;margin-bottom:16px">
+    <div style="font-size:36px;margin-bottom:8px">&#127881;</div>
+    <div style="font-size:16px;color:var(--green);font-weight:700;margin-bottom:4px">SETUP COMPLETE — BOT IS TRADING</div>
+    <div style="font-size:12px;color:var(--dim)">Monitor your trades in the Dashboard tab. First profits within 24-48 hours.</div>
   </div>
 
-  <div class="card" style="margin-top:16px">
+  </div><!-- end setup-shared -->
+
+  <!-- Hardware specs (always visible) -->
+  <div class="card" style="margin-top:8px">
     <div class="card-header">Hardware Requirements</div>
     <div class="card-body" style="padding:0">
       <table>
         <thead><tr><th>Component</th><th>Apple Silicon</th><th>Cloud VPS</th></tr></thead>
         <tbody>
-          <tr><td>Chip/GPU</td><td>M1 Max or better</td><td>RTX 4090 (24GB VRAM)</td></tr>
+          <tr><td>Chip/GPU</td><td style="color:var(--bright)">M1 Max or better</td><td style="color:var(--bright)">RTX 4090 (24GB VRAM)</td></tr>
           <tr><td>RAM</td><td>64GB unified</td><td>64GB DDR5</td></tr>
           <tr><td>Storage</td><td>256GB+ SSD</td><td>100GB+ NVMe</td></tr>
-          <tr><td>Speed</td><td>~33s/prediction</td><td>~45s/prediction</td></tr>
-          <tr><td>Cost</td><td>$1,800-2,400 one-time</td><td>$150-400/month</td></tr>
+          <tr><td>Speed</td><td style="color:var(--green)">~33s/prediction</td><td>~45s/prediction</td></tr>
+          <tr><td>Cost</td><td>$1,800-2,400 one-time</td><td style="color:var(--amber)">$150-400/month</td></tr>
         </tbody>
       </table>
     </div>
   </div>
+
+  <div class="card">
+    <div class="card-header">Troubleshooting</div>
+    <div class="card-body" style="padding:0;font-size:11px">
+      <table>
+        <thead><tr><th>Problem</th><th>Cause</th><th>Fix</th></tr></thead>
+        <tbody>
+          <tr><td>"fetch failed" on estimation</td><td>LLM server not running</td><td style="color:var(--green)">Start MLX/Ollama server</td></tr>
+          <tr><td>"License expired"</td><td>Key past expiry</td><td style="color:var(--green)">Contact admin for renewal</td></tr>
+          <tr><td>"Order rejected"</td><td>Insufficient USDC</td><td style="color:var(--green)">Fund Polygon wallet</td></tr>
+          <tr><td>Very slow (>2min/prediction)</td><td>CPU-only inference</td><td style="color:var(--green)">Need GPU or Apple Silicon</td></tr>
+          <tr><td>Bot hangs on first cycle</td><td>Model loading</td><td style="color:var(--green)">Wait 2-5 min for first load</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
 </div>
 </div>
 
@@ -366,10 +595,46 @@ function toast(msg, type='success') {
 }
 
 // ── Setup guide toggle ──
+let setupType = '';
 function showSetup(type) {
+  setupType = type;
   document.getElementById('setup-mac').style.display = type === 'mac' ? 'block' : 'none';
   document.getElementById('setup-vps').style.display = type === 'vps' ? 'block' : 'none';
+  document.getElementById('setup-shared').style.display = 'block';
+  document.getElementById('step8-mac').style.display = type === 'mac' ? 'block' : 'none';
+  document.getElementById('step8-vps').style.display = type === 'vps' ? 'block' : 'none';
+  document.getElementById('btn-mac').style.borderColor = type === 'mac' ? 'var(--amber)' : 'var(--border)';
+  document.getElementById('btn-mac').style.color = type === 'mac' ? 'var(--amber)' : 'var(--text)';
+  document.getElementById('btn-vps').style.borderColor = type === 'vps' ? 'var(--amber)' : 'var(--border)';
+  document.getElementById('btn-vps').style.color = type === 'vps' ? 'var(--amber)' : 'var(--text)';
+  localStorage.setItem('algotrade_setup_type', type);
+  updateWizProgress();
 }
+
+// Wizard progress tracking
+function updateWizProgress() {
+  const checks = document.querySelectorAll('.wiz-check:checked');
+  const total = 8;
+  const done = checks.length;
+  document.getElementById('wiz-progress').textContent = `${done}/${total} complete`;
+  document.getElementById('wiz-bar').style.width = `${(done/total)*100}%`;
+  document.getElementById('wiz-complete').style.display = done >= total ? 'block' : 'none';
+  // Save state
+  const state = {};
+  document.querySelectorAll('.wiz-check').forEach(c => { state[c.dataset.step] = c.checked; });
+  localStorage.setItem('algotrade_wiz', JSON.stringify(state));
+}
+
+// Restore wizard state
+function restoreWiz() {
+  const state = JSON.parse(localStorage.getItem('algotrade_wiz') || '{}');
+  document.querySelectorAll('.wiz-check').forEach(c => { if (state[c.dataset.step]) c.checked = true; });
+  const type = localStorage.getItem('algotrade_setup_type');
+  if (type) showSetup(type);
+  updateWizProgress();
+}
+document.querySelectorAll('.wiz-check').forEach(c => c.addEventListener('change', updateWizProgress));
+restoreWiz();
 
 // ── Settings persistence (localStorage) ──
 function loadSettings() {
