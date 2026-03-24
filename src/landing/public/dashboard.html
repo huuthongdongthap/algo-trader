@@ -927,7 +927,7 @@ async function validateLicense(cfg) {
 
 function startPolling(cfg) {
   if (pollTimer) clearInterval(pollTimer);
-  pollTimer = setInterval(() => fetchBotData(cfg), 10000);
+  pollTimer = setInterval(() => fetchBotData(cfg), 30000);
   fetchBotData(cfg);
 }
 
@@ -957,11 +957,15 @@ async function botAction(action) {
 
 // ── Render functions ──
 function renderSignals(signals) {
-  document.getElementById('d-signals').textContent = signals.length;
-  document.getElementById('sig-total').textContent = `${signals.length} signals`;
-  const html = signals.map(s => {
-    const cls = s.direction?.includes('yes') ? 'yes' : s.direction?.includes('no') ? 'no' : 'skip';
-    const label = s.direction?.includes('yes') ? 'BUY YES' : 'BUY NO';
+  // Filter: only actionable (not SKIP)
+  const active = signals.filter(s => s.direction && !s.direction.toUpperCase().includes('SKIP'));
+  document.getElementById('d-signals').textContent = active.length;
+  document.getElementById('sig-total').textContent = `${active.length} signals`;
+  const html = active.map(s => {
+    const dir = (s.direction || '').toUpperCase();
+    const isYes = dir.includes('YES');
+    const cls = isYes ? 'yes' : 'no';
+    const label = isYes ? 'BUY YES' : 'BUY NO';
     const ec = s.edge > 0 ? 'color:var(--green)' : 'color:var(--red)';
     return `<div class="signal-item">
       <span class="signal-dir"><span class="badge ${cls}">${label}</span></span>
@@ -975,24 +979,31 @@ function renderSignals(signals) {
 }
 
 function renderTrades(trades) {
-  document.getElementById('d-trades').textContent = trades.length;
-  document.getElementById('d-trade-count').textContent = trades.length;
-  const tbody = trades.slice(0, 20).map(t => {
-    const dirCls = t.direction?.includes('yes') ? 'yes' : 'no';
-    const dirLabel = t.direction?.includes('yes') ? 'BUY YES' : 'BUY NO';
-    const pnl = t.pnl != null ? (t.pnl >= 0 ? `+$${t.pnl.toFixed(2)}` : `-$${Math.abs(t.pnl).toFixed(2)}`) : '';
-    const status = t.resolved ? (t.correct ? 'Won' : 'Lost') : 'Open';
+  // Filter: only actionable trades (not SKIP)
+  const actionable = trades.filter(t => t.direction && !t.direction.toUpperCase().includes('SKIP'));
+  document.getElementById('d-trades').textContent = actionable.length;
+  document.getElementById('d-trade-count').textContent = actionable.length;
+  const tbody = actionable.slice(0, 30).map(t => {
+    const dir = (t.direction || '').toUpperCase();
+    const isYes = dir.includes('YES');
+    const dirCls = isYes ? 'yes' : 'no';
+    const dirLabel = isYes ? 'BUY YES' : 'BUY NO';
+    const status = t.resolved ? (t.correct ? 'Won' : 'Lost') : 'Pending';
     const stCls = t.resolved ? (t.correct ? 'yes' : 'no') : 'open';
+    const edgeStr = ((t.edge||0)*100).toFixed(1);
     return `<tr>
-      <td style="font-family:var(--mono);font-size:12px;color:var(--dim)">${new Date(t.timestamp||Date.now()).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--dim)">${new Date(t.timestamp||Date.now()).toLocaleString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</td>
       <td><span class="badge ${dirCls}">${dirLabel}</span></td>
-      <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.description || t.market || ''}</td>
-      <td style="font-family:var(--mono)">$${(t.sizeUsdc||0).toFixed(2)}</td>
-      <td style="font-family:var(--mono);color:${(t.edge||0)>0?'var(--green)':'var(--red)'}">${((t.edge||0)*100).toFixed(1)}%</td>
+      <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.description || ''}</td>
+      <td style="font-family:var(--mono);color:${(t.edge||0)>0?'var(--green)':'var(--red)'}">${edgeStr}%</td>
+      <td style="font-family:var(--mono);color:var(--dim)">${((t.ourProb||0)*100).toFixed(0)}% vs ${((t.marketProb||0)*100).toFixed(0)}%</td>
       <td><span class="badge ${stCls}">${status}</span></td>
     </tr>`;
   }).join('');
-  document.getElementById('d-trades-table').innerHTML = tbody || '<tr><td colspan="6" style="text-align:center;color:var(--dim);padding:24px">No trades yet</td></tr>';
+  document.getElementById('d-trades-table').innerHTML = tbody || '<tr><td colspan="6" style="text-align:center;color:var(--dim);padding:24px">No actionable trades yet</td></tr>';
+  // Also populate Trades tab
+  document.getElementById('t-table').innerHTML = tbody || '<tr><td colspan="8" style="text-align:center;color:var(--dim);padding:24px">No trades yet</td></tr>';
+  document.getElementById('t-open').textContent = actionable.filter(t => !t.resolved).length;
 }
 
 function renderStats(stats) {
