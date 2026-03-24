@@ -29,6 +29,11 @@ import { EndgameAgent } from '../agents/endgame-agent.js';
 import { ResolutionArbAgent } from '../agents/resolution-arb-agent.js';
 import { WhaleWatchAgent } from '../agents/whale-watch-agent.js';
 
+// Dark edge agents (P2)
+import { EventClusterAgent } from '../agents/event-cluster-agent.js';
+import { VolumeAlertAgent } from '../agents/volume-alert-agent.js';
+import { SplitMergeArbAgent } from '../agents/split-merge-arb-agent.js';
+
 // Agent-dispatched command creators
 import { createScanCommand } from './commands/scan-cmd.js';
 import { createMonitorCommand } from './commands/monitor-cmd.js';
@@ -43,6 +48,11 @@ import { createNegRiskScanCommand } from './commands/neg-risk-scan-cmd.js';
 import { createEndgameCommand } from './commands/endgame-cmd.js';
 import { createResolutionArbCommand } from './commands/resolution-arb-cmd.js';
 import { createWhaleWatchCommand } from './commands/whale-watch-cmd.js';
+
+// Dark edge command creators (P2)
+import { createEventClusterCommand } from './commands/event-cluster-cmd.js';
+import { createVolumeAlertCommand } from './commands/volume-alert-cmd.js';
+import { createSplitMergeArbCommand } from './commands/split-merge-arb-cmd.js';
 
 const require = createRequire(import.meta.url);
 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
@@ -77,6 +87,9 @@ dispatcher.register(new NegRiskScanAgent());
 dispatcher.register(new EndgameAgent());
 dispatcher.register(new ResolutionArbAgent());
 dispatcher.register(new WhaleWatchAgent());
+dispatcher.register(new EventClusterAgent());
+dispatcher.register(new VolumeAlertAgent());
+dispatcher.register(new SplitMergeArbAgent());
 
 // Agent-dispatched commands
 createScanCommand(program, dispatcher);
@@ -90,6 +103,9 @@ createNegRiskScanCommand(program, dispatcher);
 createEndgameCommand(program, dispatcher);
 createResolutionArbCommand(program, dispatcher);
 createWhaleWatchCommand(program, dispatcher);
+createEventClusterCommand(program, dispatcher);
+createVolumeAlertCommand(program, dispatcher);
+createSplitMergeArbCommand(program, dispatcher);
 
 // Meta command: list all registered specialist agents
 program

@@ -21,3 +21,8 @@ export { NegRiskScanAgent } from './neg-risk-scan-agent.js';
 export { EndgameAgent } from './endgame-agent.js';
 export { ResolutionArbAgent } from './resolution-arb-agent.js';
 export { WhaleWatchAgent } from './whale-watch-agent.js';
+
+// Dark edge agents (P2)
+export { EventClusterAgent } from './event-cluster-agent.js';
+export { VolumeAlertAgent } from './volume-alert-agent.js';
+export { SplitMergeArbAgent } from './split-merge-arb-agent.js';

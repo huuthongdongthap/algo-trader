@@ -2,7 +2,8 @@
 // All specialist agents implement SpecialistAgent interface
 
 export type AgentTaskType = 'scan' | 'estimate' | 'monitor' | 'risk' | 'calibrate' | 'report' | 'doctor'
-  | 'neg-risk-scan' | 'endgame' | 'resolution-arb' | 'whale-watch';
+  | 'neg-risk-scan' | 'endgame' | 'resolution-arb' | 'whale-watch'
+  | 'event-cluster' | 'volume-alert' | 'split-merge-arb';
 
 export interface AgentTask {
   id: string;
