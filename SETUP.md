@@ -283,19 +283,27 @@ systemctl start algotrade
 journalctl -u algotrade -f
 ```
 
-### B8. Connect Dashboard
+### B8. Connect Dashboard (= UI Step 9)
 
 ```bash
-# Start stats server
+# Start stats server (port 3000 — serves data to dashboard)
 nohup node scripts/stats-server.mjs 3000 data/algo-trade.db > /tmp/stats-server.log 2>&1 &
 
-# Create public tunnel (requires cloudflared)
+# Verify stats server is running
+curl http://localhost:3000/api/health
+# Expected: {"status":"ok",...}
+
+# Create public tunnel (required because dashboard is HTTPS)
 brew install cloudflared   # macOS
 # apt install cloudflared  # Ubuntu
 cloudflared tunnel --url http://localhost:3000
 
 # Copy the https://xxx.trycloudflare.com URL
-# Go to: https://cashclaw.cc/dashboard → Settings → paste URL → Save
+# Go to: https://cashclaw.cc/dashboard → Settings tab → Bot API URL → paste → Save
+#
+# IMPORTANT: Both stats-server AND cloudflared must be running
+# for the dashboard to show your bot's real data.
+# Without this, dashboard shows "Demo mode".
 ```
 
 ---

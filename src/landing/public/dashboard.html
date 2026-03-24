@@ -765,8 +765,24 @@ cloudflared tunnel create my-bot
     <div class="card">
       <div class="card-header">Bot Connection</div>
       <div class="card-body">
-        <div class="form-group"><label>Bot API URL</label><input id="cfg-api" placeholder="https://your-tunnel-url.trycloudflare.com" value=""></div>
-        <div class="form-group"><label>License Key</label><input id="cfg-license" type="password" placeholder="Paste your license key (from admin)"></div>
+        <div class="form-group">
+          <label>Bot API URL</label>
+          <input id="cfg-api" placeholder="https://your-tunnel-url.trycloudflare.com" value="">
+          <div style="font-size:10px;color:var(--dim);margin-top:4px;line-height:1.4">
+            <div data-i18n="settings_api_help">How to get this URL:</div>
+            <div style="margin-top:2px">1. SSH into your bot machine (M1 Max or VPS)</div>
+            <div>2. Run: <span style="color:var(--green)">node scripts/stats-server.mjs 3000</span></div>
+            <div>3. Run: <span style="color:var(--green)">cloudflared tunnel --url http://localhost:3000</span></div>
+            <div>4. Copy the <span style="color:var(--amber)">https://xyz.trycloudflare.com</span> URL</div>
+            <div>5. Paste it here and click Save</div>
+            <div style="margin-top:4px;color:var(--amber)">See Setup Guide tab → Step 9 for full details</div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>License Key</label>
+          <input id="cfg-license" type="password" placeholder="Paste your license key (from admin)">
+          <div style="font-size:10px;color:var(--dim);margin-top:4px" data-i18n="settings_license_help">Get your key from the admin who set up your account</div>
+        </div>
         <button class="btn btn-primary" onclick="saveSettings()">Save & Connect</button>
       </div>
     </div>
@@ -1209,6 +1225,8 @@ const TRANSLATIONS = {
     'Bot Connection': 'Kết Nối Bot', 'Trading Parameters': 'Thông Số Giao Dịch',
     'License Info': 'Thông Tin License', 'Save & Connect': 'Lưu & Kết Nối',
     'Update Parameters': 'Cập Nhật Thông Số',
+    settings_api_help: 'Cách lấy URL này:',
+    settings_license_help: 'Liên hệ admin để nhận license key',
     // Hardware
     'Hardware Requirements': 'Yêu Cầu Phần Cứng', 'Troubleshooting': 'Xử Lý Sự Cố',
     'Component': 'Thành phần', 'Apple Silicon': 'Apple Silicon', 'Cloud VPS': 'VPS Đám Mây',
