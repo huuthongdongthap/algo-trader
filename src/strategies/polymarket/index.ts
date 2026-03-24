@@ -7,3 +7,9 @@ export type { MMConfig } from './market-maker.js';
 
 export { MomentumScalperStrategy } from './momentum-scalper.js';
 export type { MomentumConfig } from './momentum-scalper.js';
+
+export { createBookImbalanceReversalTick } from './book-imbalance-reversal.js';
+export type { BookImbalanceConfig, BookImbalanceDeps } from './book-imbalance-reversal.js';
+
+export { createVwapDeviationSniperTick } from './vwap-deviation-sniper.js';
+export type { VwapDeviationConfig, VwapDeviationDeps } from './vwap-deviation-sniper.js';

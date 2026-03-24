@@ -6,6 +6,7 @@ import { StrategyOrchestrator } from '../strategies/strategy-orchestrator.js';
 import { createPolymarketArbTick } from '../strategies/polymarket-arb-strategy.js';
 import { createGridDcaTick } from '../strategies/grid-dca-strategy.js';
 import { createBookImbalanceReversalTick } from '../strategies/polymarket/book-imbalance-reversal.js';
+import { createVwapDeviationSniperTick } from '../strategies/polymarket/vwap-deviation-sniper.js';
 import type { MarketScanner } from '../polymarket/market-scanner.js';
 import type { OrderManager } from '../polymarket/order-manager.js';
 import type { OrderExecutor } from '../cex/order-executor.js';
@@ -54,6 +55,13 @@ export function wireStrategies(deps: WireStrategyDeps): StrategyOrchestrator {
     orc.register(
       { id: 'book-imbalance', name: 'Book Imbalance Reversal', type: 'book-imbalance', enabled: false, params: {}, intervalMs: parseInt(env('BOOK_IMBALANCE_INTERVAL_MS', '15000'), 10) },
       createBookImbalanceReversalTick({ clob: clobClient, orderManager, eventBus, gamma: gammaClient }),
+    );
+  }
+
+  if (clobClient && orderManager && gammaClient) {
+    orc.register(
+      { id: 'vwap-sniper', name: 'VWAP Deviation Sniper', type: 'vwap-sniper', enabled: false, params: {}, intervalMs: parseInt(env('VWAP_SNIPER_INTERVAL_MS', '10000'), 10) },
+      createVwapDeviationSniperTick({ clob: clobClient, orderManager, eventBus, gamma: gammaClient }),
     );
   }
 
