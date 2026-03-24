@@ -5,6 +5,10 @@ import { Wallet } from 'ethers';
 import type { MarketInfo, Order } from '../core/types.js';
 import { logger } from '../core/logger.js';
 import { paperMarkets, paperOrderBook, paperPrice } from './clob-paper-simulator.js';
+import { CircuitBreaker } from '../resilience/circuit-breaker.js';
+import { rateLimiterRegistry } from '../resilience/rate-limiter.js';
+import { resilientFetch } from '../resilience/resilient-fetch.js';
+import type { TokenBucket } from '../resilience/rate-limiter.js';
 
 const CLOB_BASE = 'https://clob.polymarket.com';
 
@@ -73,6 +77,8 @@ export class ClobClient {
   private apiKey: string;
   private passphrase: string;
   private paperMode: boolean;
+  private circuitBreaker: CircuitBreaker;
+  private rateLimiter: TokenBucket;
 
   constructor(privateKeyOrConfig: string | ClobClientConfig = '', chainId = 137) {
     if (typeof privateKeyOrConfig === 'string') {
@@ -90,6 +96,13 @@ export class ClobClient {
       this.passphrase = cfg.passphrase ?? process.env['POLYMARKET_PASSPHRASE']  ?? '';
       this.paperMode  = cfg.paperMode ?? false;
     }
+    this.circuitBreaker = new CircuitBreaker({
+      name: 'clob-api',
+      failureThreshold: 5,
+      resetTimeoutMs: 30_000,
+      halfOpenMaxAttempts: 2,
+    });
+    this.rateLimiter = rateLimiterRegistry.getOrCreate('polymarket');
   }
 
   get isPaperMode(): boolean { return this.paperMode; }
@@ -111,9 +124,15 @@ export class ClobClient {
     const method  = (options.method ?? 'GET').toUpperCase();
     const bodyStr = options.body ? String(options.body) : '';
     const auth    = await this.buildAuthHeaders(method, path, bodyStr);
-    const res = await fetch(`${CLOB_BASE}${path}`, {
+    const res = await resilientFetch(`${CLOB_BASE}${path}`, {
       ...options,
       headers: { 'Content-Type': 'application/json', Accept: 'application/json', ...auth },
+    }, {
+      circuitBreaker: this.circuitBreaker,
+      rateLimiter: this.rateLimiter,
+      label: 'ClobClient',
+      maxRetries: 3,
+      timeoutMs: 15_000,
     });
     if (!res.ok) throw new Error(`CLOB API ${res.status}: ${await res.text()}`);
     return res.json() as Promise<T>;

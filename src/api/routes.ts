@@ -43,6 +43,7 @@ import { handleDexRoutes } from './dex-routes.js';
 import { handleKalshiRoutes } from './kalshi-routes.js';
 import { handleConsensusRoutes } from './consensus-routes.js';
 import { handleSubscriptionRoutes } from './subscription-routes.js';
+import { handleStrategyHealthRoutes, type StrategyHealthDeps } from './strategy-health-routes.js';
 
 // ─── Export deps setter (called from app.ts after bootstrap) ────────────────
 let _exportDeps: ExportDeps | null = null;
@@ -51,6 +52,10 @@ export function setExportDeps(deps: ExportDeps): void { _exportDeps = deps; }
 // ─── OpenClaw deps setter (called from app.ts after bootstrap) ───────────────
 let _openClawDeps: OpenClawDeps | null = null;
 export function setOpenClawDeps(deps: OpenClawDeps): void { _openClawDeps = deps; }
+
+// ─── Strategy health deps setter (called from app.ts after bootstrap) ────────
+let _strategyHealthDeps: StrategyHealthDeps | null = null;
+export function setStrategyHealthDeps(deps: StrategyHealthDeps): void { _strategyHealthDeps = deps; }
 
 // ─── Response helpers ─────────────────────────────────────────────────────────
 
@@ -175,6 +180,13 @@ export async function handleRequest(
     } else if (pathname === '/api/trades') {
       if (method !== 'GET') { sendMethodNotAllowed(res); return; }
       handleTrades(req, res, engine);
+    } else if (pathname.startsWith('/api/strategies/') && pathname.endsWith('/health') || pathname === '/api/strategies/health') {
+      if (_strategyHealthDeps) {
+        const handled = handleStrategyHealthRoutes(req, res, pathname, method, _strategyHealthDeps);
+        if (!handled) sendNotFound(res);
+      } else {
+        sendJson(res, 503, { error: 'Strategy health not configured' });
+      }
     } else if (pathname === '/api/strategies/performance') {
       if (method !== 'GET') { sendMethodNotAllowed(res); return; }
       handleStrategyPerformance(req, res, engine);

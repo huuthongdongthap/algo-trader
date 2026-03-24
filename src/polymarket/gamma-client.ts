@@ -1,6 +1,11 @@
 // Polymarket Gamma API client — ported from PolyClaw (chainstacklabs/polyclaw)
 // HTTP client for browsing markets, searching, and fetching live prices
 
+import { CircuitBreaker } from '../resilience/circuit-breaker.js';
+import { rateLimiterRegistry } from '../resilience/rate-limiter.js';
+import { resilientFetch } from '../resilience/resilient-fetch.js';
+import type { TokenBucket } from '../resilience/rate-limiter.js';
+
 const GAMMA_API_BASE = 'https://gamma-api.polymarket.com';
 
 // ---------------------------------------------------------------------------
@@ -81,9 +86,18 @@ export function parseEvent(data: Record<string, unknown>): GammaMarketGroup {
 
 export class GammaClient {
   private readonly timeout: number;
+  private readonly circuitBreaker: CircuitBreaker;
+  private readonly rateLimiter: TokenBucket;
 
   constructor(timeout = 30_000) {
     this.timeout = timeout;
+    this.circuitBreaker = new CircuitBreaker({
+      name: 'gamma-api',
+      failureThreshold: 5,
+      resetTimeoutMs: 30_000,
+      halfOpenMaxAttempts: 2,
+    });
+    this.rateLimiter = rateLimiterRegistry.getOrCreate('polymarket');
   }
 
   /** Get trending markets by 24h volume. */
@@ -152,7 +166,13 @@ export class GammaClient {
   }
 
   private async fetchJson(url: string): Promise<unknown> {
-    const res = await fetch(url, { signal: AbortSignal.timeout(this.timeout) });
+    const res = await resilientFetch(url, {}, {
+      circuitBreaker: this.circuitBreaker,
+      rateLimiter: this.rateLimiter,
+      label: 'GammaClient',
+      maxRetries: 3,
+      timeoutMs: this.timeout,
+    });
     if (!res.ok) throw new Error(`Gamma API error: ${res.status} ${res.statusText}`);
     return res.json();
   }
