@@ -9,6 +9,9 @@ import { createBookImbalanceReversalTick } from '../strategies/polymarket/book-i
 import { createVwapDeviationSniperTick } from '../strategies/polymarket/vwap-deviation-sniper.js';
 import { createPairsStatArbTick } from '../strategies/polymarket/pairs-stat-arb.js';
 import { createSessionVolSniperTick } from '../strategies/polymarket/session-vol-sniper.js';
+import { createOrderbookDepthRatioTick } from '../strategies/polymarket/orderbook-depth-ratio.js';
+import { createCrossEventDriftTick } from '../strategies/polymarket/cross-event-drift.js';
+import { createVolCompressionBreakoutTick } from '../strategies/polymarket/vol-compression-breakout.js';
 import type { MarketScanner } from '../polymarket/market-scanner.js';
 import type { OrderManager } from '../polymarket/order-manager.js';
 import type { OrderExecutor } from '../cex/order-executor.js';
@@ -78,6 +81,27 @@ export function wireStrategies(deps: WireStrategyDeps): StrategyOrchestrator {
     orc.register(
       { id: 'session-vol-sniper', name: 'Session Volatility Sniper', type: 'session-vol-sniper', enabled: false, params: {}, intervalMs: parseInt(env('SESSION_VOL_SNIPER_INTERVAL_MS', '5000'), 10) },
       createSessionVolSniperTick({ clob: clobClient, orderManager, eventBus, gamma: gammaClient }),
+    );
+  }
+
+  if (clobClient && orderManager && gammaClient) {
+    orc.register(
+      { id: 'orderbook-depth', name: 'Orderbook Depth Ratio', type: 'orderbook-depth', enabled: false, params: {}, intervalMs: parseInt(env('ORDERBOOK_DEPTH_INTERVAL_MS', '10000'), 10) },
+      createOrderbookDepthRatioTick({ clob: clobClient, orderManager, eventBus, gamma: gammaClient }),
+    );
+  }
+
+  if (clobClient && orderManager && gammaClient) {
+    orc.register(
+      { id: 'cross-event-drift', name: 'Cross-Event Drift Catcher', type: 'cross-event-drift', enabled: false, params: {}, intervalMs: parseInt(env('CROSS_EVENT_DRIFT_INTERVAL_MS', '15000'), 10) },
+      createCrossEventDriftTick({ clob: clobClient, orderManager, eventBus, gamma: gammaClient }),
+    );
+  }
+
+  if (clobClient && orderManager && gammaClient) {
+    orc.register(
+      { id: 'vol-compression', name: 'Volatility Compression Breakout', type: 'vol-compression', enabled: false, params: {}, intervalMs: parseInt(env('VOL_COMPRESSION_INTERVAL_MS', '8000'), 10) },
+      createVolCompressionBreakoutTick({ clob: clobClient, orderManager, eventBus, gamma: gammaClient }),
     );
   }
 

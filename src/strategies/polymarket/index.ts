@@ -19,3 +19,12 @@ export type { PairsStatArbConfig, PairsStatArbDeps } from './pairs-stat-arb.js';
 
 export { createSessionVolSniperTick } from './session-vol-sniper.js';
 export type { SessionVolSniperConfig, SessionVolSniperDeps } from './session-vol-sniper.js';
+
+export { createOrderbookDepthRatioTick } from './orderbook-depth-ratio.js';
+export type { OrderbookDepthConfig, OrderbookDepthDeps } from './orderbook-depth-ratio.js';
+
+export { createCrossEventDriftTick } from './cross-event-drift.js';
+export type { CrossEventDriftConfig, CrossEventDriftDeps } from './cross-event-drift.js';
+
+export { createVolCompressionBreakoutTick } from './vol-compression-breakout.js';
+export type { VolCompressionConfig, VolCompressionDeps } from './vol-compression-breakout.js';
