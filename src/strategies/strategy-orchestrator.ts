@@ -7,7 +7,7 @@ import { EventBus } from '../events/event-bus.js';
 export interface StrategyConfig {
   id: string;
   name: string;
-  type: 'polymarket-arb' | 'polymarket-mm' | 'grid' | 'dca' | 'funding-arb';
+  type: 'polymarket-arb' | 'polymarket-mm' | 'grid' | 'dca' | 'funding-arb' | 'book-imbalance';
   enabled: boolean;
   params: Record<string, unknown>;
   intervalMs: number;
