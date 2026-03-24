@@ -230,23 +230,31 @@ tr:hover{background:#161619}
     <div class="card-body" style="font-size:11px;color:var(--dim)">
       <div style="color:var(--bright);margin-bottom:8px;font-size:12px" data-i18n="phaseA_desc">What is CashClaw? An AI bot that predicts event outcomes on Polymarket (prediction markets). The bot auto-trades — you just fund it and let it run.</div>
       <div style="margin-bottom:8px;padding:8px;background:#0d0d10;border-radius:2px;border-left:2px solid var(--amber)">
-        <span data-i18n="phaseA_note"><b style="color:var(--amber)">Note:</b> Polymarket is a legal international platform. Users in restricted regions need a VPN to access. Ensure compliance with your local laws.</span>
+        <span data-i18n="phaseA_note"><b style="color:var(--amber)">Note:</b> Polymarket is a legal international platform and does NOT block Vietnam. However, Vietnamese ISPs may block access via DNS. Solution: use Cloudflare WARP (free) or change DNS to 1.1.1.1. No VPN needed.</span>
       </div>
     </div>
   </div>
 
-  <div class="card"><div class="card-header" data-i18n="a1_header">A1 — Install VPN (Required for Restricted Regions)</div><div class="card-body">
+  <div class="card"><div class="card-header" data-i18n="a1_header">A1 — Bypass ISP DNS Block (Vietnam Users)</div><div class="card-body">
     <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer"><input type="checkbox" class="wiz-check" data-step="a1"><div>
-    <div style="color:var(--bright);font-weight:600;margin-bottom:4px" data-i18n="a1_title">Install a VPN to access Polymarket & crypto exchanges</div>
-    <div style="color:var(--dim);font-size:11px;margin-bottom:6px" data-i18n="a1_desc">Polymarket and some exchanges block IPs from certain countries. A VPN is required to access them.</div>
+    <div style="color:var(--bright);font-weight:600;margin-bottom:4px" data-i18n="a1_title">Fix DNS blocking to access Polymarket from Vietnam</div>
+    <div style="color:var(--dim);font-size:11px;margin-bottom:6px" data-i18n="a1_desc">Polymarket does NOT block Vietnam (verified: geoblock API returns blocked=false for VN IP). However, Vietnamese ISPs (VNPT, Viettel, FPT) may block polymarket.com via DNS poisoning. Fix: bypass ISP DNS.</div>
     <div style="background:#050505;padding:10px;border:1px solid #1a1a1a;border-radius:2px;font-size:11px">
-      <div style="margin-bottom:6px"><b style="color:var(--amber)">Choose one VPN:</b></div>
-      <div style="margin-bottom:4px">&#8226; <b style="color:var(--bright)">Cloudflare WARP</b> (Free) — <a href="https://1.1.1.1" target="_blank">1.1.1.1</a> — Install app, enable WARP, done.</div>
-      <div style="margin-bottom:4px">&#8226; <b style="color:var(--bright)">ProtonVPN</b> (Free) — <a href="https://protonvpn.com" target="_blank">protonvpn.com</a> — Select US or EU server.</div>
-      <div style="margin-bottom:4px">&#8226; <b style="color:var(--bright)">NordVPN</b> (~$3/mo) — <a href="https://nordvpn.com" target="_blank">nordvpn.com</a> — Most stable, select US server.</div>
-      <div style="margin-top:6px;color:var(--green)">&#10003; After enabling VPN, visit <a href="https://polymarket.com" target="_blank">polymarket.com</a> — if you see the homepage, VPN is working.</div>
+      <div style="margin-bottom:6px"><b style="color:var(--green)">Option 1: Cloudflare WARP (Recommended, Free)</b></div>
+      <div style="margin-bottom:4px">&#8226; Download <a href="https://1.1.1.1" target="_blank">1.1.1.1 WARP</a> app (iOS, Android, Windows, macOS)</div>
+      <div style="margin-bottom:4px">&#8226; Enable WARP toggle — encrypts DNS queries, bypasses ISP DNS block</div>
+      <div style="margin-bottom:8px">&#8226; WARP keeps your VN IP intact — Polymarket sees VN = allowed. No ToS violation.</div>
+      <div style="margin-bottom:6px"><b style="color:var(--amber)">Option 2: Change DNS manually (Free)</b></div>
+      <div style="margin-bottom:4px">&#8226; <b>Windows:</b> Network Settings → DNS → set to 1.1.1.1 and 1.0.0.1</div>
+      <div style="margin-bottom:4px">&#8226; <b>macOS:</b> System Settings → Wi-Fi → DNS → add 1.1.1.1, 1.0.0.1</div>
+      <div style="margin-bottom:4px">&#8226; <b>Mobile:</b> Wi-Fi settings → DNS → 1.1.1.1 (or use Google DNS: 8.8.8.8)</div>
+      <div style="margin-bottom:8px">&#8226; Alternative DNS: Google 8.8.8.8 / 8.8.4.4</div>
+      <div style="margin-bottom:6px"><b style="color:var(--dim)">Option 3: VPN (Backup only)</b></div>
+      <div style="margin-bottom:4px">&#8226; <b>ProtonVPN</b> (Free) — <a href="https://protonvpn.com" target="_blank">protonvpn.com</a> — only if WARP/DNS change doesn't work</div>
+      <div style="margin-bottom:4px;color:var(--red)">&#9888; VPN changes your IP location — may trigger Polymarket KYC review. Use only as last resort.</div>
+      <div style="margin-top:6px;color:var(--green)">&#10003; After any option, visit <a href="https://polymarket.com" target="_blank">polymarket.com</a> — if you see the homepage, it's working.</div>
     </div>
-    <div style="color:var(--amber);font-size:10px;margin-top:4px">&#9888; Always keep VPN on when using Polymarket. VPN off = connection lost.</div>
+    <div style="color:var(--green);font-size:10px;margin-top:4px">&#10003; API endpoints (clob.polymarket.com, gamma-api.polymarket.com) are NOT blocked — bot works without any bypass.</div>
     </div></label>
   </div></div>
 
@@ -312,9 +320,9 @@ tr:hover{background:#161619}
   <div class="card"><div class="card-header">A5 — Create Polymarket Account</div><div class="card-body">
     <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer"><input type="checkbox" class="wiz-check" data-step="a5"><div>
     <div style="color:var(--bright);font-weight:600;margin-bottom:4px">Sign up for Polymarket and connect MetaMask wallet</div>
-    <div style="color:var(--dim);font-size:11px;margin-bottom:6px">Enable VPN before accessing Polymarket.</div>
+    <div style="color:var(--dim);font-size:11px;margin-bottom:6px">Enable WARP or change DNS (step A1) before accessing Polymarket.</div>
     <div style="background:#050505;padding:10px;border:1px solid #1a1a1a;border-radius:2px;font-size:11px">
-      <div style="margin-bottom:6px"><span style="color:var(--amber)">1.</span> <b>Enable VPN</b> (step A1) → select US server</div>
+      <div style="margin-bottom:6px"><span style="color:var(--amber)">1.</span> <b>Enable WARP/DNS bypass</b> (step A1) if polymarket.com is blocked</div>
       <div style="margin-bottom:6px"><span style="color:var(--amber)">2.</span> Go to <a href="https://polymarket.com" target="_blank">polymarket.com</a></div>
       <div style="margin-bottom:6px"><span style="color:var(--amber)">3.</span> Click <b>"Log In"</b> → <b>"Connect Wallet"</b> → Select <b>MetaMask</b></div>
       <div style="margin-bottom:6px"><span style="color:var(--amber)">4.</span> MetaMask popup → <b>Connect</b> → <b>Sign</b> (authorize)</div>
@@ -331,7 +339,7 @@ tr:hover{background:#161619}
     <div style="color:var(--bright);font-weight:600;margin-bottom:4px">Register as API trader on Polymarket CLOB</div>
     <div style="color:var(--dim);font-size:11px;margin-bottom:6px">The bot uses Polymarket's CLOB (Central Limit Order Book) API. You need API credentials to place automated orders.</div>
     <div style="background:#050505;padding:10px;border:1px solid #1a1a1a;border-radius:2px;font-size:11px">
-      <div style="margin-bottom:6px"><span style="color:var(--amber)">1.</span> Enable VPN → go to <a href="https://polymarket.com" target="_blank">polymarket.com</a></div>
+      <div style="margin-bottom:6px"><span style="color:var(--amber)">1.</span> Enable WARP/DNS bypass (step A1) → go to <a href="https://polymarket.com" target="_blank">polymarket.com</a></div>
       <div style="margin-bottom:6px"><span style="color:var(--amber)">2.</span> Connect your MetaMask wallet (should already be connected from Step A5)</div>
       <div style="margin-bottom:6px"><span style="color:var(--amber)">3.</span> Go to <b style="color:var(--bright)">Settings → API Keys</b> (or visit <a href="https://polymarket.com/settings/api" target="_blank">polymarket.com/settings/api</a>)</div>
       <div style="margin-bottom:6px"><span style="color:var(--amber)">4.</span> Click <b>"Create API Key"</b></div>
@@ -1191,10 +1199,10 @@ const TRANSLATIONS = {
     // Phase A
     phaseA_title: 'Phase A — Tạo Tài Khoản & Mua USDC (Người Mới Bắt Đầu)',
     phaseA_desc: 'CashClaw là gì? Bot AI dự đoán kết quả sự kiện trên Polymarket (thị trường dự đoán). Bot tự động mua/bán, bạn chỉ cần cấp vốn và để bot chạy.',
-    phaseA_note: '<b style="color:var(--amber)">Lưu ý:</b> Polymarket là nền tảng quốc tế hợp pháp. Người dùng VN cần VPN để truy cập. Hãy đảm bảo tuân thủ pháp luật địa phương.',
-    a1_header: 'A1 — Cài VPN (Bắt Buộc Cho VN)',
-    a1_title: 'Tải và cài VPN để truy cập Polymarket + sàn giao dịch',
-    a1_desc: 'Polymarket và một số sàn giao dịch chặn IP Việt Nam. Cần VPN để truy cập.',
+    phaseA_note: '<b style="color:var(--amber)">Lưu ý:</b> Polymarket là nền tảng quốc tế hợp pháp và KHÔNG chặn Việt Nam. Tuy nhiên, nhà mạng VN (VNPT, Viettel, FPT) có thể chặn DNS. Giải pháp: dùng Cloudflare WARP (miễn phí) hoặc đổi DNS sang 1.1.1.1. Không cần VPN.',
+    a1_header: 'A1 — Vượt Chặn DNS Nhà Mạng (Người Dùng VN)',
+    a1_title: 'Sửa lỗi DNS để truy cập Polymarket từ Việt Nam',
+    a1_desc: 'Polymarket KHÔNG chặn Việt Nam (đã xác nhận: geoblock API trả blocked=false cho IP VN). Tuy nhiên, nhà mạng VN có thể chặn polymarket.com qua DNS poisoning. Cách sửa: bypass DNS nhà mạng.',
     // Phase A steps
     'A2 — Create Crypto Wallet (MetaMask)': 'A2 — Tạo Ví Crypto (MetaMask)',
     'Install MetaMask — the most popular crypto wallet': 'Cài MetaMask — ví crypto phổ biến nhất',
@@ -1242,10 +1250,10 @@ const TRANSLATIONS = {
   en: {
     phaseA_title: 'Phase A — Create Account & Buy USDC (Complete Beginners)',
     phaseA_desc: 'What is CashClaw? An AI bot that predicts event outcomes on Polymarket (prediction markets). The bot auto-trades — you just fund it and let it run.',
-    phaseA_note: '<b style="color:var(--amber)">Note:</b> Polymarket is a legal international platform. Users in restricted regions need a VPN to access. Ensure compliance with your local laws.',
-    a1_header: 'A1 — Install VPN (Required for Restricted Regions)',
-    a1_title: 'Install a VPN to access Polymarket & crypto exchanges',
-    a1_desc: 'Polymarket and some exchanges block IPs from certain countries. A VPN is required to access them.',
+    phaseA_note: '<b style="color:var(--amber)">Note:</b> Polymarket is a legal international platform and does NOT block Vietnam. However, Vietnamese ISPs may block access via DNS. Solution: use Cloudflare WARP (free) or change DNS to 1.1.1.1. No VPN needed.',
+    a1_header: 'A1 — Bypass ISP DNS Block (Vietnam Users)',
+    a1_title: 'Fix DNS blocking to access Polymarket from Vietnam',
+    a1_desc: 'Polymarket does NOT block Vietnam (verified: geoblock API returns blocked=false for VN IP). However, Vietnamese ISPs (VNPT, Viettel, FPT) may block polymarket.com via DNS poisoning. Fix: bypass ISP DNS.',
   }
 };
 
