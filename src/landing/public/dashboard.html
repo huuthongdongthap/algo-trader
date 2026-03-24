@@ -954,23 +954,84 @@ function clearLogs() { document.getElementById('log-container').innerHTML = ''; 
 let cd = 15*60;
 setInterval(() => { cd--; if(cd<=0)cd=15*60; document.getElementById('d-next').textContent = `${Math.floor(cd/60)}:${String(cd%60).padStart(2,'0')}`; }, 1000);
 
-// ── i18n System ──
+// ── i18n System — Full Translation ──
 let currentLang = localStorage.getItem('algotrade_lang') || 'en';
-const VI = {
-  phaseA_title: 'Phase A — Tạo Tài Khoản & Mua USDC (Người Mới Bắt Đầu)',
-  phaseA_desc: 'CashClaw là gì? Bot AI dự đoán kết quả sự kiện trên Polymarket (thị trường dự đoán). Bot tự động mua/bán, bạn chỉ cần cấp vốn và để bot chạy.',
-  phaseA_note: '<b style="color:var(--amber)">Lưu ý:</b> Polymarket là nền tảng quốc tế hợp pháp. Người dùng VN cần VPN để truy cập. Hãy đảm bảo tuân thủ pháp luật địa phương.',
-  a1_header: 'A1 — Cài VPN (Bắt Buộc Cho VN)',
-  a1_title: 'Tải và cài VPN để truy cập Polymarket + sàn giao dịch',
-  a1_desc: 'Polymarket và một số sàn giao dịch chặn IP Việt Nam. Cần VPN để truy cập.',
-};
-const EN = {
-  phaseA_title: 'Phase A — Create Account & Buy USDC (Complete Beginners)',
-  phaseA_desc: 'What is CashClaw? An AI bot that predicts event outcomes on Polymarket (prediction markets). The bot auto-trades — you just fund it and let it run.',
-  phaseA_note: '<b style="color:var(--amber)">Note:</b> Polymarket is a legal international platform. Users in restricted regions need a VPN to access. Ensure compliance with your local laws.',
-  a1_header: 'A1 — Install VPN (Required for Restricted Regions)',
-  a1_title: 'Install a VPN to access Polymarket & crypto exchanges',
-  a1_desc: 'Polymarket and some exchanges block IPs from certain countries. A VPN is required to access them.',
+
+const TRANSLATIONS = {
+  vi: {
+    // Nav tabs
+    'Dashboard': 'Bảng điều khiển', 'Signals': 'Tín hiệu', 'Trades': 'Giao dịch',
+    'Setup Guide': 'Hướng dẫn', 'Settings': 'Cài đặt', 'Logs': 'Nhật ký',
+    'Disconnected': 'Chưa kết nối', 'Connected': 'Đã kết nối', 'Connecting...': 'Đang kết nối...',
+    // Stats
+    'Capital USDC': 'Vốn USDC', 'Total P&L': 'Tổng lãi/lỗ', 'Total Trades': 'Tổng giao dịch',
+    'Win Rate': 'Tỉ lệ thắng', 'Active Signals': 'Tín hiệu hoạt động', 'Next Cycle': 'Chu kỳ kế',
+    'Won': 'Thắng', 'Lost': 'Thua', 'Open': 'Đang mở', 'ROI': 'ROI',
+    // Cards
+    'P&L History': 'Lịch sử lãi/lỗ', 'Bot Control': 'Điều khiển Bot',
+    'Bot is offline': 'Bot đang tắt', 'Demo mode — connect bot in Settings': 'Chế độ demo — kết nối bot trong Cài đặt',
+    'Start': 'Bắt đầu', 'Stop': 'Dừng', 'Dry Run': 'Chạy thử',
+    'Recent Trades': 'Giao dịch gần đây', 'Full Trade History': 'Lịch sử đầy đủ',
+    'Live Prediction Signals': 'Tín hiệu dự đoán trực tiếp',
+    // Table headers
+    'Time': 'Thời gian', 'Direction': 'Hướng', 'Market': 'Thị trường',
+    'Size': 'Kích thước', 'Edge': 'Lợi thế', 'Status': 'Trạng thái',
+    'Date': 'Ngày', 'Entry': 'Giá vào', 'P&L': 'Lãi/Lỗ',
+    // Setup Guide
+    'Zero → ROI Progress': 'Tiến trình Zero → Lợi nhuận',
+    'complete': 'hoàn thành',
+    // Phase A
+    phaseA_title: 'Phase A — Tạo Tài Khoản & Mua USDC (Người Mới Bắt Đầu)',
+    phaseA_desc: 'CashClaw là gì? Bot AI dự đoán kết quả sự kiện trên Polymarket (thị trường dự đoán). Bot tự động mua/bán, bạn chỉ cần cấp vốn và để bot chạy.',
+    phaseA_note: '<b style="color:var(--amber)">Lưu ý:</b> Polymarket là nền tảng quốc tế hợp pháp. Người dùng VN cần VPN để truy cập. Hãy đảm bảo tuân thủ pháp luật địa phương.',
+    a1_header: 'A1 — Cài VPN (Bắt Buộc Cho VN)',
+    a1_title: 'Tải và cài VPN để truy cập Polymarket + sàn giao dịch',
+    a1_desc: 'Polymarket và một số sàn giao dịch chặn IP Việt Nam. Cần VPN để truy cập.',
+    // Phase A steps
+    'A2 — Create Crypto Wallet (MetaMask)': 'A2 — Tạo Ví Crypto (MetaMask)',
+    'Install MetaMask — the most popular crypto wallet': 'Cài MetaMask — ví crypto phổ biến nhất',
+    'A3 — Buy USDC (Binance P2P — Works Worldwide)': 'A3 — Mua USDC (Binance P2P — Hoạt Động Tại VN)',
+    'Buy USDC using local currency via Binance P2P': 'Mua USDC bằng VND qua Binance P2P',
+    'A4 — Transfer USDC from Binance to MetaMask (Polygon)': 'A4 — Chuyển USDC Từ Binance Sang MetaMask (Polygon)',
+    'Withdraw USDC from Binance to your MetaMask wallet via Polygon network': 'Rút USDC từ Binance vào ví MetaMask qua mạng Polygon',
+    'A5 — Create Polymarket Account': 'A5 — Tạo Tài Khoản Polymarket',
+    'Sign up for Polymarket and connect MetaMask wallet': 'Đăng ký Polymarket và kết nối ví MetaMask',
+    'A6 — Export Private Key for Bot': 'A6 — Lấy Private Key Cho Bot',
+    'Export private key from MetaMask for automated trading': 'Xuất private key từ MetaMask để bot tự động giao dịch',
+    // Phase B
+    'Phase B — Choose Hardware for Bot': 'Phase B — Chọn Phần Cứng Chạy Bot',
+    'The AI bot needs powerful hardware to run DeepSeek R1 model (18GB). Choose one:': 'Bot AI cần máy tính mạnh để chạy mô hình DeepSeek R1 (18GB). Chọn 1:',
+    // Bot setup steps
+    'Step 1 — Install Software': 'Bước 1 — Cài Phần Mềm',
+    'Step 2 — Download AI Model (~18GB)': 'Bước 2 — Tải Mô Hình AI (~18GB)',
+    'Step 3 — Install AlgoTrade Bot': 'Bước 3 — Cài Bot AlgoTrade',
+    'Step 4 — Create Polymarket Wallet': 'Bước 4 — Tạo Ví Polymarket',
+    'Step 5 — Fund Your Wallet': 'Bước 5 — Nạp Tiền Vào Ví',
+    'Step 6 — Test Dry Run (No Real Money)': 'Bước 6 — Chạy Thử (Không Dùng Tiền Thật)',
+    'Step 7 — Go Live (Real Money)': 'Bước 7 — Chạy Thật (Tiền Thật!)',
+    'Step 8 — Run 24/7 as Background Service': 'Bước 8 — Chạy 24/7 Tự Động',
+    // Settings
+    'Bot Connection': 'Kết Nối Bot', 'Trading Parameters': 'Thông Số Giao Dịch',
+    'License Info': 'Thông Tin License', 'Save & Connect': 'Lưu & Kết Nối',
+    'Update Parameters': 'Cập Nhật Thông Số',
+    // Hardware
+    'Hardware Requirements': 'Yêu Cầu Phần Cứng', 'Troubleshooting': 'Xử Lý Sự Cố',
+    'Component': 'Thành phần', 'Apple Silicon': 'Apple Silicon', 'Cloud VPS': 'VPS Đám Mây',
+    'Problem': 'Vấn đề', 'Cause': 'Nguyên nhân', 'Fix': 'Cách sửa',
+    // Completion
+    'SETUP COMPLETE — BOT IS TRADING': 'CÀI ĐẶT HOÀN TẤT — BOT ĐANG GIAO DỊCH',
+    'Monitor your trades in the Dashboard tab. First profits within 24-48 hours.': 'Theo dõi giao dịch trong tab Bảng điều khiển. Lợi nhuận đầu tiên trong 24-48 giờ.',
+    // Logs
+    'Bot Logs': 'Nhật Ký Bot', 'Refresh': 'Làm mới', 'Clear': 'Xóa',
+  },
+  en: {
+    phaseA_title: 'Phase A — Create Account & Buy USDC (Complete Beginners)',
+    phaseA_desc: 'What is CashClaw? An AI bot that predicts event outcomes on Polymarket (prediction markets). The bot auto-trades — you just fund it and let it run.',
+    phaseA_note: '<b style="color:var(--amber)">Note:</b> Polymarket is a legal international platform. Users in restricted regions need a VPN to access. Ensure compliance with your local laws.',
+    a1_header: 'A1 — Install VPN (Required for Restricted Regions)',
+    a1_title: 'Install a VPN to access Polymarket & crypto exchanges',
+    a1_desc: 'Polymarket and some exchanges block IPs from certain countries. A VPN is required to access them.',
+  }
 };
 
 function toggleLang() {
@@ -980,12 +1041,44 @@ function toggleLang() {
 }
 
 function applyLang() {
-  const dict = currentLang === 'vi' ? VI : EN;
+  const dict = TRANSLATIONS[currentLang] || {};
   document.getElementById('lang-btn').textContent = currentLang === 'en' ? 'VI' : 'EN';
+
+  // Apply data-i18n attributes
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.dataset.i18n;
     if (dict[key]) el.innerHTML = dict[key];
   });
+
+  // Deep scan: translate all text nodes matching known strings
+  if (currentLang === 'vi') {
+    const walk = (node) => {
+      if (node.nodeType === 3) { // Text node
+        let text = node.textContent.trim();
+        if (dict[text]) node.textContent = node.textContent.replace(text, dict[text]);
+        return;
+      }
+      if (node.tagName === 'SCRIPT' || node.tagName === 'STYLE' || node.tagName === 'CODE') return;
+      // Check direct text content for elements with no children or simple text
+      if (node.childNodes.length === 1 && node.childNodes[0].nodeType === 3) {
+        const text = node.textContent.trim();
+        if (dict[text]) node.textContent = dict[text];
+      }
+      // Also check card-header, th, button text
+      if (['TH','BUTTON','DIV','SPAN'].includes(node.tagName) && node.children.length === 0) {
+        const text = node.textContent.trim();
+        if (dict[text]) node.textContent = dict[text];
+      }
+      node.childNodes.forEach(walk);
+    };
+    walk(document.body);
+  } else {
+    // For EN: reload page to reset (simplest approach for text node translations)
+    // Only reload if switching FROM vi to en
+    if (document.querySelector('.nav-tab')?.textContent?.includes('Bảng')) {
+      location.reload();
+    }
+  }
 }
 applyLang();
 
