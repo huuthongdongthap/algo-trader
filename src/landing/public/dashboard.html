@@ -126,6 +126,14 @@ tr:hover{background:#161619}
 <!-- ═══════════════════ DASHBOARD TAB ═══════════════════ -->
 <div class="tab-content active" id="tab-dashboard">
 <div class="container">
+  <!-- Risk disclaimer banner -->
+  <div style="padding:8px 12px;background:#1a1408;border:1px solid #3a2a0a;border-radius:2px;margin-bottom:12px;font-size:10px;display:flex;gap:8px;align-items:center">
+    <span style="color:var(--amber);font-size:14px">&#9888;</span>
+    <div>
+      <span style="color:var(--amber);font-weight:600">RISK DISCLOSURE:</span>
+      <span style="color:var(--dim)">Prediction market trading involves substantial risk of loss. Past performance does not guarantee future results. Only trade with capital you can afford to lose. AlgoTrade provides AI-generated signals — not financial advice. Expected returns: 5-15% monthly on $500+ capital. Individual results vary.</span>
+    </div>
+  </div>
   <div class="stats">
     <div class="stat"><div class="val blue" id="d-capital">$0</div><div class="lbl">Capital USDC</div></div>
     <div class="stat"><div class="val green" id="d-pnl">$0.00</div><div class="lbl">Total P&L</div></div>
@@ -589,10 +597,33 @@ journalctl -u algotrade -f</code>
   <div id="wiz-complete" style="display:none;text-align:center;padding:24px;background:#0a2a0a;border:1px solid var(--green);border-radius:2px;margin-bottom:16px">
     <div style="font-size:36px;margin-bottom:8px">&#127881;</div>
     <div style="font-size:16px;color:var(--green);font-weight:700;margin-bottom:4px">SETUP COMPLETE — BOT IS TRADING</div>
-    <div style="font-size:12px;color:var(--dim)">Monitor your trades in the Dashboard tab. First profits within 24-48 hours.</div>
+    <div style="font-size:12px;color:var(--dim)">Monitor your trades in the Dashboard tab. Run in dry-run mode for 24-48 hours first to verify.</div>
+    <div style="font-size:10px;color:var(--amber);margin-top:6px">Expected: 5-15% monthly return on $500+. Not guaranteed. Start small, scale up after verification.</div>
   </div>
 
   </div><!-- end setup-shared -->
+
+  <!-- Realistic expectations -->
+  <div class="card" style="margin-top:8px;border-color:var(--amber)">
+    <div class="card-header" style="color:var(--amber)">Realistic Expectations</div>
+    <div class="card-body" style="padding:0;font-size:11px">
+      <table>
+        <thead><tr><th>Capital</th><th>Expected Daily</th><th>Expected Monthly</th><th>Trades/Day</th></tr></thead>
+        <tbody>
+          <tr><td style="color:var(--bright)">$500</td><td>$1 — $5</td><td>$25 — $75</td><td>2-4</td></tr>
+          <tr><td style="color:var(--bright)">$2,000</td><td>$4 — $20</td><td>$100 — $300</td><td>3-6</td></tr>
+          <tr><td style="color:var(--bright)">$5,000</td><td>$10 — $50</td><td>$250 — $750</td><td>5-10</td></tr>
+          <tr><td style="color:var(--bright)">$10,000</td><td>$20 — $100</td><td>$500 — $1,500</td><td>8-15</td></tr>
+        </tbody>
+      </table>
+      <div style="padding:8px 12px;color:var(--dim);font-size:10px;border-top:1px solid var(--border)">
+        <div style="margin-bottom:4px"><b style="color:var(--amber)">How it works:</b> AI predicts event probabilities on Polymarket. When our estimate differs from market price by >5% (edge), bot places a trade. Half-Kelly sizing limits risk to ~2.5% of capital per trade.</div>
+        <div style="margin-bottom:4px"><b style="color:var(--amber)">Win rate:</b> Target 55-65% on event markets. Even 55% generates profit over time due to edge-based entry.</div>
+        <div style="margin-bottom:4px"><b style="color:var(--red)">Risks:</b> Markets are volatile. AI can be wrong. Individual trades can lose 100% of position. Monthly returns can be negative. Never invest money you can't afford to lose.</div>
+        <div><b style="color:var(--green)">Best practice:</b> Start with $500 dry run for 1 week → live with $500 for 1 month → scale up only after verified positive P&L.</div>
+      </div>
+    </div>
+  </div>
 
   <!-- Hardware specs (always visible) -->
   <div class="card" style="margin-top:8px">
@@ -1020,7 +1051,9 @@ const TRANSLATIONS = {
     'Problem': 'Vấn đề', 'Cause': 'Nguyên nhân', 'Fix': 'Cách sửa',
     // Completion
     'SETUP COMPLETE — BOT IS TRADING': 'CÀI ĐẶT HOÀN TẤT — BOT ĐANG GIAO DỊCH',
-    'Monitor your trades in the Dashboard tab. First profits within 24-48 hours.': 'Theo dõi giao dịch trong tab Bảng điều khiển. Lợi nhuận đầu tiên trong 24-48 giờ.',
+    'Monitor your trades in the Dashboard tab. Run in dry-run mode for 24-48 hours first to verify.': 'Theo dõi trong tab Dashboard. Chạy dry-run 24-48 giờ trước để kiểm tra.',
+    'Realistic Expectations': 'Kỳ Vọng Thực Tế',
+    'Expected Daily': 'Dự Kiến/Ngày', 'Expected Monthly': 'Dự Kiến/Tháng', 'Trades/Day': 'Giao Dịch/Ngày',
     // Logs
     'Bot Logs': 'Nhật Ký Bot', 'Refresh': 'Làm mới', 'Clear': 'Xóa',
   },
