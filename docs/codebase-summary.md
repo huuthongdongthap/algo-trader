@@ -74,8 +74,8 @@ Essential infrastructure modules:
 ### OpenClaw AI (src/openclaw/)
 11 modules for AI-driven strategy optimization:
 - `controller.ts` — Decision orchestrator (90-110 lines)
-- `ai-router.ts` — Signal generation router
-- `algorithm-tuner.ts` — Parameter optimization
+- `ai-router.ts` — Signal generation router (uses DeepSeek R1 for standard/complex)
+- `algorithm-tuner.ts` — Parameter optimization (handles think blocks)
 - `performance-analyzer.ts` — Historical analysis
 - `decision-logger.ts` — Audit trail of AI decisions
 - `decision-store.ts` — Database persistence
@@ -83,7 +83,7 @@ Essential infrastructure modules:
 - `tuning-executor.ts` — Execute optimization experiments
 - `tuning-history.ts` — Optimization history
 - `replay.ts` — Backtest replay mechanism
-- `openclaw-config.ts` — Configuration schema
+- `openclaw-config.ts` — Configuration schema (120s timeout, DeepSeek R1 default)
 
 ### Data Layer (src/data/)
 - `database.ts` — SQLite initialization + migrations
@@ -144,6 +144,9 @@ Essential infrastructure modules:
 - `job-scheduler.ts` — Background job executor
 - `job-registry.ts` — Job definitions
 - `job-history.ts` — Execution history
+
+**Shared Utilities** (src/lib/):
+- `llm-response-parser.ts` — Extract JSON from LLM responses, strip DeepSeek R1 think blocks
 
 **CLI** (src/cli/):
 - `index.ts` — Main CLI entry point (Commander.js)
@@ -369,6 +372,11 @@ npm run test -- --ui     # Browser UI
 ---
 
 ## Quick Reference
+
+**LLM Configuration** (M1 Max MLX primary):
+- Primary: DeepSeek R1 (90s timeout)
+- Fallback: Qwen 2.5 (30s timeout)
+- Cloud: Claude Sonnet (60s timeout, budget-gated)
 
 **Start Development**:
 ```bash

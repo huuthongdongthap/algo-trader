@@ -24,6 +24,7 @@ algo-trade RaaS Platform
 ├── Webhook Server (src/webhooks/)
 │   ├─ Polar.sh billing webhooks
 │   ├─ Signal parser (TradingView, etc)
+│   ├─ Batch resolution checker (Polymarket outcomes)
 │   └─ Execution router
 │
 ├── Trading Engine (src/engine/)
@@ -41,15 +42,18 @@ algo-trade RaaS Platform
 │   ├─ Polymarket (arb, MM)
 │   └─ CEX/DEX (grid, DCA, funding-arb)
 │
-├── OpenClaw AI (src/openclaw/)
-│   ├─ Decision controller
-│   ├─ Algorithm tuner
+├── OpenClaw AI (src/openclaw/) — DeepSeek R1 + think block handling
+│   ├─ Decision controller (120s timeout)
+│   ├─ Algorithm tuner (parses DeepSeek <think> blocks)
+│   ├─ AI signal generator (think block stripping)
+│   ├─ Risk adjuster (reason field support)
 │   └─ Performance analyzer
 │
 └── Supporting Modules
     ├─ Billing (Polar.sh)
     ├─ Metering (quotas)
     ├─ Analytics (reports)
+    ├─ Shared Utilities (LLM response parser)
     ├─ Notifications (alerts)
     └─ Monitoring (metrics)
 ```
@@ -64,6 +68,25 @@ MARKET DATA ──→ PRICE FEED ──→ STRATEGY EVAL ──→ RISK CHECK �
                                           ▼
                             SETTLEMENT ──→ DB ──→ NOTIFY (Slack/WebSocket)
 ```
+
+## LLM Integration & Response Parsing
+
+**Model Routing** (via OpenClaw):
+- **Simple**: Qwen 2.5 Coder (quick pattern recognition)
+- **Standard**: DeepSeek R1 (trade analysis, performance review)
+- **Complex**: DeepSeek R1 (strategy optimization, risk assessment)
+
+**Timeout Configuration**:
+- Primary (DeepSeek R1): 90s (via `llm-config.ts`)
+- OpenClaw gateway: 120s (`openclaw-config.ts`)
+- Cloud (Claude): 60s with daily budget gating
+
+**Response Handling**:
+- `src/lib/llm-response-parser.ts` centralized utility
+- Strips DeepSeek R1 `<think>...</think>` blocks automatically
+- Extracts JSON objects, handles markdown fences
+- All 6 LLM modules use shared parser (ai-signal-generator, ai-risk-adjuster, prediction-probability-estimator, algorithm-tuner, ai-strategy-selector)
+- Supports `reasoning` field for chain-of-thought models
 
 ## Risk Management Flow
 
@@ -171,6 +194,8 @@ Data:
 | dex | 3 | evm-client, solana-client, swap-router |
 | analytics | 3 | performance-metrics, report-exporter, tax-reporter |
 | scheduler | 3 | job-scheduler, job-registry, job-history |
+| scripts | 2 | check-batch-resolutions (monitor Polymarket outcomes) |
+| lib | 1 | llm-response-parser (DeepSeek R1 think block handling) |
 
 ## Scaling Constraints
 

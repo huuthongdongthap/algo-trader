@@ -53,14 +53,23 @@ One M1 Max. One LLM. Three revenue streams. Zero marginal inference cost.
 
 **Files:** `phase-01-validate-edge.md`
 
+**Progress Update (2026-03-24):**
+- Switched prediction pipeline from Qwen to DeepSeek R1 (standard/complex tiers)
+- Fixed 6 production parsers for DeepSeek R1 think-block stripping
+- Ran batch 3: 50 event-only paper trades with DeepSeek R1 (20% avg edge, 40% actionable)
+- Built automated resolution checker (`check-batch-resolutions.mjs`) with daily launchd monitoring
+- All 2,403 tests passing
+- Latest commits: 5cc8961 (DeepSeek R1 migration), b0113d9 (resolution checker)
+
 ### Tasks
 - [x] 50 paper trades batch 1 (mixed) — 14.6% avg edge
 - [x] 50 paper trades batch 2 (event-only) — 25.3% avg edge
 - [x] Filter out stock/crypto price markets (0% accuracy)
 - [x] Resolution tracker built with conditionId storage
-- [ ] Wait for batch 2 event resolutions (~1 week)
-- [ ] Build calibration post-processing layer (fix overconfidence)
-- [ ] Run batch 3: 50 calibrated event-only trades
+- [x] Switched pipeline from Qwen to DeepSeek R1 (naturally better calibrated)
+- [x] Run batch 3: 50 calibrated event-only trades (DeepSeek R1)
+- [x] Built automated resolution checker with daily launchd job
+- [ ] Wait for batch 2+3 event resolutions (~1 week) — daily check in place
 - [ ] Achieve >55% accuracy on resolved event markets
 - [ ] Compare LLM Brier score vs market baseline
 
@@ -168,30 +177,32 @@ Daily P&L tweets → Show HN → Blog posts → Polymarket community
 
 | Component | Status | Location |
 |-----------|--------|----------|
-| OpenClaw LLM (Qwen 32B MLX) | RUNNING | M1 Max port 11435 |
+| OpenClaw LLM (DeepSeek R1 MLX) | RUNNING | M1 Max port 11435 |
 | Prediction estimator (blind) | DONE | algo-trade/src/openclaw/ |
 | Market scanner (event filter) | DONE | algo-trade/src/polymarket/ |
-| Paper trade pipeline | DONE | scripts/paper-trade-event-only.mjs |
+| Paper trade pipeline (DeepSeek R1) | DONE | scripts/paper-trade-event-only.mjs |
 | Resolution tracker | DONE | src/polymarket/resolution-tracker.ts |
+| Automated resolution checker | DONE | scripts/check-batch-resolutions.mjs |
+| Daily launchd monitoring job | DONE | M1 Max cron setup |
 | Kelly half-sizer | DONE | src/risk/ |
 | Telegram alerts | DONE | src/notifications/ |
 | CashClaw simulator | DONE | cashclaw/src/simulator/ |
 | CashClaw CLI provider | DONE | cashclaw/src/moltlaunch/cli-provider.ts |
 | Mekong CLI skills | DONE | ~/.claude/skills/ |
 | Polar.sh billing | CONFIGURED | .env |
-| CI/CD | DONE | .github/workflows/ |
+| CI/CD (2,403 tests) | DONE | .github/workflows/ |
 | Landing page | DONE | src/landing/ |
 
 ## What Needs Building
 
-| Task | Effort | Blocks |
-|------|--------|--------|
-| Calibration layer | 2-3 days | Phase 1 exit |
-| Polymarket US account setup | 1 hour | Phase 2 start |
-| End-to-end live trade wiring | 3-5 days | Phase 2 |
-| Polar.sh product creation | 2 hours | Phase 3 |
-| Show HN polish | 1 day | Phase 3 |
-| npm publish mekong skills | 1 day | Stream B |
+| Task | Effort | Blocks | Status |
+|------|--------|--------|--------|
+| Batch 2+3 resolution monitoring | 1 week | Phase 1 exit | RUNNING (automated daily check) |
+| Polymarket US account setup | 1 hour | Phase 2 start | PENDING |
+| End-to-end live trade wiring | 3-5 days | Phase 2 | PENDING |
+| Polar.sh product creation | 2 hours | Phase 3 | PENDING |
+| Show HN polish | 1 day | Phase 3 | PENDING |
+| npm publish mekong skills | 1 day | Stream B | PENDING |
 
 ---
 
