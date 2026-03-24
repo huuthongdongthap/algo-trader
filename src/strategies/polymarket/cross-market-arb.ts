@@ -185,7 +185,7 @@ export class CrossMarketArbStrategy {
     const noSize = (sizeUsdc / noAsk).toFixed(2);
 
     try {
-      const [yesOrder, noOrder] = await Promise.all([
+      const [yesResult, noResult] = await Promise.allSettled([
         this.client.postOrder({
           tokenId: opp.yesTokenId,
           price: yesAsk.toFixed(4),
@@ -202,10 +202,33 @@ export class CrossMarketArbStrategy {
         }),
       ]);
 
+      const yesOk = yesResult.status === 'fulfilled';
+      const noOk = noResult.status === 'fulfilled';
+      const yesOrder = yesOk ? yesResult.value : null;
+      const noOrder = noOk ? noResult.value : null;
+
+      // Both legs must fill for riskless arb. If one fails, cancel the other.
+      if (yesOk && !noOk) {
+        logger.warn('Arb: YES filled but NO failed — cancelling YES', this.name);
+        await this.client.cancelOrder(yesOrder!.id).catch(() => {});
+        this.totalTrades++;
+        return;
+      }
+      if (!yesOk && noOk) {
+        logger.warn('Arb: NO filled but YES failed — cancelling NO', this.name);
+        await this.client.cancelOrder(noOrder!.id).catch(() => {});
+        this.totalTrades++;
+        return;
+      }
+      if (!yesOk && !noOk) {
+        logger.debug('Arb: both legs failed (likely price moved)', this.name);
+        return;
+      }
+
       const pos: ArbPosition = {
         conditionId: opp.conditionId,
-        yesOrderId: yesOrder.id,
-        noOrderId: noOrder.id,
+        yesOrderId: yesOrder!.id,
+        noOrderId: noOrder!.id,
         yesFillPrice: yesAsk,
         noFillPrice: noAsk,
         sizeUsdc,

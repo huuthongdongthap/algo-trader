@@ -14,6 +14,8 @@ import { RiskManager } from '../core/risk-manager.js';
 import { getDatabase } from '../data/database.js';
 import { buildPolymarketAdapter } from './polymarket-execution-adapter.js';
 import { PredictionLoop } from './prediction-loop.js';
+import { PredictionExecutor } from './prediction-executor.js';
+import { MeanReversionStrategy } from '../strategies/polymarket/mean-reversion.js';
 import { logger } from '../core/logger.js';
 import type { StrategyConfig } from '../core/types.js';
 
@@ -35,8 +37,9 @@ const DEFAULT_CAPITAL = '1000';
 const DEFAULT_DB_PATH = 'data/algo-trade.db';
 
 const DEFAULT_STRATEGIES: StrategyConfig[] = [
-  { name: 'cross-market-arb', enabled: true, capitalAllocation: '500', params: { defaultSizeUsdc: 50, scanIntervalMs: 10_000 } },
-  { name: 'market-maker',     enabled: true, capitalAllocation: '500', params: { quoteSizeUsdc: 25, refreshIntervalMs: 20_000 } },
+  { name: 'cross-market-arb', enabled: true, capitalAllocation: '100', params: { defaultSizeUsdc: 50, scanIntervalMs: 10_000 } },
+  { name: 'market-maker',     enabled: true, capitalAllocation: '400', params: { quoteSizeUsdc: 25, refreshIntervalMs: 20_000 } },
+  { name: 'mean-reversion',   enabled: true, capitalAllocation: '200', params: { sizeUsdc: 50, spikeThreshold: 0.15, scanIntervalMs: 60_000 } },
 ];
 
 /**
@@ -51,6 +54,8 @@ export class TradingPipeline extends EventEmitter {
   private orderbookStream!: OrderBookStream;
   private scanner!: MarketScanner;
   private predictionLoop: PredictionLoop | null = null;
+  private predictionExecutor: PredictionExecutor | null = null;
+  private meanReversion: MeanReversionStrategy | null = null;
   private orderManager!: OrderManager;
   private strategyRunner!: StrategyRunner;
 
@@ -99,8 +104,10 @@ export class TradingPipeline extends EventEmitter {
     logger.info('Stopping trading pipeline', 'TradingPipeline');
 
     if (this.predictionLoop) {
-      this.predictionLoop.start(() => {})(); // get stop function and call it
       this.predictionLoop = null;
+    }
+    if (this.meanReversion) {
+      await this.meanReversion.stop();
     }
     await this.strategyRunner.stopAll().catch(err =>
       logger.error('Error stopping strategies', 'TradingPipeline', { err: String(err) }),
@@ -175,6 +182,18 @@ export class TradingPipeline extends EventEmitter {
       scan.opportunities.slice(0, 10).forEach(opp => mm.addMarket(opp));
       this.strategyRunner.register('market-maker', mm);
     }
+
+    // Layer 3: Mean Reversion
+    const mrCfg = this.cfg.strategies.find(s => s.name === 'mean-reversion');
+    if (mrCfg?.enabled !== false) {
+      const mrCapital = mrCfg?.capitalAllocation ?? '200';
+      this.meanReversion = new MeanReversionStrategy(
+        this.clobClient, this.scanner,
+        mrCfg ?? { name: 'mean-reversion', enabled: true, capitalAllocation: mrCapital, params: {} },
+        mrCapital,
+      );
+      this.strategyRunner.register('mean-reversion', this.meanReversion);
+    }
   }
 
   /** Get the running MarketMakerStrategy instance (if any) */
@@ -188,16 +207,21 @@ export class TradingPipeline extends EventEmitter {
     return null;
   }
 
-  /** Start prediction loop and feed AI fair values to MarketMaker */
+  /** Start prediction loop and feed AI fair values to MarketMaker + Executor */
   private startPredictionFeed(): void {
     try {
       this.predictionLoop = new PredictionLoop(this.scanner);
       logger.info('PredictionLoop started — AI fair values feeding MarketMaker', 'TradingPipeline');
 
+      // Layer 2: Setup directional executor if license available
+      this.initPredictionExecutor();
+
       const feedLoop = async () => {
         while (this.status === 'running') {
           try {
             const signals = await this.predictionLoop!.runCycle();
+
+            // Layer 1: Feed fair values to MM
             const mm = this.getMarketMakerInstance();
             if (mm) {
               for (const signal of signals) {
@@ -210,8 +234,21 @@ export class TradingPipeline extends EventEmitter {
                 });
               }
             }
+
+            // Layer 2: Execute directional bets on high-edge signals
+            if (this.predictionExecutor) {
+              const highEdge = signals.filter(s => s.direction !== 'skip' && Math.abs(s.edge) >= 0.08);
+              if (highEdge.length > 0) {
+                const trades = await this.predictionExecutor.executeSignals(highEdge);
+                if (trades.length > 0) {
+                  logger.info(`Layer 2: Executed ${trades.length} directional trades`, 'TradingPipeline', {
+                    totalUsdc: trades.reduce((s, t) => s + t.sizeUsdc, 0).toFixed(2),
+                  });
+                }
+              }
+            }
           } catch (err) {
-            logger.error('Prediction→MM feed error', 'TradingPipeline', { err: String(err) });
+            logger.error('Prediction feed error', 'TradingPipeline', { err: String(err) });
           }
           await new Promise(r => setTimeout(r, 15 * 60 * 1000));
         }
@@ -222,11 +259,43 @@ export class TradingPipeline extends EventEmitter {
     }
   }
 
+  /** Layer 2: Initialize directional executor from env license */
+  private initPredictionExecutor(): void {
+    try {
+      const key = process.env['RAAS_LICENSE_KEY'] || process.env['LICENSE_KEY'];
+      const secret = process.env['RAAS_LICENSE_SECRET'] || process.env['LICENSE_SECRET'];
+      if (!key || !secret) {
+        logger.debug('No license key — Layer 2 (convergence) disabled', 'TradingPipeline');
+        return;
+      }
+      // Minimal license payload for executor
+      const capitalForDirectional = parseFloat(this.cfg.capitalUsdc) * 0.3;
+      const license = { tier: 'pro', maxTradesPerDay: -1, features: [] } as any;
+      this.predictionExecutor = new PredictionExecutor(this.clobClient, license, {
+        capitalUsdc: capitalForDirectional,
+        maxPositionFraction: 0.05,
+        kellyFraction: 0.25,
+        dryRun: this.cfg.paperTrading,
+      });
+      logger.info(`Layer 2 (Convergence): $${capitalForDirectional} capital, quarter-Kelly`, 'TradingPipeline');
+    } catch (err) {
+      logger.warn('PredictionExecutor init failed', 'TradingPipeline', { err: String(err) });
+    }
+  }
+
   private wireOrderbookStream(): void {
     this.orderbookStream.on('disconnected', () => {
       logger.warn('Orderbook stream disconnected', 'TradingPipeline');
       this.emit('stream_disconnected');
     });
+
+    // Feed price updates to mean reversion strategy (Layer 3)
+    this.orderbookStream.on('update', (data: { tokenId: string; bestBid: number; bestAsk: number }) => {
+      if (this.meanReversion && data.bestBid > 0 && data.bestAsk > 0) {
+        this.meanReversion.onPriceUpdate(data.tokenId, (data.bestBid + data.bestAsk) / 2);
+      }
+    });
+
     this.orderbookStream.connect();
     logger.info('Orderbook stream connected', 'TradingPipeline');
   }
