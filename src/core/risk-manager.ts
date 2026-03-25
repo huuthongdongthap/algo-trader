@@ -54,8 +54,100 @@ export class RiskManager {
   private limits: RiskLimits;
   private peakEquity: number = 0;
 
+  // Daily loss tracking
+  private dailyStartCapital: number = 0;
+  private dailyDate: string = '';
+  private dailyLossLimit: number = 0.05; // 5% of capital
+
+  // Consecutive loss circuit breaker
+  private consecutiveLosses: number = 0;
+  private maxConsecutiveLosses: number = 3;
+  private circuitBreakerTripped: boolean = false;
+  private circuitBreakerResetAt: number = 0;
+  private circuitBreakerCooldownMs: number = 60 * 60 * 1000; // 1 hour
+
   constructor(limits: RiskLimits) {
     this.limits = limits;
+  }
+
+  /**
+   * Unified pre-trade check — call before EVERY execution.
+   * Combines position validation, daily loss limit, and circuit breaker.
+   */
+  checkTrade(
+    capital: string,
+    currentPositions: Position[],
+    proposedSize: string,
+  ): { allowed: boolean; reason: string } {
+    // Circuit breaker check
+    if (this.circuitBreakerTripped) {
+      if (Date.now() < this.circuitBreakerResetAt) {
+        return { allowed: false, reason: `Circuit breaker: ${this.maxConsecutiveLosses} consecutive losses. Cooldown until ${new Date(this.circuitBreakerResetAt).toISOString()}` };
+      }
+      this.circuitBreakerTripped = false;
+      this.consecutiveLosses = 0;
+      logger.info('Circuit breaker reset after cooldown', 'risk-manager');
+    }
+
+    // Daily loss limit check
+    const dailyCheck = this.checkDailyLossLimit(capital);
+    if (!dailyCheck.allowed) return dailyCheck;
+
+    // Position validation
+    const posCheck = this.canOpenPosition(capital, currentPositions, proposedSize);
+    return { allowed: posCheck.allowed, reason: posCheck.reason ?? 'ok' };
+  }
+
+  /** Record a trade result for circuit breaker tracking */
+  recordTradeResult(isWin: boolean): void {
+    if (isWin) {
+      this.consecutiveLosses = 0;
+    } else {
+      this.consecutiveLosses++;
+      if (this.consecutiveLosses >= this.maxConsecutiveLosses) {
+        this.circuitBreakerTripped = true;
+        this.circuitBreakerResetAt = Date.now() + this.circuitBreakerCooldownMs;
+        logger.warn(`Circuit breaker tripped: ${this.consecutiveLosses} consecutive losses`, 'risk-manager');
+      }
+    }
+  }
+
+  /** Check daily loss limit (5% of starting capital) */
+  private checkDailyLossLimit(capital: string): { allowed: boolean; reason: string } {
+    const today = new Date().toISOString().slice(0, 10);
+    const currentCapital = parseFloat(capital);
+
+    if (this.dailyDate !== today) {
+      this.dailyDate = today;
+      this.dailyStartCapital = currentCapital;
+    }
+
+    if (this.dailyStartCapital > 0) {
+      const dailyLoss = (this.dailyStartCapital - currentCapital) / this.dailyStartCapital;
+      if (dailyLoss >= this.dailyLossLimit) {
+        return { allowed: false, reason: `Daily loss limit (${(this.dailyLossLimit * 100).toFixed(1)}%) exceeded: lost ${(dailyLoss * 100).toFixed(1)}% today` };
+      }
+    }
+
+    return { allowed: true, reason: 'ok' };
+  }
+
+  /** Check if circuit breaker is currently active */
+  isCircuitBreakerActive(): boolean {
+    if (!this.circuitBreakerTripped) return false;
+    if (Date.now() >= this.circuitBreakerResetAt) {
+      this.circuitBreakerTripped = false;
+      this.consecutiveLosses = 0;
+      return false;
+    }
+    return true;
+  }
+
+  /** Manually reset circuit breaker (for /resume command) */
+  resetCircuitBreaker(): void {
+    this.circuitBreakerTripped = false;
+    this.consecutiveLosses = 0;
+    logger.info('Circuit breaker manually reset', 'risk-manager');
   }
 
   /** Validate whether a new position can be opened */
@@ -72,8 +164,13 @@ export class RiskManager {
     if (parseFloat(proposedSize) > parseFloat(this.limits.maxPositionSize)) {
       return { allowed: false, reason: `Position size exceeds max (${this.limits.maxPositionSize})` };
     }
+    // Check 10% of capital cap
+    const capitalFloat = parseFloat(capital);
+    if (capitalFloat > 0 && parseFloat(proposedSize) > capitalFloat * 0.10) {
+      return { allowed: false, reason: `Position exceeds 10% of capital ($${(capitalFloat * 0.10).toFixed(2)})` };
+    }
     // Check drawdown
-    const currentEquity = parseFloat(capital);
+    const currentEquity = capitalFloat;
     if (this.peakEquity > 0 && isDrawdownExceeded(capital, String(this.peakEquity), this.limits.maxDrawdown)) {
       return { allowed: false, reason: `Drawdown limit (${this.limits.maxDrawdown * 100}%) exceeded` };
     }
