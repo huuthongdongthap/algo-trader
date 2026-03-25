@@ -5,6 +5,7 @@ import type { TradeResult } from '../core/types.js';
 import { CopyEngine, type FollowerContext } from './copy-engine.js';
 import { LeaderBoard } from './leader-board.js';
 import { FollowerManager } from './follower-manager.js';
+import { CopyTradeFeeCollector } from './copy-trade-fee-collector.js';
 
 /** Provide capital context for followers at copy time */
 export type FollowerCapitalResolver = (followerId: string) => number | undefined;
@@ -32,6 +33,7 @@ export class CopyTradingService {
   readonly leaderBoard: LeaderBoard;
   readonly followerManager: FollowerManager;
   readonly copyEngine: CopyEngine;
+  readonly feeCollector: CopyTradeFeeCollector;
 
   private readonly resolveCapital: FollowerCapitalResolver;
   private readonly dispatch: CopyTradeDispatcher | undefined;
@@ -48,6 +50,7 @@ export class CopyTradingService {
     this.leaderBoard = new LeaderBoard();
     this.followerManager = new FollowerManager(this.leaderBoard);
     this.copyEngine = new CopyEngine(this.followerManager);
+    this.feeCollector = new CopyTradeFeeCollector();
     this.resolveCapital = opts.resolveCapital;
     this.dispatch = opts.onCopyTrade;
 
@@ -128,6 +131,25 @@ export class CopyTradingService {
         leaderId,
         trade: result,
       });
+
+      // Collect performance fees on profitable copy trades
+      const grossProfit = this._computeCopyProfit(result);
+      if (grossProfit > 0) {
+        const feeRecord = this.feeCollector.collectFee(
+          `copy-${trade.orderId}-${result.followerId}`,
+          result.followerId,
+          leaderId,
+          grossProfit,
+        );
+        if (feeRecord) {
+          this.eventBus.emit('copy.trade.fee.collected', {
+            leaderId,
+            followerId: result.followerId,
+            fee: feeRecord.totalFee,
+            leaderPayout: feeRecord.leaderPayout,
+          });
+        }
+      }
     }
   }
 
@@ -147,5 +169,15 @@ export class CopyTradingService {
   /** Estimate leader's total capital from fill size × fill price as a fallback */
   private _estimateLeaderCapital(trade: TradeResult): number {
     return parseFloat(trade.fillPrice) * parseFloat(trade.fillSize);
+  }
+
+  /** Compute gross profit for a copy trade result (simplified: use pnl if available) */
+  private _computeCopyProfit(result: import('./copy-engine.js').CopyTradeResult): number {
+    const trade = result.originalTrade;
+    if ('pnl' in trade && typeof (trade as Record<string, unknown>)['pnl'] === 'string') {
+      const pnl = parseFloat((trade as Record<string, unknown>)['pnl'] as string);
+      return pnl * result.scaleFactor;
+    }
+    return 0;
   }
 }

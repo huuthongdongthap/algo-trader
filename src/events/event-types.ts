@@ -48,6 +48,14 @@ export interface SystemEventMap {
     scaleFactor: number;
   };
 
+  /** Fired when a copy-trade performance fee is collected */
+  'copy.trade.fee.collected': {
+    leaderId: string;
+    followerId: string;
+    fee: number;
+    leaderPayout: number;
+  };
+
   /** Fired when a TradingView webhook alert is received and validated */
   'tradingview.signal': {
     userId: string;
