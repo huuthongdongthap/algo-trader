@@ -10,6 +10,7 @@ import { statusCommand } from './commands/status.js';
 import { backtestCommand } from './commands/backtest.js';
 import { configCommand } from './commands/config-cmd.js';
 import { hedgeScanCommand } from './commands/hedge-scan.js';
+import { paperCommand } from './commands/paper.js';
 
 // Agent dispatcher
 import { AgentDispatcher } from '../agents/agent-dispatcher.js';
@@ -91,6 +92,7 @@ program.addCommand(statusCommand);
 program.addCommand(backtestCommand);
 program.addCommand(configCommand);
 program.addCommand(hedgeScanCommand);
+program.addCommand(paperCommand);
 
 // Setup dispatcher and register all specialist agents
 const dispatcher = new AgentDispatcher();

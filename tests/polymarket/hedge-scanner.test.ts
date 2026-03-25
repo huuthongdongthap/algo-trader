@@ -144,8 +144,11 @@ describe('HedgeScanner', () => {
   describe('scanMultiple', () => {
     it('should handle errors gracefully', async () => {
       const scanner = new HedgeScanner(makeMockRouter());
-      // scanBySlug will fail because GammaClient will try to fetch real API
-      // but scanMultiple catches errors
+      // Mock fetchRelatedMarkets to throw (simulating API failure)
+      (scanner as any).gamma = {
+        getBySlug: vi.fn().mockRejectedValue(new Error('API unavailable')),
+        getTrending: vi.fn().mockRejectedValue(new Error('API unavailable')),
+      };
       const results = await scanner.scanMultiple(['nonexistent-slug']);
       expect(results).toHaveLength(0); // failed but didn't throw
     });

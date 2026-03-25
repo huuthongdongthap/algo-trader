@@ -2,12 +2,31 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { OrderExecutor } from '../../src/cex/order-executor.js';
 import { ExchangeClient, type ExchangeConfig } from '../../src/cex/exchange-client.js';
 
+// Mock getTicker to avoid real network calls
+vi.spyOn(ExchangeClient.prototype, 'getTicker').mockResolvedValue({
+  symbol: 'BTC/USDT',
+  bid: '49990',
+  ask: '50010',
+  last: '50000',
+  volume: '1000',
+  timestamp: Date.now(),
+});
+
 describe('OrderExecutor', () => {
   let client: ExchangeClient;
   let executor: OrderExecutor;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // Re-apply mock after clearAllMocks
+    vi.spyOn(ExchangeClient.prototype, 'getTicker').mockResolvedValue({
+      symbol: 'BTC/USDT',
+      bid: '49990',
+      ask: '50010',
+      last: '50000',
+      volume: '1000',
+      timestamp: Date.now(),
+    });
     delete process.env['LIVE_TRADING'];
     client = new ExchangeClient();
     const config: ExchangeConfig = { apiKey: 'key', apiSecret: 'secret' };
