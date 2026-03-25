@@ -49,3 +49,51 @@ export type { OrderFlowToxicityConfig, OrderFlowToxicityDeps } from './order-flo
 
 export { createGammaScalpingTick } from './gamma-scalping.js';
 export type { GammaScalpingConfig, GammaScalpingDeps } from './gamma-scalping.js';
+
+export { createFundingRateArbTick } from './funding-rate-arb.js';
+export type { FundingRateArbConfig, FundingRateArbDeps } from './funding-rate-arb.js';
+
+export { createExpiryThetaDecayTick } from './expiry-theta-decay.js';
+export type { ExpiryThetaDecayConfig, ExpiryThetaDecayDeps } from './expiry-theta-decay.js';
+
+export { createMicrostructureAlphaTick } from './microstructure-alpha.js';
+export type { MicrostructureAlphaConfig, MicrostructureAlphaDeps } from './microstructure-alpha.js';
+
+export { createSentimentMomentumTick } from './sentiment-momentum.js';
+export type { SentimentMomentumConfig, SentimentMomentumDeps } from './sentiment-momentum.js';
+
+export { createSmartMoneyDivergenceTick } from './smart-money-divergence.js';
+export type { SmartMoneyDivergenceConfig, SmartMoneyDivergenceDeps } from './smart-money-divergence.js';
+
+export { createVolatilitySurfaceArbTick } from './volatility-surface-arb.js';
+export type { VolatilitySurfaceArbConfig, VolatilitySurfaceArbDeps } from './volatility-surface-arb.js';
+
+export { createNewsCatalystFadeTick } from './news-catalyst-fade.js';
+export type { NewsCatalystFadeConfig, NewsCatalystFadeDeps } from './news-catalyst-fade.js';
+
+export { createInventorySkewRebalancerTick } from './inventory-skew-rebalancer.js';
+export type { InventorySkewRebalancerConfig, InventorySkewRebalancerDeps } from './inventory-skew-rebalancer.js';
+
+export { createKalmanFilterTrackerTick } from './kalman-filter-tracker.js';
+export type { KalmanFilterTrackerConfig, KalmanFilterTrackerDeps } from './kalman-filter-tracker.js';
+
+export { createLiquidityVacuumTick } from './liquidity-vacuum.js';
+export type { LiquidityVacuumConfig, LiquidityVacuumDeps } from './liquidity-vacuum.js';
+
+export { createTwapAccumulatorTick } from './twap-accumulator.js';
+export type { TwapAccumulatorConfig, TwapAccumulatorDeps } from './twap-accumulator.js';
+
+export { createCorrelationBreakdownTick } from './correlation-breakdown.js';
+export type { CorrelationBreakdownConfig, CorrelationBreakdownDeps } from './correlation-breakdown.js';
+
+export { createEntropyScorerTick } from './entropy-scorer.js';
+export type { EntropyScorerConfig, EntropyScorerDeps } from './entropy-scorer.js';
+
+export { createAdverseSelectionFilterTick } from './adverse-selection-filter.js';
+export type { AdverseSelectionFilterConfig, AdverseSelectionFilterDeps } from './adverse-selection-filter.js';
+
+export { createMomentumExhaustionTick } from './momentum-exhaustion.js';
+export type { MomentumExhaustionConfig, MomentumExhaustionDeps } from './momentum-exhaustion.js';
+
+export { createCrossPlatformBasisTick } from './cross-platform-basis.js';
+export type { CrossPlatformBasisConfig, CrossPlatformBasisDeps } from './cross-platform-basis.js';

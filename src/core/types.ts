@@ -5,7 +5,7 @@ export type MarketType = 'polymarket' | 'cex' | 'dex';
 export type OrderSide = 'buy' | 'sell';
 export type OrderStatus = 'pending' | 'open' | 'filled' | 'partially_filled' | 'cancelled' | 'rejected';
 export type PositionSide = 'long' | 'short';
-export type StrategyName = 'cross-market-arb' | 'market-maker' | 'grid-trading' | 'dca-bot' | 'funding-rate-arb' | 'polymarket-arb' | 'grid-dca' | 'book-imbalance-reversal' | 'vwap-deviation-sniper' | 'mean-reversion' | 'pairs-stat-arb' | 'session-vol-sniper' | 'regime-adaptive-momentum' | 'orderbook-depth-ratio' | 'cross-event-drift' | 'vol-compression-breakout' | 'whale-tracker' | 'resolution-frontrunner' | 'multi-leg-hedge' | 'liquidation-cascade' | 'order-flow-toxicity' | 'gamma-scalping';
+export type StrategyName = 'cross-market-arb' | 'market-maker' | 'grid-trading' | 'dca-bot' | 'funding-rate-arb' | 'polymarket-arb' | 'grid-dca' | 'book-imbalance-reversal' | 'vwap-deviation-sniper' | 'mean-reversion' | 'pairs-stat-arb' | 'session-vol-sniper' | 'regime-adaptive-momentum' | 'orderbook-depth-ratio' | 'cross-event-drift' | 'vol-compression-breakout' | 'whale-tracker' | 'resolution-frontrunner' | 'multi-leg-hedge' | 'liquidation-cascade' | 'order-flow-toxicity' | 'gamma-scalping' | 'expiry-theta-decay' | 'microstructure-alpha' | 'sentiment-momentum' | 'smart-money-divergence' | 'volatility-surface-arb' | 'news-catalyst-fade' | 'inventory-skew-rebalancer' | 'kalman-filter-tracker' | 'liquidity-vacuum' | 'twap-accumulator' | 'correlation-breakdown' | 'entropy-scorer' | 'adverse-selection-filter' | 'momentum-exhaustion' | 'cross-platform-basis';
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 export interface MarketInfo {

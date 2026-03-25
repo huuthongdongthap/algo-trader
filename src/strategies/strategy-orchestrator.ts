@@ -7,7 +7,7 @@ import { EventBus } from '../events/event-bus.js';
 export interface StrategyConfig {
   id: string;
   name: string;
-  type: 'polymarket-arb' | 'polymarket-mm' | 'grid' | 'dca' | 'funding-arb' | 'book-imbalance' | 'vwap-sniper' | 'pairs-stat-arb' | 'session-vol-sniper' | 'regime-momentum' | 'orderbook-depth' | 'cross-event-drift' | 'vol-compression' | 'whale-tracker' | 'resolution-frontrunner' | 'multi-leg-hedge' | 'regime-adaptive-momentum' | 'liquidation-cascade' | 'order-flow-toxicity' | 'gamma-scalping';
+  type: 'polymarket-arb' | 'polymarket-mm' | 'grid' | 'dca' | 'funding-arb' | 'book-imbalance' | 'vwap-sniper' | 'pairs-stat-arb' | 'session-vol-sniper' | 'regime-momentum' | 'orderbook-depth' | 'cross-event-drift' | 'vol-compression' | 'whale-tracker' | 'resolution-frontrunner' | 'multi-leg-hedge' | 'regime-adaptive-momentum' | 'liquidation-cascade' | 'order-flow-toxicity' | 'gamma-scalping' | 'funding-rate-arb' | 'expiry-theta-decay' | 'microstructure-alpha' | 'sentiment-momentum' | 'smart-money-divergence' | 'volatility-surface-arb' | 'news-catalyst-fade' | 'inventory-skew-rebalancer' | 'kalman-filter-tracker' | 'liquidity-vacuum' | 'twap-accumulator' | 'correlation-breakdown' | 'entropy-scorer' | 'adverse-selection-filter' | 'momentum-exhaustion' | 'cross-platform-basis';
   enabled: boolean;
   params: Record<string, unknown>;
   intervalMs: number;
