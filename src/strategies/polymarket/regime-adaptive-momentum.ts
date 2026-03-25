@@ -119,7 +119,12 @@ function calcATR(prices: number[]): number {
  *   If ATR_short / ATR_long > 2.0 → volatile
  *   Otherwise → ranging
  */
-export function detectRegime(shortPrices: number[], longPrices: number[]): Regime {
+export function detectRegime(
+  shortPrices: number[],
+  longPrices: number[],
+  trendThreshold = 1.5,
+  volatileAtrRatio = 2.0,
+): Regime {
   if (shortPrices.length < 2 || longPrices.length < 2) return 'ranging';
 
   const smaShort = calcSMA(shortPrices);
@@ -130,9 +135,9 @@ export function detectRegime(shortPrices: number[], longPrices: number[]): Regim
   if (atrLong <= 0) return 'ranging';
 
   const trendStrength = Math.abs(smaShort - smaLong) / atrLong;
-  if (trendStrength > 1.5) return 'trending';
+  if (trendStrength > trendThreshold) return 'trending';
 
-  if (atrShort / atrLong > 2.0) return 'volatile';
+  if (atrShort / atrLong > volatileAtrRatio) return 'volatile';
 
   return 'ranging';
 }
@@ -292,7 +297,7 @@ export function createRegimeAdaptiveMomentumTick(deps: RegimeAdaptiveMomentumDep
         const shortP = getPrices(pos.tokenId, cfg.shortWindow);
         const longP = getPrices(pos.tokenId, cfg.longWindow);
         if (shortP.length >= 2 && longP.length >= 2) {
-          const currentRegime = detectRegime(shortP, longP);
+          const currentRegime = detectRegime(shortP, longP, cfg.trendThreshold, cfg.volatileAtrRatio);
           const smaShort = calcSMA(shortP);
           const smaLong = calcSMA(longP);
           const currentDir = calcTrendDirection(smaShort, smaLong);
@@ -316,7 +321,7 @@ export function createRegimeAdaptiveMomentumTick(deps: RegimeAdaptiveMomentumDep
             tokenId: pos.tokenId,
             side: exitSide,
             price: currentPrice.toFixed(4),
-            size: String(Math.round(pos.sizeUsdc / currentPrice)),
+            size: String(Math.max(1, Math.round(pos.sizeUsdc / currentPrice))),
             orderType: 'IOC',
           });
 
@@ -382,7 +387,7 @@ export function createRegimeAdaptiveMomentumTick(deps: RegimeAdaptiveMomentumDep
         if (shortPrices.length < cfg.shortWindow) continue;
         if (longPrices.length < cfg.longWindow) continue;
 
-        const regime = detectRegime(shortPrices, longPrices);
+        const regime = detectRegime(shortPrices, longPrices, cfg.trendThreshold, cfg.volatileAtrRatio);
         const smaShort = calcSMA(shortPrices);
         const smaLong = calcSMA(longPrices);
         const trendDir = calcTrendDirection(smaShort, smaLong);
@@ -417,10 +422,11 @@ export function createRegimeAdaptiveMomentumTick(deps: RegimeAdaptiveMomentumDep
         }
 
         if (!side) continue;
+        if (side === 'no' && !market.noTokenId) continue; // skip if no NO token
 
         const tokenId = side === 'yes'
           ? market.yesTokenId
-          : (market.noTokenId ?? market.yesTokenId);
+          : market.noTokenId!;
         const entryPrice = side === 'yes' ? ba.ask : (1 - ba.bid);
         const sizeMultiplier = getSizeMultiplier(regime);
         const posSize = cfg.baseSizeUsdc * sizeMultiplier;

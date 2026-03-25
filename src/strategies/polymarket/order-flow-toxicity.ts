@@ -315,7 +315,7 @@ export function createOrderFlowToxicityTick(deps: OrderFlowToxicityDeps): () => 
             tokenId: pos.tokenId,
             side: exitSide,
             price: currentPrice.toFixed(4),
-            size: String(Math.round(pos.sizeUsdc / currentPrice)),
+            size: String(Math.max(1, Math.round(pos.sizeUsdc / currentPrice))),
             orderType: 'IOC',
           });
 
@@ -398,9 +398,10 @@ export function createOrderFlowToxicityTick(deps: OrderFlowToxicityDeps): () => 
         // Determine flow direction
         const direction = getFlowDirection(ticks, cfg.vpinWindow);
         const side: 'yes' | 'no' = direction === 'bullish' ? 'yes' : 'no';
+        if (side === 'no' && !market.noTokenId) continue; // skip if no NO token
         const tokenId = side === 'yes'
           ? market.yesTokenId
-          : (market.noTokenId ?? market.yesTokenId);
+          : market.noTokenId!;
         const entryPrice = side === 'yes' ? ba.ask : (1 - ba.bid);
 
         const order = await orderManager.placeOrder({

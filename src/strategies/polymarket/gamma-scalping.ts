@@ -487,24 +487,33 @@ export function createGammaScalpingTick(deps: GammaScalpingDeps): () => Promise<
           tokenId: market.yesTokenId,
           side: 'buy',
           price: yesPrice.toFixed(4),
-          size: String(Math.round(yesQty)),
+          size: String(Math.max(1, Math.round(yesQty))),
           orderType: 'GTC',
         });
+
+        // Verify YES leg filled before placing NO leg
+        if (!yesOrder?.id) {
+          logger.warn('[gamma-scalping] YES leg failed, skipping entry');
+          continue;
+        }
 
         const noOrder = await orderManager.placeOrder({
           tokenId: market.noTokenId,
           side: 'buy',
           price: noPrice.toFixed(4),
-          size: String(Math.round(noQty)),
+          size: String(Math.max(1, Math.round(noQty))),
           orderType: 'GTC',
         });
+
+        // If NO leg fails, record asymmetric position for exit handling
+        const actualNoQty = noOrder?.id ? noQty : 0;
 
         positions.push({
           conditionId: market.conditionId,
           yesTokenId: market.yesTokenId,
           noTokenId: market.noTokenId,
           yesQty,
-          noQty,
+          noQty: actualNoQty,
           yesEntryPrice: yesPrice,
           noEntryPrice: noPrice,
           yesOrderId: yesOrder.id,

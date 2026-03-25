@@ -52,6 +52,8 @@ export interface LiquidationCascadeConfig {
   cooldownMs: number;
   /** Max trending markets to scan per tick */
   scanLimit: number;
+  /** Typical spread baseline for volume confirmation */
+  avgSpread: number;
 }
 
 const DEFAULT_CONFIG: LiquidationCascadeConfig = {
@@ -68,6 +70,7 @@ const DEFAULT_CONFIG: LiquidationCascadeConfig = {
   maxHoldMs: 5 * 60_000,
   cooldownMs: 180_000,
   scanLimit: 20,
+  avgSpread: 0.04,
 };
 
 const STRATEGY_NAME: StrategyName = 'liquidation-cascade';
@@ -372,7 +375,7 @@ export function createLiquidationCascadeTick(deps: LiquidationCascadeDeps): () =
             tokenId: pos.tokenId,
             side: exitSide,
             price: currentPrice.toFixed(4),
-            size: String(Math.round(pos.sizeUsdc / currentPrice)),
+            size: String(Math.max(1, Math.round(pos.sizeUsdc / currentPrice))),
             orderType: 'IOC',
           });
 
@@ -471,8 +474,7 @@ export function createLiquidationCascadeTick(deps: LiquidationCascadeDeps): () =
 
         // Exhaustion confirmed — check spread tightening as volume proxy
         const spread = ba.ask - ba.bid;
-        const avgSpread = 0.04; // typical spread baseline
-        const volumeOk = spread < avgSpread; // tighter spread = more volume
+        const volumeOk = spread < cfg.avgSpread; // tighter spread = more volume
 
         // Clear cascade state regardless
         activeCascades.delete(market.yesTokenId);
@@ -481,9 +483,10 @@ export function createLiquidationCascadeTick(deps: LiquidationCascadeDeps): () =
 
         // Entry: contrarian bounce trade
         const side: 'yes' | 'no' = existingCascade.direction === 'down' ? 'yes' : 'no';
+        if (side === 'no' && !market.noTokenId) continue; // skip if no NO token
         const tokenId = side === 'yes'
           ? market.yesTokenId
-          : (market.noTokenId ?? market.yesTokenId);
+          : market.noTokenId!;
         const entryPrice = side === 'yes' ? ba.ask : (1 - ba.bid);
 
         const sizeMultiplier = calcCascadeSizeMultiplier(
