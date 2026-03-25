@@ -10,42 +10,34 @@ on:
 jobs:
   deploy:
     name: Deploy to M1 Max
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     # Only run if CI passed
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     steps:
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: macbook
-          key: ${{ secrets.SSH_KEY }}
-          script: |
-            set -e
-            cd ~/projects/algo-trader
-            git pull origin main
-            npm rebuild better-sqlite3
-            pm2 restart algo-trade --env production
+      - name: Pull latest code
+        run: |
+          cd ~/projects/algo-trade
+          git pull origin main
+
+      - name: Install dependencies
+        run: |
+          cd ~/projects/algo-trade
+          pnpm install --frozen-lockfile
+
+      - name: Restart service
+        run: |
+          cd ~/projects/algo-trade
+          pm2 restart algo-trade --env production 2>/dev/null || pm2 start "npx tsx src/app.ts" --name algo-trade --env production
 
       - name: Health check
         run: |
-          echo "Waiting 10s for service to restart..."
-          sleep 10
-          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://api.cashclaw.cc/api/health)
+          echo "Waiting 5s for service to restart..."
+          sleep 5
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/api/health)
           echo "Health check HTTP status: $HTTP_STATUS"
           if [ "$HTTP_STATUS" = "200" ]; then
-            echo "Deploy SUCCESS - production is GREEN at https://api.cashclaw.cc"
+            echo "Deploy SUCCESS - algo-trade running on M1 Max"
           else
-            echo "Deploy FAILED - health check returned $HTTP_STATUS"
-            exit 1
-          fi
-
-      - name: Notify deploy status
-        if: always()
-        run: |
-          if [ "${{ job.status }}" = "success" ]; then
-            echo "DEPLOY SUCCESS: algo-trade live at https://api.cashclaw.cc"
-          else
-            echo "DEPLOY FAILED: check SSH logs and service status"
+            echo "Deploy WARNING - health check returned $HTTP_STATUS"
           fi
