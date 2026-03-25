@@ -15,4 +15,4 @@ export {
   canAddStrategy,
   isCapitalAllowed,
 } from './subscription-tier.js';
-export type { Tier, TierLimits, TierFeature } from './subscription-tier.js';
+export type { Tier, Role, TierLimits, TierFeature } from './subscription-tier.js';

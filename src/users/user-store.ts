@@ -3,7 +3,7 @@
 
 import Database from 'better-sqlite3';
 import { randomUUID, createHash, randomBytes, scrypt, timingSafeEqual } from 'node:crypto';
-import type { Tier } from './subscription-tier.js';
+import type { Tier, Role } from './subscription-tier.js';
 
 export interface User {
   id: string;
@@ -15,6 +15,8 @@ export interface User {
   /** scrypt hash of password: "salt:hash" (null for API-key-only users) */
   passwordHash: string | null;
   tier: Tier;
+  /** Access control role: first registered user auto-promoted to admin */
+  role: Role;
   createdAt: number;
   active: boolean;
   /** Polar customer ID, set after first checkout completion */
@@ -31,6 +33,7 @@ interface UserRow {
   api_secret_hash: string;
   password_hash: string | null;
   tier: string;
+  role: string;
   created_at: number;
   active: number; // 0 | 1
   polar_customer_id: string | null;
@@ -46,6 +49,7 @@ CREATE TABLE IF NOT EXISTS users (
   api_secret_hash       TEXT NOT NULL,
   password_hash         TEXT,
   tier                  TEXT NOT NULL DEFAULT 'free',
+  role                  TEXT NOT NULL DEFAULT 'user',
   created_at            INTEGER NOT NULL,
   active                INTEGER NOT NULL DEFAULT 1,
   polar_customer_id     TEXT,
@@ -62,6 +66,7 @@ ALTER TABLE users ADD COLUMN polar_customer_id     TEXT;
 ALTER TABLE users ADD COLUMN polar_subscription_id TEXT;
 ALTER TABLE users ADD COLUMN password_hash         TEXT;
 ALTER TABLE users ADD COLUMN tv_webhook_secret     TEXT;
+ALTER TABLE users ADD COLUMN role                  TEXT NOT NULL DEFAULT 'user';
 CREATE INDEX IF NOT EXISTS idx_users_polar_customer_id ON users(polar_customer_id);
 `;
 
@@ -73,6 +78,7 @@ function rowToUser(row: UserRow): User {
     apiSecretHash: row.api_secret_hash,
     passwordHash: row.password_hash ?? null,
     tier: row.tier as Tier,
+    role: (row.role || 'user') as Role,
     createdAt: row.created_at,
     active: row.active === 1,
     polarCustomerId: row.polar_customer_id ?? null,
@@ -143,12 +149,15 @@ export class UserStore {
     const apiSecretHash = hashSecret(apiSecret);
     const createdAt = Date.now();
 
-    this.db.prepare(
-      `INSERT INTO users (id, email, api_key, api_secret_hash, password_hash, tier, created_at, active)
-       VALUES (@id, @email, @api_key, @api_secret_hash, @password_hash, @tier, @created_at, 1)`
-    ).run({ id, email, api_key: apiKey, api_secret_hash: apiSecretHash, password_hash: passwordHash, tier, created_at: createdAt });
+    // Auto-admin: first registered user OR email matches ADMIN_EMAIL env
+    const role: Role = this.resolveRole(email);
 
-    return { id, email, apiKey, apiSecretHash, passwordHash, tier, createdAt, active: true, polarCustomerId: null, polarSubscriptionId: null };
+    this.db.prepare(
+      `INSERT INTO users (id, email, api_key, api_secret_hash, password_hash, tier, role, created_at, active)
+       VALUES (@id, @email, @api_key, @api_secret_hash, @password_hash, @tier, @role, @created_at, 1)`
+    ).run({ id, email, api_key: apiKey, api_secret_hash: apiSecretHash, password_hash: passwordHash, tier, role, created_at: createdAt });
+
+    return { id, email, apiKey, apiSecretHash, passwordHash, tier, role, createdAt, active: true, polarCustomerId: null, polarSubscriptionId: null };
   }
 
   /**
@@ -161,13 +170,14 @@ export class UserStore {
     const apiSecret = randomUUID();
     const apiSecretHash = hashSecret(apiSecret);
     const createdAt = Date.now();
+    const role: Role = this.resolveRole(email);
 
     this.db.prepare(
-      `INSERT INTO users (id, email, api_key, api_secret_hash, tier, created_at, active)
-       VALUES (@id, @email, @api_key, @api_secret_hash, @tier, @created_at, 1)`
-    ).run({ id, email, api_key: apiKey, api_secret_hash: apiSecretHash, tier, created_at: createdAt });
+      `INSERT INTO users (id, email, api_key, api_secret_hash, tier, role, created_at, active)
+       VALUES (@id, @email, @api_key, @api_secret_hash, @tier, @role, @created_at, 1)`
+    ).run({ id, email, api_key: apiKey, api_secret_hash: apiSecretHash, tier, role, created_at: createdAt });
 
-    return { id, email, apiKey, apiSecretHash, passwordHash: null, tier, createdAt, active: true, polarCustomerId: null, polarSubscriptionId: null };
+    return { id, email, apiKey, apiSecretHash, passwordHash: null, tier, role, createdAt, active: true, polarCustomerId: null, polarSubscriptionId: null };
   }
 
   /** Lookup user by API key (used for request auth) */
@@ -275,6 +285,24 @@ export class UserStore {
       .prepare(`SELECT tv_webhook_secret FROM users WHERE id = ? AND active = 1`)
       .get(userId) as { tv_webhook_secret: string | null } | undefined;
     return row?.tv_webhook_secret ?? null;
+  }
+
+  /** Determine role for new user: admin if first user or ADMIN_EMAIL match */
+  private resolveRole(email: string): Role {
+    const adminEmail = process.env['ADMIN_EMAIL']?.toLowerCase().trim();
+    if (adminEmail && email.toLowerCase().trim() === adminEmail) return 'admin';
+    // First user ever registered becomes admin
+    const count = this.db.prepare('SELECT COUNT(*) as cnt FROM users').get() as { cnt: number };
+    if (count.cnt === 0) return 'admin';
+    return 'user';
+  }
+
+  /** Update user role (admin use only) */
+  updateRole(userId: string, role: Role): boolean {
+    const result = this.db
+      .prepare('UPDATE users SET role = ? WHERE id = ?')
+      .run(role, userId);
+    return result.changes > 0;
   }
 
   close(): void {

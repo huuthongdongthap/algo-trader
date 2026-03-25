@@ -19,8 +19,8 @@ Algorithmic trading platform targeting $1M ARR — Polymarket (80%) + CEX/DEX (2
 - Paper trading mode for strategy validation
 - SQLite-backed trade history and analytics
 - Billing, metering, referral, and webhook modules for RaaS monetization
-- CLI interface with 22 commands via Mekong-style AgentDispatcher
-- 16 specialist agents including 9 dark edge agents for Polymarket alpha
+- CLI interface with 25 commands via Mekong-style AgentDispatcher
+- 19 specialist agents including 9 dark edge agents + HFT loop for 24/7 solo operation
 - AI-powered probability estimation with DeepSeek R1 ensemble voting
 
 ---
@@ -66,6 +66,13 @@ algo news-snipe         # News-driven momentum detection
 algo contrarian         # Herding behavior contrarian opportunities
 ```
 
+### OpenClaw HFT Commands (24/7 Solo Operation)
+```bash
+algo seed-admin         # Register/promote admin user (--email --password)
+algo warm-model         # Pre-heat DeepSeek R1 (eliminate cold-start latency)
+algo hft-loop           # Continuous HFT chain: warm→scan→estimate→risk→calibrate→report (24/7)
+```
+
 ---
 
 ## Quick Start
@@ -84,8 +91,8 @@ pnpm start
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                   CLI (22 commands)                          │
-│  Commander.js → AgentDispatcher → 16 Specialist Agents      │
+│                   CLI (25 commands)                          │
+│  Commander.js → AgentDispatcher → 19 Specialist Agents      │
 └──────────────────────────┬──────────────────────────────────┘
                            │
 ┌──────────────────────────▼──────────────────────────────────┐

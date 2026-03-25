@@ -4,11 +4,11 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import { createHmac, timingSafeEqual as cryptoTimingSafeEqual, randomBytes } from 'node:crypto';
 import { parse } from 'node:url';
 import type { UserStore, User } from '../users/user-store.js';
-import type { Tier } from '../users/subscription-tier.js';
+import type { Tier, Role } from '../users/subscription-tier.js';
 
 /** Augment IncomingMessage with resolved user */
 export interface AuthenticatedRequest extends IncomingMessage {
-  user?: { id: string; email: string; tier: Tier };
+  user?: { id: string; email: string; tier: Tier; role: Role };
 }
 
 /** Public endpoints that skip authentication */
@@ -49,20 +49,21 @@ interface JwtPayload {
   sub: string;   // user id
   email: string;
   tier: Tier;
+  role: Role;
   iat: number;
   exp: number;
 }
 
 /** Create a signed JWT (HS256). Expires in `expiresInSeconds` (default 1h). */
 export function createJwt(
-  user: Pick<User, 'id' | 'email' | 'tier'>,
+  user: Pick<User, 'id' | 'email' | 'tier' | 'role'>,
   secret: string,
   expiresInSeconds = 3600,
 ): string {
   const header = base64url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }));
   const now = Math.floor(Date.now() / 1000);
   const payload = base64url(
-    JSON.stringify({ sub: user.id, email: user.email, tier: user.tier, iat: now, exp: now + expiresInSeconds } satisfies JwtPayload),
+    JSON.stringify({ sub: user.id, email: user.email, tier: user.tier, role: user.role ?? 'user', iat: now, exp: now + expiresInSeconds } satisfies JwtPayload),
   );
   const unsigned = `${header}.${payload}`;
   const sig = base64url(
@@ -156,7 +157,7 @@ export function createAuthMiddleware(userStore: UserStore, jwtSecret: string) {
         sendUnauthorized(res, 'Invalid or expired JWT token');
         return;
       }
-      req.user = { id: payload.sub, email: payload.email, tier: payload.tier };
+      req.user = { id: payload.sub, email: payload.email, tier: payload.tier, role: payload.role ?? 'user' };
       next();
       return;
     }
@@ -169,7 +170,7 @@ export function createAuthMiddleware(userStore: UserStore, jwtSecret: string) {
         sendUnauthorized(res, 'Invalid API key');
         return;
       }
-      req.user = { id: user.id, email: user.email, tier: user.tier };
+      req.user = { id: user.id, email: user.email, tier: user.tier, role: user.role ?? 'user' };
       next();
       return;
     }
@@ -182,7 +183,7 @@ export function createAuthMiddleware(userStore: UserStore, jwtSecret: string) {
         sendUnauthorized(res, 'Invalid API key');
         return;
       }
-      req.user = { id: user.id, email: user.email, tier: user.tier };
+      req.user = { id: user.id, email: user.email, tier: user.tier, role: user.role ?? 'user' };
       next();
       return;
     }

@@ -30,3 +30,8 @@ export { SplitMergeArbAgent } from './split-merge-arb-agent.js';
 // Dark edge agents (P3)
 export { NewsSniperAgent } from './news-snipe-agent.js';
 export { ContrarianAgent } from './contrarian-agent.js';
+
+// HFT + Admin agents
+export { SeedAdminAgent } from './seed-admin-agent.js';
+export { WarmModelAgent } from './warm-model-agent.js';
+export { HftLoopAgent } from './hft-loop-agent.js';

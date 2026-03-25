@@ -222,6 +222,22 @@
       border: 1px solid var(--border);
     }
 
+    /* ── Admin panel ── */
+    .admin-panel { display: none; }
+    .admin-panel.visible { display: flex; flex-direction: column; gap: 24px; }
+    .admin-table { width: 100%; border-collapse: collapse; }
+    .admin-table th { padding: 8px 12px; text-align: left; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid var(--border); }
+    .admin-table td { padding: 8px 12px; border-bottom: 1px solid rgba(42,42,74,0.5); font-size: 12px; }
+    .admin-table tbody tr:hover { background: rgba(255,255,255,0.02); }
+    .admin-btn { font-size: 11px; padding: 3px 8px; border-radius: 4px; cursor: pointer; border: 1px solid var(--border); background: transparent; color: var(--text); transition: all 0.2s; }
+    .admin-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .admin-btn.danger { color: var(--loss); }
+    .admin-btn.danger:hover { border-color: var(--loss); }
+    .admin-stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+    .admin-stat { background: var(--surface2); border-radius: 8px; padding: 16px; text-align: center; }
+    .admin-stat .stat-val { font-size: 24px; font-weight: 700; margin-top: 4px; }
+    .admin-stat .stat-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+
     /* ── Responsive ── */
     @media (max-width: 1100px) {
       .two-col { grid-template-columns: 1fr; }
@@ -288,6 +304,11 @@
     <span id="last-updated"></span>
     <span id="user-email" style="font-size:12px;color:var(--muted)"></span>
     <button onclick="showSettings()" style="background:transparent;border:1px solid var(--border);color:var(--muted);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:11px" title="Backend URL Settings">&#9881;</button>
+    <!-- Admin/User nav toggle (hidden until role known) -->
+    <div id="nav-tabs" style="display:none;gap:4px">
+      <button onclick="switchView('trading')" id="nav-trading" class="nav-btn active" style="font-size:11px;padding:4px 12px;border-radius:6px;border:1px solid var(--accent);background:var(--accent);color:#000;cursor:pointer;font-weight:600">Trading</button>
+      <button onclick="switchView('admin')" id="nav-admin" class="nav-btn" style="font-size:11px;padding:4px 12px;border-radius:6px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-weight:600">Admin</button>
+    </div>
     <button class="btn-logout" onclick="handleLogout()"><span>Logout</span></button>
   </div>
 </header>
@@ -313,6 +334,7 @@
 <!-- ── Main ── -->
 <main>
 
+<div id="trading-view">
   <!-- Summary cards -->
   <div class="summary-grid">
     <div class="summary-card">
@@ -418,6 +440,84 @@
     <span>📡 Node: <span id="sys-node" style="color:var(--text)">—</span></span>
     <span style="margin-left:auto">CashClaw v1.0 — ÂM DƯƠNG Engine</span>
   </div>
+
+</div><!-- end #trading-view -->
+
+<!-- ── Admin Panel (role=admin only) ── -->
+<div id="admin-view" class="admin-panel" style="padding:24px;max-width:1600px;margin:0 auto">
+
+  <!-- Admin Stats -->
+  <div class="admin-stat-grid">
+    <div class="admin-stat">
+      <div class="stat-label">Total Users</div>
+      <div class="stat-val" id="admin-total-users">—</div>
+    </div>
+    <div class="admin-stat">
+      <div class="stat-label">MRR</div>
+      <div class="stat-val positive" id="admin-mrr">—</div>
+    </div>
+    <div class="admin-stat">
+      <div class="stat-label">ARR Progress</div>
+      <div class="stat-val" id="admin-arr-progress">—</div>
+    </div>
+    <div class="admin-stat">
+      <div class="stat-label">System</div>
+      <div class="stat-val" id="admin-sys-status" style="font-size:14px">—</div>
+    </div>
+  </div>
+
+  <!-- Tier breakdown -->
+  <div class="panel">
+    <div class="panel-title"><span>Tier Breakdown</span></div>
+    <div style="display:flex;gap:16px">
+      <div style="flex:1;text-align:center;padding:12px;background:var(--surface2);border-radius:8px">
+        <div style="font-size:11px;color:var(--muted)">FREE</div>
+        <div style="font-size:20px;font-weight:700" id="admin-tier-free">0</div>
+      </div>
+      <div style="flex:1;text-align:center;padding:12px;background:var(--surface2);border-radius:8px">
+        <div style="font-size:11px;color:var(--muted)">PRO ($29/mo)</div>
+        <div style="font-size:20px;font-weight:700;color:var(--blue)" id="admin-tier-pro">0</div>
+      </div>
+      <div style="flex:1;text-align:center;padding:12px;background:var(--surface2);border-radius:8px">
+        <div style="font-size:11px;color:var(--muted)">ENTERPRISE ($199/mo)</div>
+        <div style="font-size:20px;font-weight:700;color:var(--purple)" id="admin-tier-enterprise">0</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Users table -->
+  <div class="panel">
+    <div class="panel-title">
+      <span>User Management</span>
+      <span style="font-size:11px;font-weight:400;color:var(--muted)" id="admin-user-count">0 users</span>
+    </div>
+    <div style="overflow-x:auto">
+      <table class="admin-table">
+        <thead>
+          <tr>
+            <th>Email</th>
+            <th>Role</th>
+            <th>Tier</th>
+            <th>Registered</th>
+            <th>API Key</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="admin-users-tbody"></tbody>
+      </table>
+      <div class="empty-state" id="admin-users-empty" style="padding:24px">No users found</div>
+    </div>
+  </div>
+
+  <!-- System Health (admin detail) -->
+  <div class="panel">
+    <div class="panel-title"><span>System Health</span></div>
+    <div id="admin-components" style="display:flex;flex-direction:column;gap:6px">
+      <div class="empty-state">Loading...</div>
+    </div>
+  </div>
+
+</div><!-- end #admin-view -->
 
 </main>
 
@@ -829,6 +929,139 @@ function prependTrade(t) {
   while (tbody.rows.length > 30) tbody.deleteRow(tbody.rows.length - 1);
 }
 
+// ── Admin Panel ───────────────────────────────────────────────────────
+let currentView = 'trading';
+
+function switchView(view) {
+  currentView = view;
+  document.getElementById('trading-view').style.display = view === 'trading' ? 'block' : 'none';
+  const adminEl = document.getElementById('admin-view');
+  if (view === 'admin') { adminEl.classList.add('visible'); adminEl.style.display = 'flex'; }
+  else { adminEl.classList.remove('visible'); adminEl.style.display = 'none'; }
+
+  // Update nav buttons
+  document.getElementById('nav-trading').style.background = view === 'trading' ? 'var(--accent)' : 'transparent';
+  document.getElementById('nav-trading').style.color = view === 'trading' ? '#000' : 'var(--muted)';
+  document.getElementById('nav-trading').style.borderColor = view === 'trading' ? 'var(--accent)' : 'var(--border)';
+  document.getElementById('nav-admin').style.background = view === 'admin' ? 'var(--accent)' : 'transparent';
+  document.getElementById('nav-admin').style.color = view === 'admin' ? '#000' : 'var(--muted)';
+  document.getElementById('nav-admin').style.borderColor = view === 'admin' ? 'var(--accent)' : 'var(--border)';
+
+  if (view === 'admin') fetchAdminData();
+}
+
+function checkAdminRole() {
+  try {
+    const u = JSON.parse(localStorage.getItem('cc_user') || '{}');
+    if (u.role === 'admin') {
+      document.getElementById('nav-tabs').style.display = 'flex';
+    }
+  } catch (_) {}
+}
+
+async function fetchAdminData() {
+  await Promise.allSettled([fetchAdminUsers(), fetchAdminRevenue(), fetchAdminSystem()]);
+}
+
+async function fetchAdminUsers() {
+  try {
+    const res = await fetch(apiUrl('/dashboard/api/admin/users'), { headers: authHeaders() });
+    if (!res.ok) return;
+    const d = await res.json();
+    renderAdminUsers(d.users || []);
+  } catch (_) {}
+}
+
+function renderAdminUsers(users) {
+  const tbody = document.getElementById('admin-users-tbody');
+  const empty = document.getElementById('admin-users-empty');
+  document.getElementById('admin-user-count').textContent = users.length + ' users';
+  document.getElementById('admin-total-users').textContent = users.length;
+
+  if (!users.length) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
+  empty.style.display = 'none';
+  tbody.innerHTML = users.map(u => {
+    const date = new Date(u.createdAt).toLocaleDateString();
+    const roleBadge = u.role === 'admin'
+      ? '<span style="color:var(--purple);font-weight:600">ADMIN</span>'
+      : '<span style="color:var(--muted)">user</span>';
+    const tierColor = u.tier === 'enterprise' ? 'var(--purple)' : u.tier === 'pro' ? 'var(--blue)' : 'var(--muted)';
+    return `<tr>
+      <td style="font-weight:600">${u.email}</td>
+      <td>${roleBadge}</td>
+      <td style="color:${tierColor};text-transform:uppercase;font-weight:600;font-size:11px">${u.tier}</td>
+      <td style="color:var(--muted)">${date}</td>
+      <td style="font-family:monospace;font-size:11px;color:var(--muted)">${u.apiKeyPrefix || '—'}</td>
+      <td style="display:flex;gap:4px">
+        <select onchange="adminUpgradeTier('${u.id}',this.value)" style="font-size:11px;padding:2px 4px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px">
+          <option value="free" ${u.tier==='free'?'selected':''}>Free</option>
+          <option value="pro" ${u.tier==='pro'?'selected':''}>Pro</option>
+          <option value="enterprise" ${u.tier==='enterprise'?'selected':''}>Enterprise</option>
+        </select>
+        ${u.role !== 'admin' ? `<button class="admin-btn danger" onclick="adminBanUser('${u.id}','${u.email}')">Ban</button>` : ''}
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+async function adminUpgradeTier(userId, tier) {
+  try {
+    await fetch(apiUrl('/dashboard/api/admin/users/' + userId + '/upgrade'), {
+      method: 'POST', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tier })
+    });
+    fetchAdminUsers();
+  } catch (_) {}
+}
+
+async function adminBanUser(userId, email) {
+  if (!confirm('Ban user ' + email + '? This will deactivate their account.')) return;
+  try {
+    await fetch(apiUrl('/dashboard/api/admin/users/' + userId + '/ban'), {
+      method: 'POST', headers: authHeaders()
+    });
+    fetchAdminUsers();
+  } catch (_) {}
+}
+
+async function fetchAdminRevenue() {
+  try {
+    const res = await fetch(apiUrl('/dashboard/api/admin/revenue'), { headers: authHeaders() });
+    if (!res.ok) return;
+    const d = await res.json();
+    document.getElementById('admin-mrr').textContent = '$' + (d.mrr || 0).toLocaleString();
+    document.getElementById('admin-arr-progress').textContent = (d.arrProgress || 0) + '%';
+    document.getElementById('admin-tier-free').textContent = d.tiers?.free || 0;
+    document.getElementById('admin-tier-pro').textContent = d.tiers?.pro || 0;
+    document.getElementById('admin-tier-enterprise').textContent = d.tiers?.enterprise || 0;
+  } catch (_) {}
+}
+
+async function fetchAdminSystem() {
+  try {
+    const res = await fetch(apiUrl('/dashboard/api/admin/system'), { headers: authHeaders() });
+    if (!res.ok) return;
+    const d = await res.json();
+    document.getElementById('admin-sys-status').textContent = d.uptimeFormatted || '—';
+    document.getElementById('admin-sys-status').style.color = 'var(--accent)';
+
+    const el = document.getElementById('admin-components');
+    if (d.components && d.components.length) {
+      el.innerHTML = d.components.map(c => {
+        const color = c.status === 'healthy' ? 'var(--accent)' : c.status === 'not configured' ? 'var(--warning)' : 'var(--loss)';
+        return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 12px;background:var(--surface2);border-radius:6px">
+          <span style="font-size:12px;font-weight:600">${c.name}</span>
+          <div style="display:flex;align-items:center;gap:6px">
+            ${c.detail ? `<span style="font-size:11px;color:var(--muted)">${c.detail}</span>` : ''}
+            ${c.port ? `<span style="font-size:11px;color:var(--muted)">:${c.port}</span>` : ''}
+            <span style="width:8px;height:8px;border-radius:50%;background:${color}"></span>
+          </div>
+        </div>`;
+      }).join('');
+    }
+  } catch (_) {}
+}
+
 // ── Bootstrap ─────────────────────────────────────────────────────────────
 (function init() {
   // If hosted on CF Pages (no local backend), require backend URL before auth
@@ -849,6 +1082,7 @@ function prependTrade(t) {
   }
 
   applyAuthState();
+  checkAdminRole();
   if (localStorage.getItem('cc_token')) {
     fetchAll();
     fetchAiBrain();

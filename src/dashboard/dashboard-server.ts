@@ -9,6 +9,7 @@ import type { DashboardDataProvider } from './dashboard-data.js';
 import { logger } from '../core/logger.js';
 import type { UserStore } from '../users/user-store.js';
 import { verifyJwt } from '../api/auth-middleware.js';
+import type { Role } from '../users/subscription-tier.js';
 import { handleRegister, handleLogin } from '../api/auth-routes.js';
 import { AdminAnalytics } from '../admin/admin-analytics.js';
 import type { AiSignalGenerator } from '../openclaw/ai-signal-generator.js';
@@ -257,8 +258,8 @@ export function createDashboardServer(port: number, dataProvider: DashboardDataP
   const analytics = userStore ? new AdminAnalytics(userStore) : null;
   const jwtSecret = process.env['JWT_SECRET'] ?? '';
 
-  /** Verify JWT from Authorization: Bearer <token> header */
-  function authenticateRequest(req: IncomingMessage, res: ServerResponse): boolean {
+  /** Verify JWT from Authorization: Bearer <token> header. Returns payload or null. */
+  function authenticateRequest(req: IncomingMessage, res: ServerResponse): { sub: string; email: string; role: Role } | true | false {
     // Skip auth if no JWT_SECRET configured (single-operator mode)
     if (!jwtSecret) return true;
     const authHeader = req.headers['authorization'];
@@ -269,6 +270,18 @@ export function createDashboardServer(port: number, dataProvider: DashboardDataP
     const payload = verifyJwt(authHeader.slice(7), jwtSecret);
     if (!payload) {
       sendJson(res, 401, { error: 'Unauthorized', message: 'Invalid or expired token' });
+      return false;
+    }
+    return { sub: payload.sub, email: payload.email, role: (payload.role ?? 'user') as Role };
+  }
+
+  /** Check if authenticated user has admin role */
+  function requireAdmin(req: IncomingMessage, res: ServerResponse): boolean {
+    const auth = authenticateRequest(req, res);
+    if (auth === false) return false;
+    if (auth === true) return true; // no JWT_SECRET = single-operator mode, allow all
+    if (auth.role !== 'admin') {
+      sendJson(res, 403, { error: 'Forbidden', message: 'Admin access required' });
       return false;
     }
     return true;
@@ -290,6 +303,58 @@ export function createDashboardServer(port: number, dataProvider: DashboardDataP
       if (url === '/api/auth/login') { await handleLogin(req, res, userStore); return; }
     }
 
+    // Admin POST endpoints (ban, upgrade, role change)
+    if (method === 'POST' && url.startsWith('/dashboard/api/admin/') && userStore) {
+      if (!requireAdmin(req, res)) return;
+
+      // Read JSON body helper
+      const readBody = (): Promise<Record<string, unknown>> => new Promise((resolve, reject) => {
+        const chunks: Buffer[] = [];
+        req.on('data', (c: Buffer) => chunks.push(c));
+        req.on('end', () => { try { resolve(JSON.parse(Buffer.concat(chunks).toString())); } catch { resolve({}); } });
+        req.on('error', reject);
+      });
+
+      // POST /dashboard/api/admin/users/:id/ban
+      const banMatch = url.match(/^\/dashboard\/api\/admin\/users\/([^/]+)\/ban$/);
+      if (banMatch) {
+        const ok = userStore.deactivateUser(banMatch[1]!);
+        sendJson(res, 200, { ok, userId: banMatch[1], action: 'banned' });
+        return;
+      }
+
+      // POST /dashboard/api/admin/users/:id/upgrade
+      const upgradeMatch = url.match(/^\/dashboard\/api\/admin\/users\/([^/]+)\/upgrade$/);
+      if (upgradeMatch) {
+        const body = await readBody();
+        const tier = body.tier as string;
+        if (!tier || !['free', 'pro', 'enterprise'].includes(tier)) {
+          sendJson(res, 400, { error: 'Invalid tier', valid: ['free', 'pro', 'enterprise'] });
+          return;
+        }
+        const ok = userStore.updateTier(upgradeMatch[1]!, tier as 'free' | 'pro' | 'enterprise');
+        sendJson(res, 200, { ok, userId: upgradeMatch[1], tier, action: 'upgraded' });
+        return;
+      }
+
+      // POST /dashboard/api/admin/users/:id/role
+      const roleMatch = url.match(/^\/dashboard\/api\/admin\/users\/([^/]+)\/role$/);
+      if (roleMatch) {
+        const body = await readBody();
+        const role = body.role as string;
+        if (!role || !['user', 'admin'].includes(role)) {
+          sendJson(res, 400, { error: 'Invalid role', valid: ['user', 'admin'] });
+          return;
+        }
+        const ok = userStore.updateRole(roleMatch[1]!, role as 'user' | 'admin');
+        sendJson(res, 200, { ok, userId: roleMatch[1], role, action: 'role-changed' });
+        return;
+      }
+
+      sendJson(res, 404, { error: 'Admin endpoint not found' });
+      return;
+    }
+
     // Only GET for everything else
     if (method !== 'GET') {
       sendJson(res, 405, { error: 'Method Not Allowed' });
@@ -297,6 +362,37 @@ export function createDashboardServer(port: number, dataProvider: DashboardDataP
     }
 
     try {
+      // Admin API routes (JWT role=admin required)
+      if (url.startsWith('/dashboard/api/admin/')) {
+        if (!requireAdmin(req, res)) return;
+
+        // GET /dashboard/api/admin/users — list all users
+        if (url === '/dashboard/api/admin/users') {
+          const users = userStore ? userStore.listActiveUsers().map(u => ({
+            id: u.id, email: u.email, tier: u.tier, role: u.role ?? 'user',
+            createdAt: u.createdAt, active: u.active,
+            apiKeyPrefix: u.apiKey.slice(0, 8) + '...',
+          })) : [];
+          sendJson(res, 200, { users, count: users.length });
+          return;
+        }
+
+        // GET /dashboard/api/admin/system — system overview
+        if (url === '/dashboard/api/admin/system') {
+          sendJson(res, 200, getSystemHealth());
+          return;
+        }
+
+        // GET /dashboard/api/admin/revenue — revenue stats
+        if (url === '/dashboard/api/admin/revenue') {
+          sendJson(res, 200, getRevenueSummary(analytics));
+          return;
+        }
+
+        sendJson(res, 404, { error: 'Admin endpoint not found' });
+        return;
+      }
+
       // Protect API routes with JWT auth (skip for static files)
       if (url.startsWith('/dashboard/api/')) {
         if (!authenticateRequest(req, res)) return;

@@ -111,7 +111,7 @@ export async function handleRegister(
 
   sendJson(res, 201, {
     token,
-    user: { id: user.id, email: user.email, tier: user.tier, apiKey: user.apiKey },
+    user: { id: user.id, email: user.email, tier: user.tier, role: user.role, apiKey: user.apiKey },
     ...(referral ? { referral } : {}),
   });
 }
@@ -152,7 +152,7 @@ export async function handleLogin(
   const token = createJwt(user, resolveJwtSecret());
   sendJson(res, 200, {
     token,
-    user: { id: user.id, email: user.email, tier: user.tier },
+    user: { id: user.id, email: user.email, tier: user.tier, role: user.role },
   });
 }
 
@@ -178,6 +178,7 @@ export function handleMe(
     id: user.id,
     email: user.email,
     tier: user.tier,
+    role: user.role,
     apiKey: user.apiKey,
     createdAt: user.createdAt,
   });

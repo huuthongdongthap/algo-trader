@@ -38,6 +38,11 @@ import { SplitMergeArbAgent } from '../agents/split-merge-arb-agent.js';
 import { NewsSniperAgent } from '../agents/news-snipe-agent.js';
 import { ContrarianAgent } from '../agents/contrarian-agent.js';
 
+// HFT + Admin agents
+import { SeedAdminAgent } from '../agents/seed-admin-agent.js';
+import { WarmModelAgent } from '../agents/warm-model-agent.js';
+import { HftLoopAgent } from '../agents/hft-loop-agent.js';
+
 // Agent-dispatched command creators
 import { createScanCommand } from './commands/scan-cmd.js';
 import { createMonitorCommand } from './commands/monitor-cmd.js';
@@ -61,6 +66,11 @@ import { createSplitMergeArbCommand } from './commands/split-merge-arb-cmd.js';
 // Dark edge command creators (P3)
 import { createNewsSniperCommand } from './commands/news-snipe-cmd.js';
 import { createContrarianCommand } from './commands/contrarian-cmd.js';
+
+// HFT + Admin command creators
+import { createSeedAdminCommand } from './commands/seed-admin-cmd.js';
+import { createWarmModelCommand } from './commands/warm-model-cmd.js';
+import { createHftLoopCommand } from './commands/hft-loop-cmd.js';
 
 const require = createRequire(import.meta.url);
 // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
@@ -100,6 +110,11 @@ dispatcher.register(new VolumeAlertAgent());
 dispatcher.register(new SplitMergeArbAgent());
 dispatcher.register(new NewsSniperAgent());
 dispatcher.register(new ContrarianAgent());
+dispatcher.register(new SeedAdminAgent());
+dispatcher.register(new WarmModelAgent());
+const hftAgent = new HftLoopAgent();
+hftAgent.setDispatcher(dispatcher);
+dispatcher.register(hftAgent);
 
 // Agent-dispatched commands
 createScanCommand(program, dispatcher);
@@ -118,6 +133,9 @@ createVolumeAlertCommand(program, dispatcher);
 createSplitMergeArbCommand(program, dispatcher);
 createNewsSniperCommand(program, dispatcher);
 createContrarianCommand(program, dispatcher);
+createSeedAdminCommand(program, dispatcher);
+createWarmModelCommand(program, dispatcher);
+createHftLoopCommand(program, dispatcher);
 
 // Meta command: list all registered specialist agents
 program

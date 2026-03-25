@@ -266,6 +266,23 @@ export async function startApp(): Promise<void> {
   logger.info('UserStore initialised', 'App', { path: userDbPath });
   setMetricsUserStore(userStore);
 
+  // Auto-seed admin from ADMIN_EMAIL + ADMIN_PASSWORD env vars (idempotent)
+  const seedEmail = process.env['ADMIN_EMAIL'];
+  const seedPass = process.env['ADMIN_PASSWORD'];
+  if (seedEmail && seedPass) {
+    const existing = userStore.getUserByEmail(seedEmail.toLowerCase().trim());
+    if (!existing) {
+      const { hashPassword } = await import('./users/user-store.js');
+      const hash = await hashPassword(seedPass);
+      const admin = userStore.createUserWithPassword(seedEmail.toLowerCase().trim(), hash);
+      if (admin.role !== 'admin') userStore.updateRole(admin.id, 'admin');
+      logger.info('Admin user seeded', 'App', { email: seedEmail, role: 'admin' });
+    } else if (existing.role !== 'admin') {
+      userStore.updateRole(existing.id, 'admin');
+      logger.info('Existing user promoted to admin', 'App', { email: seedEmail });
+    }
+  }
+
   // 5c. Shared LeaderBoard for copy-trading (used by API server + dashboard)
   const leaderBoard = new LeaderBoard();
   seedDemoLeaders(leaderBoard);

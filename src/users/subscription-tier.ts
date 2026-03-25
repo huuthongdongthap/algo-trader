@@ -3,6 +3,9 @@
 
 export type Tier = 'free' | 'pro' | 'enterprise';
 
+/** User role for access control */
+export type Role = 'user' | 'admin';
+
 export interface TierLimits {
   /** Max concurrent active strategies */
   maxStrategies: number;
