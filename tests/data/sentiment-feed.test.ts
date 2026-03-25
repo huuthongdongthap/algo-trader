@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
   classifyText,
   getSentimentSummary,
@@ -7,6 +7,16 @@ import {
   fetchTwitterSignals,
   type SentimentScore,
 } from '../../src/data/sentiment-feed.js';
+
+// Mock global fetch to avoid real network calls
+const mockFetch = vi.fn();
+vi.stubGlobal('fetch', mockFetch);
+
+beforeEach(() => {
+  mockFetch.mockReset();
+  // Default: simulate network error (returns empty arrays from catch blocks)
+  mockFetch.mockRejectedValue(new Error('Network mocked'));
+});
 
 describe('classifyText', () => {
   it('should classify positive sentiment', () => {
@@ -54,26 +64,43 @@ describe('fetchNewsSignals', () => {
 
   it('should return empty array on network error', async () => {
     process.env['NEWSAPI_KEY'] = 'test-key';
+    mockFetch.mockRejectedValueOnce(new Error('Network error'));
     const signals = await fetchNewsSignals('bitcoin');
     expect(Array.isArray(signals)).toBe(true);
+    expect(signals).toEqual([]);
   });
 });
 
 describe('fetchCoinGeckoTrending', () => {
   it('should return array of signals', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        coins: [
+          { item: { name: 'Bitcoin', symbol: 'BTC' } },
+          { item: { name: 'Ethereum', symbol: 'ETH' } },
+        ],
+      }),
+    });
     const signals = await fetchCoinGeckoTrending();
     expect(Array.isArray(signals)).toBe(true);
+    expect(signals.length).toBe(2);
   });
 
   it('should have correct signal structure if data available', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        coins: [{ item: { name: 'Bitcoin', symbol: 'BTC' } }],
+      }),
+    });
     const signals = await fetchCoinGeckoTrending();
-    if (signals.length > 0) {
-      const signal = signals[0];
-      expect(signal.source).toBe('coingecko');
-      expect(signal.score).toBe('positive');
-      expect(signal.numericScore).toBe(1);
-      expect(signal.keyword).toBeTruthy();
-    }
+    expect(signals.length).toBeGreaterThan(0);
+    const signal = signals[0];
+    expect(signal.source).toBe('coingecko');
+    expect(signal.score).toBe('positive');
+    expect(signal.numericScore).toBe(1);
+    expect(signal.keyword).toBeTruthy();
   });
 });
 
@@ -89,8 +116,10 @@ describe('fetchTwitterSignals', () => {
 
   it('should return empty array on network error', async () => {
     process.env['TWITTER_BEARER_TOKEN'] = 'test-token';
+    mockFetch.mockRejectedValueOnce(new Error('Network error'));
     const signals = await fetchTwitterSignals('ethereum');
     expect(Array.isArray(signals)).toBe(true);
+    expect(signals).toEqual([]);
   });
 });
 
@@ -101,6 +130,13 @@ describe('getSentimentSummary', () => {
   });
 
   it('should return summary object', async () => {
+    // CoinGecko mock for getSentimentSummary (news + twitter return [] due to missing keys)
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        coins: [{ item: { name: 'Bitcoin', symbol: 'bitcoin' } }],
+      }),
+    });
     const summary = await getSentimentSummary('bitcoin');
     expect(summary).toBeTruthy();
     expect(summary.keyword).toBe('bitcoin');
@@ -110,12 +146,14 @@ describe('getSentimentSummary', () => {
   });
 
   it('should return neutral sentiment for empty signals', async () => {
+    mockFetch.mockRejectedValue(new Error('Network error'));
     const summary = await getSentimentSummary('nonexistent-123456');
     expect(summary.dominantSentiment).toBe('neutral');
     expect(summary.averageScore).toBe(0);
   });
 
   it('should calculate average score correctly', async () => {
+    mockFetch.mockRejectedValue(new Error('Network error'));
     const summary = await getSentimentSummary('test');
     expect(typeof summary.averageScore).toBe('number');
     expect(summary.averageScore).toBeGreaterThanOrEqual(-1);
@@ -123,6 +161,12 @@ describe('getSentimentSummary', () => {
   });
 
   it('should classify dominant sentiment based on average', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        coins: [{ item: { name: 'Bullish Token', symbol: 'bullish' } }],
+      }),
+    });
     const summary = await getSentimentSummary('bullish');
     if (summary.signals.length > 0) {
       const positive = summary.signals.filter(s => s.score === 'positive').length;

@@ -400,7 +400,7 @@ describe('Strategy Orchestration Integration', () => {
       // With clobClient + orderManager + gammaClient: book-imbalance, vwap-sniper,
       // pairs-stat-arb, session-vol-sniper, regime-momentum, orderbook-depth, cross-event-drift,
       // vol-compression, whale-tracker, resolution-frontrunner, multi-leg-hedge = 11 strategies
-      expect(statuses.length).toBe(14);
+      expect(statuses.length).toBe(35);
     });
 
     it('16. wireStrategies() skips strategies without required deps', () => {

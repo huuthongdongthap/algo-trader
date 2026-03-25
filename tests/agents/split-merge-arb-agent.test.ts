@@ -1,6 +1,18 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { SplitMergeArbAgent } from '../../src/agents/split-merge-arb-agent.js';
 import { createTask } from '../../src/agents/agent-base.js';
+
+vi.mock('../../src/polymarket/gamma-client.js', () => ({
+  GammaClient: class {
+    async getTrending(_limit?: number) {
+      await new Promise(r => setTimeout(r, 1));
+      return [
+        { id: 'market-1', question: 'Will X happen?', slug: 'will-x-happen', conditionId: 'c1', yesTokenId: 't1', noTokenId: 't2', yesPrice: 0.55, noPrice: 0.40, volume: 100000, volume24h: 50000, liquidity: 20000, endDate: '2026-06-01T00:00:00Z', active: true, closed: false, resolved: false, outcome: null },
+        { id: 'market-2', question: 'Will Y happen?', slug: 'will-y-happen', conditionId: 'c2', yesTokenId: 't3', noTokenId: 't4', yesPrice: 0.50, noPrice: 0.50, volume: 80000, volume24h: 30000, liquidity: 15000, endDate: '2026-06-01T00:00:00Z', active: true, closed: false, resolved: false, outcome: null },
+      ];
+    }
+  },
+}));
 
 describe('SplitMergeArbAgent', () => {
   let agent: SplitMergeArbAgent;

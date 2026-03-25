@@ -1,21 +1,27 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { NegRiskScanAgent } from '../../src/agents/neg-risk-scan-agent.js';
 import { createTask } from '../../src/agents/agent-base.js';
 
-// Mock the module before import happens
-vi.unstubAllGlobals();
-const originalFetch = global.fetch;
-
-// Store mock function at module level for cleanup
-let mockGetEventsFn: any;
-
-beforeEach(() => {
-  mockGetEventsFn = vi.fn();
-});
-
-afterEach(() => {
-  vi.clearAllMocks();
-});
+vi.mock('../../src/polymarket/gamma-client.js', () => ({
+  GammaClient: class {
+    async getEvents(_limit?: number) {
+      await new Promise(r => setTimeout(r, 1));
+      return [
+        {
+          id: 'event-1',
+          title: 'US Election Results',
+          slug: 'us-election-results',
+          description: 'Markets related to US elections',
+          markets: [
+            { id: 'market-1', question: 'Will candidate A win?', slug: 's1', conditionId: 'c1', yesTokenId: 't1', noTokenId: 't2', yesPrice: 0.40, noPrice: 0.60, volume: 100000, volume24h: 50000, liquidity: 20000, endDate: '2026-06-01T00:00:00Z', active: true, closed: false, resolved: false, outcome: null },
+            { id: 'market-2', question: 'Will candidate B win?', slug: 's2', conditionId: 'c2', yesTokenId: 't3', noTokenId: 't4', yesPrice: 0.35, noPrice: 0.65, volume: 80000, volume24h: 30000, liquidity: 15000, endDate: '2026-06-01T00:00:00Z', active: true, closed: false, resolved: false, outcome: null },
+            { id: 'market-3', question: 'Will candidate C win?', slug: 's3', conditionId: 'c3', yesTokenId: 't5', noTokenId: 't6', yesPrice: 0.20, noPrice: 0.80, volume: 60000, volume24h: 20000, liquidity: 10000, endDate: '2026-06-01T00:00:00Z', active: true, closed: false, resolved: false, outcome: null },
+          ],
+        },
+      ];
+    }
+  },
+}));
 
 describe('NegRiskScanAgent', () => {
   let agent: NegRiskScanAgent;
