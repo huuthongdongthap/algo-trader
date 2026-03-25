@@ -50,6 +50,12 @@ export class DecisionStore {
   private stmtQueryAll!: Database.Statement;
 
   constructor(dbPath: string) {
+    // Ensure parent directory exists (fixes CI where data/ is missing)
+    const dir = dbPath.includes('/') ? dbPath.slice(0, dbPath.lastIndexOf('/')) : '.';
+    if (dir && dir !== '.') {
+      const { mkdirSync } = require('node:fs');
+      mkdirSync(dir, { recursive: true });
+    }
     this.db = new Database(dbPath);
     this.db.exec(CREATE_TABLE);
     this.stmtInsert = this.db.prepare(
