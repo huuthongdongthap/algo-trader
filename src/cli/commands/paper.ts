@@ -104,7 +104,9 @@ export const paperCommand = new Command('paper')
     });
 
     // Initialize prediction loop separately for direct control
-    const clobClient = new ClobClient('paper-key', config.polymarket?.chainId ?? 137);
+    // Use a deterministic dummy key for paper mode (never signs real transactions)
+    const paperKey = '0x0000000000000000000000000000000000000000000000000000000000000001';
+    const clobClient = new ClobClient(paperKey, config.polymarket?.chainId ?? 137);
     const scanner = new MarketScanner(clobClient);
     const predictionLoop = new PredictionLoop(scanner, undefined, {
       dbPath,
