@@ -5,7 +5,7 @@ export type MarketType = 'polymarket' | 'cex' | 'dex';
 export type OrderSide = 'buy' | 'sell';
 export type OrderStatus = 'pending' | 'open' | 'filled' | 'partially_filled' | 'cancelled' | 'rejected';
 export type PositionSide = 'long' | 'short';
-export type StrategyName = 'cross-market-arb' | 'market-maker' | 'grid-trading' | 'dca-bot' | 'funding-rate-arb' | 'polymarket-arb' | 'grid-dca' | 'book-imbalance-reversal' | 'vwap-deviation-sniper' | 'mean-reversion' | 'pairs-stat-arb' | 'session-vol-sniper' | 'orderbook-depth-ratio' | 'cross-event-drift' | 'vol-compression-breakout' | 'whale-tracker' | 'resolution-frontrunner' | 'multi-leg-hedge';
+export type StrategyName = 'cross-market-arb' | 'market-maker' | 'grid-trading' | 'dca-bot' | 'funding-rate-arb' | 'polymarket-arb' | 'grid-dca' | 'book-imbalance-reversal' | 'vwap-deviation-sniper' | 'mean-reversion' | 'pairs-stat-arb' | 'session-vol-sniper' | 'orderbook-depth-ratio' | 'cross-event-drift' | 'vol-compression-breakout' | 'whale-tracker' | 'resolution-frontrunner' | 'multi-leg-hedge' | 'regime-adaptive-momentum' | 'liquidation-cascade' | 'order-flow-toxicity' | 'gamma-scalping';
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 export interface MarketInfo {

@@ -37,3 +37,15 @@ export type { ResolutionFrontrunnerConfig, ResolutionFrontrunnerDeps } from './r
 
 export { createMultiLegHedgeTick } from './multi-leg-hedge.js';
 export type { MultiLegHedgeConfig, MultiLegHedgeDeps } from './multi-leg-hedge.js';
+
+export { createRegimeAdaptiveMomentumTick } from './regime-adaptive-momentum.js';
+export type { RegimeAdaptiveMomentumConfig, RegimeAdaptiveMomentumDeps } from './regime-adaptive-momentum.js';
+
+export { createLiquidationCascadeTick } from './liquidation-cascade.js';
+export type { LiquidationCascadeConfig, LiquidationCascadeDeps } from './liquidation-cascade.js';
+
+export { createOrderFlowToxicityTick } from './order-flow-toxicity.js';
+export type { OrderFlowToxicityConfig, OrderFlowToxicityDeps } from './order-flow-toxicity.js';
+
+export { createGammaScalpingTick } from './gamma-scalping.js';
+export type { GammaScalpingConfig, GammaScalpingDeps } from './gamma-scalping.js';
