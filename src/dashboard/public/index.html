@@ -287,9 +287,28 @@
     </div>
     <span id="last-updated"></span>
     <span id="user-email" style="font-size:12px;color:var(--muted)"></span>
+    <button onclick="showSettings()" style="background:transparent;border:1px solid var(--border);color:var(--muted);padding:4px 10px;border-radius:6px;cursor:pointer;font-size:11px" title="Backend URL Settings">&#9881;</button>
     <button class="btn-logout" onclick="handleLogout()"><span>Logout</span></button>
   </div>
 </header>
+
+<!-- Backend URL Settings Modal -->
+<div id="settings-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:1000;display:none;align-items:center;justify-content:center">
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:24px;width:420px;max-width:90vw">
+    <h3 style="font-size:14px;margin-bottom:16px">Backend Connection</h3>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:12px">Enter your bot's backend URL. Leave empty if dashboard is served by the bot itself.</p>
+    <input id="settings-api-base" type="text" placeholder="http://localhost:3001 or https://your-vps:3001" style="width:100%;padding:8px 12px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-family:monospace;font-size:12px;margin-bottom:8px" />
+    <p style="font-size:10px;color:var(--muted);margin-bottom:16px">
+      <b>Local:</b> http://localhost:3001<br>
+      <b>VPS:</b> http://your-vps-ip:3001<br>
+      <b>CF Tunnel:</b> https://your-tunnel.trycloudflare.com
+    </p>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button onclick="closeSettings()" style="padding:6px 16px;background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:6px;cursor:pointer;font-size:12px">Cancel</button>
+      <button onclick="saveSettings()" style="padding:6px 16px;background:var(--accent);color:#000;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">Save & Reload</button>
+    </div>
+  </div>
+</div>
 
 <!-- ── Main ── -->
 <main>
@@ -403,6 +422,13 @@
 </main>
 
 <script>
+// ── Backend URL config ──────────────────────────────────────────────────
+// Customers set their own backend URL (local, VPS, or CF Tunnel)
+// Default: same origin (when dashboard served by backend itself)
+const API_BASE = localStorage.getItem('cc_api_base') || '';
+
+function apiUrl(path) { return API_BASE + path; }
+
 // ── Auth helpers ──────────────────────────────────────────────────────────
 let authMode = 'login';
 
@@ -446,7 +472,7 @@ async function handleAuth(e) {
   errEl.style.display = 'none';
   try {
     const endpoint = authMode === 'login' ? '/api/auth/login' : '/api/auth/register';
-    const res = await fetch(endpoint, {
+    const res = await fetch(apiUrl(endpoint), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })
@@ -465,6 +491,19 @@ async function handleAuth(e) {
   }
 }
 
+function showSettings() {
+  const modal = document.getElementById('settings-modal');
+  modal.style.display = 'flex';
+  document.getElementById('settings-api-base').value = localStorage.getItem('cc_api_base') || '';
+}
+function closeSettings() { document.getElementById('settings-modal').style.display = 'none'; }
+function saveSettings() {
+  const val = document.getElementById('settings-api-base').value.replace(/\/+$/, '');
+  if (val) localStorage.setItem('cc_api_base', val);
+  else localStorage.removeItem('cc_api_base');
+  location.reload();
+}
+
 function handleLogout() {
   localStorage.removeItem('cc_token');
   localStorage.removeItem('cc_user');
@@ -478,8 +517,9 @@ function authHeaders() {
 
 // ── WebSocket ─────────────────────────────────────────────────────────────
 function connectWs() {
-  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-  const ws = new WebSocket(`${proto}://${location.host}/ws`);
+  const wsBase = API_BASE || location.origin;
+  const wsUrl = wsBase.replace(/^http/, 'ws') + '/ws';
+  const ws = new WebSocket(wsUrl);
   const dot = document.getElementById('ws-dot');
   const lbl = document.getElementById('ws-status');
 
@@ -511,7 +551,7 @@ async function fetchAll() {
 
 async function fetchPortfolio() {
   try {
-    const res = await fetch('/dashboard/api/portfolio', { headers: authHeaders() });
+    const res = await fetch(apiUrl('/dashboard/api/portfolio'), { headers: authHeaders() });
     if (!res.ok) return;
     const d = await res.json();
     applyPortfolio(d);
@@ -535,7 +575,7 @@ function applyPortfolio(d) {
 
 async function fetchEquityCurve() {
   try {
-    const res = await fetch('/dashboard/api/equity-curve', { headers: authHeaders() });
+    const res = await fetch(apiUrl('/dashboard/api/equity-curve'), { headers: authHeaders() });
     if (!res.ok) return;
     const pts = await res.json();
     renderEquityCurve(pts);
@@ -584,7 +624,7 @@ function renderEquityCurve(pts) {
 
 async function fetchPositions() {
   try {
-    const res = await fetch('/dashboard/api/positions', { headers: authHeaders() });
+    const res = await fetch(apiUrl('/dashboard/api/positions'), { headers: authHeaders() });
     if (!res.ok) return;
     const positions = await res.json();
     renderPositions(positions);
@@ -618,7 +658,7 @@ function renderPositions(positions) {
 
 async function fetchTrades() {
   try {
-    const res = await fetch('/dashboard/api/trades?limit=30', { headers: authHeaders() });
+    const res = await fetch(apiUrl('/dashboard/api/trades?limit=30'), { headers: authHeaders() });
     if (!res.ok) return;
     const trades = await res.json();
     renderTrades(trades);
@@ -653,7 +693,7 @@ function renderTrades(trades) {
 
 async function fetchStrategyStatus() {
   try {
-    const res = await fetch('/dashboard/api/strategy-status', { headers: authHeaders() });
+    const res = await fetch(apiUrl('/dashboard/api/strategy-status'), { headers: authHeaders() });
     if (!res.ok) return;
     const strategies = await res.json();
     applyLayers(strategies);
@@ -710,7 +750,7 @@ function applyLayers(strategies) {
 // ── AI Brain ─────────────────────────────────────────────────────────────
 async function fetchAiBrain() {
   try {
-    const res = await fetch('/dashboard/api/ai-insights', { headers: authHeaders() });
+    const res = await fetch(apiUrl('/dashboard/api/ai-insights'), { headers: authHeaders() });
     if (!res.ok) return;
     const d = await res.json();
 
@@ -756,7 +796,7 @@ async function fetchAiBrain() {
 // ── System Health ─────────────────────────────────────────────────────────
 async function fetchHealth() {
   try {
-    const res = await fetch('/dashboard/api/system-health', { headers: authHeaders() });
+    const res = await fetch(apiUrl('/dashboard/api/system-health'), { headers: authHeaders() });
     if (!res.ok) return;
     const d = await res.json();
     document.getElementById('sys-uptime').textContent = d.uptimeFormatted || '—';
