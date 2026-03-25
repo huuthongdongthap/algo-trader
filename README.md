@@ -10,6 +10,7 @@ Algorithmic trading platform targeting $1M ARR — Polymarket (80%) + CEX/DEX (2
 
 ## Features
 
+- **43 Polymarket trading strategies** with real-time execution and backtesting
 - Polymarket CLOB integration with ECDSA signing and WebSocket orderbook streaming
 - Cross-market arbitrage and market-making strategies
 - CEX support via CCXT (Binance, Bybit, and more)
@@ -19,9 +20,10 @@ Algorithmic trading platform targeting $1M ARR — Polymarket (80%) + CEX/DEX (2
 - Paper trading mode for strategy validation
 - SQLite-backed trade history and analytics
 - Billing, metering, referral, and webhook modules for RaaS monetization
-- CLI interface with 25 commands via Mekong-style AgentDispatcher
+- CLI interface with 25+ commands via Mekong-style AgentDispatcher
 - 19 specialist agents including 9 dark edge agents + HFT loop for 24/7 solo operation
-- AI-powered probability estimation with DeepSeek R1 ensemble voting
+- **Dual-model AI prediction ensemble**: Nemotron-3 Nano (fast scanner, 35-50 t/s) + DeepSeek R1 (deep reasoner) with consensus voting
+- 4477+ automated tests for reliability and code quality
 
 ---
 
@@ -31,6 +33,7 @@ Algorithmic trading platform targeting $1M ARR — Polymarket (80%) + CEX/DEX (2
 ```bash
 algo start              # Start trading bot
 algo status             # Bot status
+algo paper              # Run paper trading (risk-free validation)
 algo backtest           # Run backtests
 algo config             # View/edit configuration
 algo hedge-scan         # Scan hedge opportunities
@@ -84,6 +87,36 @@ pnpm install
 cp .env.example .env   # fill in your keys
 pnpm start
 ```
+
+---
+
+## Dual-Model LLM Pipeline
+
+The platform uses a high-performance dual-model architecture for AI predictions:
+
+### Model Configuration
+
+| Model | Purpose | Speed | Port | Endpoint |
+|---|---|---|---|---|
+| **Nemotron-3 Nano 30B** | Fast market scanner & real-time alerts | 35-50 tokens/s | 11436 | `/v1/chat/completions` |
+| **DeepSeek R1 Distill 32B** | Deep reasoning & complex analysis | 8-15 tokens/s | 11435 | `/v1/chat/completions` |
+
+### Inference Pipeline
+
+1. **Scanner Phase** (Nemotron): Rapid scan of all markets, identify top opportunities
+2. **Estimation Phase** (DeepSeek R1): Deep analysis of top candidates, ensemble voting on probabilities
+3. **Consensus**: Both models vote on final probability — triggers trade if agreement threshold met
+4. **Fallback**: If primary model timeout, use fallback model for guaranteed responsiveness
+
+### Configuration
+
+```bash
+# Set your M1 Max gateway IP (or localhost for local development)
+export OPENCLAW_GATEWAY_URL=http://192.168.11.111:11435/v1
+export OPENCLAW_SCANNER_URL=http://192.168.11.111:11436/v1
+```
+
+See `.env.example` for full dual-model configuration.
 
 ---
 

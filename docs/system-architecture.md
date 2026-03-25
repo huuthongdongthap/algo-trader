@@ -15,7 +15,7 @@ algo-trade RaaS Platform
 │   ├─ 7 System Agents (scanner, monitor, estimate, risk, calibrate, report, doctor)
 │   └─ 9 Dark Edge Agents (P1-P3 tier arbitrage/momentum detection)
 │
-├── Dark Edge Layer (High-Edge Opportunities)
+├── Dark Edge Layer (High-Edge Opportunities, 43 Strategies)
 │   ├─ P1 Tier (Highest Edge)
 │   │   ├─ NegRiskScanAgent — YES sum != $1.00 arbitrage detection
 │   │   ├─ EndgameAgent — Near-certain outcomes in resolving-soon markets
@@ -89,15 +89,59 @@ MARKET DATA ──→ PRICE FEED ──→ STRATEGY EVAL ──→ RISK CHECK �
                             SETTLEMENT ──→ DB ──→ NOTIFY (Slack/WebSocket)
 ```
 
-## LLM Integration & Response Parsing
+## Paper Trading Pipeline
+
+Live market flow for simulated trading:
+
+```
+Gamma API (Market Events)
+    │
+    ├─→ FILTER (Market conditions, liquidity checks)
+    │
+    ├─→ CLOB PRICES (Polymarket order book aggregation)
+    │
+    ├─→ LLM ENSEMBLE (Dual-model routing)
+    │   ├─ Nemotron-3 (fast pre-screening)
+    │   └─ DeepSeek-R1 (deep analysis when needed)
+    │
+    ├─→ SIGNAL RANKING (Win probability + edge scoring)
+    │
+    ├─→ PAPER TRADE EXECUTION (Simulator state update)
+    │
+    └─→ METRICS & BACKTEST (P&L tracking, performance analysis)
+```
+
+**Features**:
+- 50+ concurrent paper trades per strategy
+- Blind prompt strategy (no data leakage)
+- Real CLOB prices, simulated execution
+- AI signal generation with ensemble routing
+- Historical trade tracking (4477 test scenarios)
+
+## Dual-Model LLM Pipeline
+
+**Hardware**: M1 Max MLX acceleration via Ollama bridges (local inference)
+
+**Model Deployment** (Dual-Port Strategy):
+- **Port 11436**: Nemotron-3 Nano 30B (Fast Scanner)
+  - MoE architecture: 3.5B active params
+  - Throughput: 35-50 t/s (fast pattern recognition)
+  - Function calling support for structured extraction
+  - Use case: Quick market scanning, anomaly detection, signal pre-filtering
+
+- **Port 11435**: DeepSeek-R1-Distill-32B (Deep Reasoner)
+  - Full chain-of-thought with `<think>` blocks
+  - Throughput: 15-25 t/s (complex reasoning)
+  - Use case: Trade analysis, optimization decisions, risk assessment
 
 **Model Routing** (via OpenClaw):
-- **Simple**: Qwen 2.5 Coder (quick pattern recognition)
-- **Standard**: DeepSeek R1 (trade analysis, performance review)
-- **Complex**: DeepSeek R1 (strategy optimization, risk assessment)
+- **Simple Tasks** → Nemotron-3 Nano (scanner, quick decisions)
+- **Standard/Complex** → DeepSeek-R1 (trade analysis, optimization)
+- **Fallback**: Claude Sonnet (cloud, budget-gated for edge cases)
 
 **Timeout Configuration**:
-- Primary (DeepSeek R1): 90s (via `llm-config.ts`)
+- Nemotron-3: 40s (expected: 15-30s)
+- DeepSeek-R1: 90s (expected: 60-80s)
 - OpenClaw gateway: 120s (`openclaw-config.ts`)
 - Cloud (Claude): 60s with daily budget gating
 
@@ -105,7 +149,7 @@ MARKET DATA ──→ PRICE FEED ──→ STRATEGY EVAL ──→ RISK CHECK �
 - `src/lib/llm-response-parser.ts` centralized utility
 - Strips DeepSeek R1 `<think>...</think>` blocks automatically
 - Extracts JSON objects, handles markdown fences
-- All 6 LLM modules use shared parser (ai-signal-generator, ai-risk-adjuster, prediction-probability-estimator, algorithm-tuner, ai-strategy-selector)
+- All LLM modules use shared parser (ai-signal-generator, ai-risk-adjuster, algorithm-tuner, ai-strategy-selector)
 - Supports `reasoning` field for chain-of-thought models
 
 ## Risk Management Flow

@@ -7,7 +7,7 @@
 - **Total Tokens**: 284,604 (repomix analysis)
 - **Total Characters**: 1,121,801 chars
 - **Code Lines**: ~4,200 LOC (excluding node_modules, tests)
-- **Test Files**: 50+ unit tests
+- **Test Coverage**: 4477 tests (unit + paper trading simulations)
 
 ---
 
@@ -170,7 +170,7 @@ Essential infrastructure modules:
   - `news-snipe-agent.ts` — NewsSniperAgent — News-driven momentum detection
   - `contrarian-agent.ts` — ContrarianAgent — Herding behavior contrarian opportunities
 
-**Total**: 16 agents, 22+ CLI commands
+**Total**: 16 agents, 43 strategies, 22+ CLI commands
 **Data Sources**: Gamma API (most agents), Polygon RPC (whale-watch), ethers.js (whale-watch)
 
 **CLI** (src/cli/):
@@ -266,7 +266,7 @@ Essential infrastructure modules:
 
 ## Test Coverage
 
-**Total Tests**: 50+ unit tests across domains
+**Total Tests**: 4477 unit + simulation tests across domains
 
 **Highest Coverage**:
 - `src/core/risk-manager.ts` — 85% (critical business logic)
@@ -398,10 +398,11 @@ npm run test -- --ui     # Browser UI
 
 ## Quick Reference
 
-**LLM Configuration** (M1 Max MLX primary):
-- Primary: DeepSeek R1 (90s timeout)
-- Fallback: Qwen 2.5 (30s timeout)
-- Cloud: Claude Sonnet (60s timeout, budget-gated)
+**LLM Configuration** (M1 Max MLX dual-model):
+- **Nemotron-3 Nano 30B** (port 11436): Fast scanner, MoE 3.5B active, 35-50 t/s
+- **DeepSeek-R1-Distill-32B** (port 11435): Deep reasoner, chain-of-thought, 15-25 t/s
+- Routing: Simple → Nemotron-3, Standard/Complex → DeepSeek-R1
+- Cloud fallback: Claude Sonnet (60s timeout, budget-gated)
 
 **Start Development**:
 ```bash
