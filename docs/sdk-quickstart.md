@@ -31,9 +31,9 @@ npm link @algo-trade/sdk
 Initialize the SDK client:
 
 ```typescript
-import { AlgoTradeClient } from '@algo-trade/sdk';
+import { CashClawClient } from '@algo-trade/sdk';
 
-const client = new AlgoTradeClient({
+const client = new CashClawClient({
   baseUrl: 'http://localhost:3000',  // Local dev
   apiKey: 'your_api_key_here',
   timeout: 10000  // 10 seconds (optional)
@@ -43,7 +43,7 @@ const client = new AlgoTradeClient({
 **For production:**
 
 ```typescript
-const client = new AlgoTradeClient({
+const client = new CashClawClient({
   baseUrl: 'https://api.algo-trade.io',
   apiKey: process.env.ALGO_TRADE_API_KEY!,
   timeout: 10000
@@ -58,7 +58,7 @@ if (!apiKey) {
   throw new Error('ALGO_TRADE_API_KEY not set');
 }
 
-const client = new AlgoTradeClient({
+const client = new CashClawClient({
   baseUrl: process.env.API_BASE_URL || 'http://localhost:3000',
   apiKey
 });
@@ -355,9 +355,9 @@ await manageStrategy('grid-trading');
 ### Dashboard with Live Updates
 
 ```typescript
-import { AlgoTradeClient } from '@algo-trade/sdk';
+import { CashClawClient } from '@algo-trade/sdk';
 
-async function renderDashboard(client: AlgoTradeClient) {
+async function renderDashboard(client: CashClawClient) {
   setInterval(async () => {
     try {
       const [status, pnl, health] = await Promise.all([
@@ -392,7 +392,7 @@ async function renderDashboard(client: AlgoTradeClient) {
 }
 
 // Usage:
-const client = new AlgoTradeClient({
+const client = new CashClawClient({
   baseUrl: 'http://localhost:3000',
   apiKey: process.env.API_KEY || 'test-key'
 });
@@ -454,7 +454,7 @@ Load in your code:
 import dotenv from 'dotenv';
 dotenv.config();
 
-const client = new AlgoTradeClient({
+const client = new CashClawClient({
   baseUrl: process.env.API_BASE_URL || 'http://localhost:3000',
   apiKey: process.env.ALGO_TRADE_API_KEY!,
   timeout: parseInt(process.env.API_TIMEOUT_MS || '10000')
@@ -480,7 +480,7 @@ function createClient(env: 'dev' | 'staging' | 'prod') {
     }
   };
 
-  return new AlgoTradeClient(config[env]);
+  return new CashClawClient(config[env]);
 }
 
 const client = createClient(process.env.NODE_ENV as any);
@@ -543,7 +543,7 @@ Error: Network request failed
 **Solution:** Increase timeout or check server connectivity.
 
 ```typescript
-const client = new AlgoTradeClient({
+const client = new CashClawClient({
   baseUrl: 'https://api.algo-trade.io',
   apiKey: 'your_key',
   timeout: 30000  // 30 seconds

@@ -461,5 +461,5 @@ node scripts/stats-server.mjs 3000 data/algo-trade.db
 _Version: 2.0.0_
 _Strategy: blind_event_only with DeepSeek R1 32B_
 _DNA: 7 Immutable Laws (Shannon, Tetlock, Kahneman, Renaissance, Gigerenzer, Sun Tzu)_
-_Author: CashClaw AlgoTrade Team_
+_Author: CashClaw CashClaw Team_
 _Last Updated: 2026-03-24_

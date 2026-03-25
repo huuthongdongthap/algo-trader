@@ -1,4 +1,4 @@
-# AlgoTrade Bot — Customer Deployment SOP
+# CashClaw Bot — Customer Deployment SOP
 
 > Self-hosting guide for prediction market trading bot.
 > Two options: Apple Silicon Mac or Cloud VPS.
@@ -62,7 +62,7 @@ curl http://localhost:11435/v1/models
 # Should show: {"data":[{"id":"mlx-community/DeepSeek-R1-Distill-Qwen-32B-4bit"...}]}
 ```
 
-#### 3. Clone and Setup AlgoTrade
+#### 3. Clone and Setup CashClaw
 
 ```bash
 git clone https://github.com/longtho638-jpg/algo-trader.git
@@ -107,7 +107,7 @@ node scripts/start-trading-bot.mjs \
 
 # Expected output:
 # ╔══════════════════════════════════════════╗
-# ║         AlgoTrade Prediction Bot         ║
+# ║         CashClaw Prediction Bot         ║
 # ║  License:  ✅ Valid                       ║
 # ║  Mode:     DRY RUN (paper)              ║
 # ╚══════════════════════════════════════════╝
@@ -263,7 +263,7 @@ python -m vllm.entrypoints.openai.api_server \
   --gpu-memory-utilization 0.9
 ```
 
-#### 4. Install Node.js + AlgoTrade
+#### 4. Install Node.js + CashClaw
 
 ```bash
 # Install Node.js 20+
@@ -324,7 +324,7 @@ node scripts/start-trading-bot.mjs \
 ```bash
 cat > /etc/systemd/system/algotrade.service << 'EOF'
 [Unit]
-Description=AlgoTrade Prediction Bot
+Description=CashClaw Prediction Bot
 After=network.target ollama.service
 
 [Service]
@@ -421,6 +421,54 @@ const { JsonRpcProvider, formatUnits } = require('ethers');
 const p = new JsonRpcProvider('https://polygon-rpc.com');
 p.getBalance('YOUR_ADDRESS').then(b => console.log('MATIC:', formatUnits(b)));
 "
+```
+
+---
+
+## Dashboard Access
+
+### Login Credentials
+
+Customers login to the CashClaw dashboard with **email + password**:
+
+1. Go to `https://cashclaw.cc/dashboard` (or `http://localhost:3001` if self-hosting)
+2. Click **Register** → enter email + password (min 8 chars)
+3. After registration, login with same credentials
+4. JWT token stored in browser localStorage (`cc_token`)
+
+### Connect Dashboard to Your Bot
+
+The dashboard on `cashclaw.cc` needs to know where your bot's API is running:
+
+1. Login to dashboard
+2. Click **gear icon** (⚙️) in topbar
+3. Enter your backend URL:
+   - **Local Mac:** `http://localhost:3001`
+   - **VPS:** `http://YOUR_VPS_IP:3001`
+   - **CF Tunnel:** `https://your-tunnel.trycloudflare.com`
+4. Click **Save & Reload**
+
+### Quick Tunnel Setup (expose local bot to internet)
+
+```bash
+# Install cloudflared
+brew install cloudflare/cloudflare/cloudflared  # Mac
+# or: curl -fsSL https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o /usr/local/bin/cloudflared  # Linux
+
+# Create quick tunnel (no account needed)
+cloudflared tunnel --url http://localhost:3001
+# Output: https://abc123-random.trycloudflare.com
+# → Paste this URL into Dashboard Settings
+```
+
+### Self-Hosted Dashboard
+
+If you don't want to use `cashclaw.cc`, the bot serves its own dashboard:
+
+```bash
+# Dashboard auto-starts with the bot on port 3001
+# Access: http://localhost:3001
+# No Settings gear needed — same origin, API calls work automatically
 ```
 
 ---

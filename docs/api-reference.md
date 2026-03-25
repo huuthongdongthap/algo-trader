@@ -502,9 +502,9 @@ All errors return JSON with this structure:
 Use the TypeScript SDK for type-safe API calls:
 
 ```typescript
-import { AlgoTradeClient } from '@algo-trade/sdk';
+import { CashClawClient } from '@algo-trade/sdk';
 
-const client = new AlgoTradeClient({
+const client = new CashClawClient({
   baseUrl: 'http://localhost:3000',
   apiKey: 'your_api_key'
 });
