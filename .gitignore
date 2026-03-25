@@ -7,5 +7,6 @@ dist/
 bun.lockb
 repomix-output.xml
 .claude/worktrees/
+.claude/hooks/.logs/
 cf-pages/
 Users/
