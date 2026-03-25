@@ -19,3 +19,6 @@ export type { PairsStatArbConfig, PairsStatArbDeps } from './pairs-stat-arb.js';
 
 export { createSessionVolSniperTick } from './session-vol-sniper.js';
 export type { SessionVolSniperConfig, SessionVolSniperDeps } from './session-vol-sniper.js';
+
+export { createRegimeAdaptiveMomentumTick } from './regime-adaptive-momentum.js';
+export type { RegimeAdaptiveConfig, RegimeAdaptiveDeps } from './regime-adaptive-momentum.js';

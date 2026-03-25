@@ -5,7 +5,7 @@ export type MarketType = 'polymarket' | 'cex' | 'dex';
 export type OrderSide = 'buy' | 'sell';
 export type OrderStatus = 'pending' | 'open' | 'filled' | 'partially_filled' | 'cancelled' | 'rejected';
 export type PositionSide = 'long' | 'short';
-export type StrategyName = 'cross-market-arb' | 'market-maker' | 'grid-trading' | 'dca-bot' | 'funding-rate-arb' | 'polymarket-arb' | 'grid-dca' | 'book-imbalance-reversal' | 'vwap-deviation-sniper' | 'mean-reversion' | 'pairs-stat-arb' | 'session-vol-sniper';
+export type StrategyName = 'cross-market-arb' | 'market-maker' | 'grid-trading' | 'dca-bot' | 'funding-rate-arb' | 'polymarket-arb' | 'grid-dca' | 'book-imbalance-reversal' | 'vwap-deviation-sniper' | 'mean-reversion' | 'pairs-stat-arb' | 'session-vol-sniper' | 'regime-adaptive-momentum';
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 export interface MarketInfo {

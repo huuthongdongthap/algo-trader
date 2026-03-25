@@ -9,6 +9,7 @@ import { createBookImbalanceReversalTick } from '../strategies/polymarket/book-i
 import { createVwapDeviationSniperTick } from '../strategies/polymarket/vwap-deviation-sniper.js';
 import { createPairsStatArbTick } from '../strategies/polymarket/pairs-stat-arb.js';
 import { createSessionVolSniperTick } from '../strategies/polymarket/session-vol-sniper.js';
+import { createRegimeAdaptiveMomentumTick } from '../strategies/polymarket/regime-adaptive-momentum.js';
 import type { MarketScanner } from '../polymarket/market-scanner.js';
 import type { OrderManager } from '../polymarket/order-manager.js';
 import type { OrderExecutor } from '../cex/order-executor.js';
@@ -78,6 +79,13 @@ export function wireStrategies(deps: WireStrategyDeps): StrategyOrchestrator {
     orc.register(
       { id: 'session-vol-sniper', name: 'Session Volatility Sniper', type: 'session-vol-sniper', enabled: false, params: {}, intervalMs: parseInt(env('SESSION_VOL_SNIPER_INTERVAL_MS', '5000'), 10) },
       createSessionVolSniperTick({ clob: clobClient, orderManager, eventBus, gamma: gammaClient }),
+    );
+  }
+
+  if (clobClient && orderManager && gammaClient) {
+    orc.register(
+      { id: 'regime-momentum', name: 'Regime-Adaptive Momentum', type: 'regime-momentum', enabled: false, params: {}, intervalMs: parseInt(env('REGIME_MOMENTUM_INTERVAL_MS', '15000'), 10) },
+      createRegimeAdaptiveMomentumTick({ clob: clobClient, orderManager, eventBus, gamma: gammaClient }),
     );
   }
 
