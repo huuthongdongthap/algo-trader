@@ -2,8 +2,7 @@
 // Wires: TelegramBot polling, TelegramTradeAlerts event subscriptions, command handlers
 import type { EventBus } from '../events/event-bus.js';
 import type { TradingEngine } from '../engine/engine.js';
-import { createTelegramBot } from '../notifications/telegram-bot.js';
-import type { TelegramBot } from '../notifications/telegram-bot.js';
+import { createTelegramBot, TelegramBot } from '../notifications/telegram-bot.js';
 import { TelegramTradeAlerts } from '../notifications/telegram-trade-alerts.js';
 import { NotificationRouter } from '../notifications/notification-router.js';
 import { logger } from '../core/logger.js';
@@ -27,11 +26,12 @@ export function startNotifications(
   engine: TradingEngine,
 ): NotificationsBundle {
   const router = new NotificationRouter();
-  const bot = createTelegramBot();
+  const botOrNoOp = createTelegramBot();
 
-  if (!bot) {
+  if (!(botOrNoOp instanceof TelegramBot)) {
     return { bot: null, alerts: null, router };
   }
+  const bot = botOrNoOp;
 
   const chatId = process.env['TELEGRAM_CHAT_ID'] ?? '';
 
