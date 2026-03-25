@@ -36,7 +36,7 @@ const DEFAULT_CONFIG: OpenClawConfig = {
   gatewayUrl: 'http://192.168.11.111:11435/v1',
   scannerUrl: 'http://192.168.11.111:11436/v1',
   routing: DEFAULT_ROUTING,
-  timeout: 120_000,
+  timeout: 300_000,
 };
 
 /**

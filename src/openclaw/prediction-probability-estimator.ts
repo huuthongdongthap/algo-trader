@@ -72,7 +72,9 @@ export class PredictionProbabilityEstimator {
         categoryHint,
         'Respond ONLY with valid JSON — no markdown, no extra text.',
       ].join(' '),
-      complexity: 'standard',
+      // Use 'simple' tier → Nemotron (fast, 35-50 t/s) for quick probability estimates
+      // Escalate to 'standard' (DeepSeek) only for complex strategy optimization
+      complexity: 'simple',
       maxTokens: 2000,
     });
 
