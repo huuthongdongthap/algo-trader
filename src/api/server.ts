@@ -17,6 +17,7 @@ import type { CopyTradingHandlers } from './copy-trading-routes.js';
 import { applySecurityHeaders } from './security-headers-middleware.js';
 import { createBodyLimitMiddleware } from './request-body-limit-middleware.js';
 import { checkTierGate } from './tier-gate-middleware.js';
+import { initResponseCache, tryCacheHit } from './response-cache-middleware.js';
 
 // ─── CORS ─────────────────────────────────────────────────────────────────────
 
@@ -116,6 +117,9 @@ export function createServer(
   const rateLimitMiddleware = createRateLimitMiddleware();
   const bodyLimitMiddleware = createBodyLimitMiddleware(1024 * 1024);
 
+  // Response cache for hot GET paths (health, leaderboard, marketplace, metrics)
+  initResponseCache(500, 5_000);
+
   // Copy-trading leaderboard + demo leaders (idempotent)
   const leaderBoard = (typeof portOrOptions !== 'number' && portOrOptions.leaderBoard) || new LeaderBoard();
   const followerManager = new FollowerManager(leaderBoard);
@@ -141,6 +145,9 @@ export function createServer(
 
     const parsed = parse(req.url ?? '/');
     const pathname = parsed.pathname ?? '/';
+
+    // 4b. Response cache — serve cached GET responses before auth/rate-limit
+    if (tryCacheHit(req, res, pathname)) return;
 
     // 5. Auth middleware — attaches req.user or sends 401
     let authPassed = false;

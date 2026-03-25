@@ -44,8 +44,10 @@ function resolveJwtSecret(): string {
 import { ReferralStore } from '../referral/referral-store.js';
 import { RewardCalculator } from '../referral/reward-calculator.js';
 import { ReferralManager } from '../referral/referral-manager.js';
+import { UtmAttributionTracker } from '../growth/utm-attribution-tracker.js';
 
 let _referralManager: ReferralManager | null = null;
+let _utmTracker: UtmAttributionTracker | null = null;
 
 function getReferralManager(): ReferralManager {
   if (!_referralManager) {
@@ -57,6 +59,14 @@ function getReferralManager(): ReferralManager {
   return _referralManager;
 }
 
+function getUtmTracker(): UtmAttributionTracker {
+  if (!_utmTracker) {
+    const dbPath = process.env['UTM_DB_PATH'] ?? 'data/utm.db';
+    _utmTracker = new UtmAttributionTracker(dbPath);
+  }
+  return _utmTracker;
+}
+
 // ─── POST /api/auth/register ──────────────────────────────────────────────────
 
 export async function handleRegister(
@@ -64,7 +74,7 @@ export async function handleRegister(
   res: ServerResponse,
   userStore: UserStore,
 ): Promise<void> {
-  let body: { email?: string; password?: string; confirmPassword?: string; referralCode?: string };
+  let body: { email?: string; password?: string; confirmPassword?: string; referralCode?: string; utm_source?: string; utm_medium?: string; utm_campaign?: string; utm_content?: string };
   try {
     body = JSON.parse(await readBody(req)) as typeof body;
   } catch {
@@ -108,6 +118,20 @@ export async function handleRegister(
       // Non-blocking: invalid/expired code doesn't prevent registration
     }
   }
+
+  // Record UTM attribution (non-blocking)
+  try {
+    const utm = {
+      source: body.utm_source ?? null,
+      medium: body.utm_medium ?? null,
+      campaign: body.utm_campaign ?? null,
+      content: body.utm_content ?? null,
+      term: null,
+    };
+    if (utm.source || utm.medium || utm.campaign || referralCode) {
+      getUtmTracker().recordAttribution(user.id, utm, referralCode ?? null);
+    }
+  } catch { /* non-critical */ }
 
   sendJson(res, 201, {
     token,
