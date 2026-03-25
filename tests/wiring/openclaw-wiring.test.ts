@@ -36,6 +36,19 @@ describe('openclaw-wiring', () => {
       })),
     }));
 
+    vi.doMock('../../src/openclaw/decision-store.js', () => ({
+      initDecisionStore: vi.fn().mockReturnValue({
+        logDecision: vi.fn(),
+        getDecisions: vi.fn().mockReturnValue([]),
+        close: vi.fn(),
+      }),
+      DecisionStore: vi.fn().mockImplementation(() => ({
+        logDecision: vi.fn(),
+        getDecisions: vi.fn().mockReturnValue([]),
+        close: vi.fn(),
+      })),
+    }));
+
     vi.doMock('../../src/openclaw/decision-logger.js', () => ({
       DecisionLogger: vi.fn().mockImplementation(() => ({
         log: vi.fn(),
