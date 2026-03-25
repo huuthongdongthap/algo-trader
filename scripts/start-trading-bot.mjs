@@ -184,5 +184,14 @@ process.on('SIGTERM', () => {
   process.exit(0);
 });
 
-// Keep alive
+// Bot must never die from unhandled errors — log and continue
+process.on('unhandledRejection', (reason) => {
+  console.error(`[WATCHDOG] Unhandled rejection caught (bot stays alive): ${reason}`);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error(`[WATCHDOG] Uncaught exception caught (bot stays alive): ${err.message}`);
+});
+
+// Keep alive — bot never sleeps
 setInterval(() => {}, 60000);

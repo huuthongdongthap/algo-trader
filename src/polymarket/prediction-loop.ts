@@ -126,10 +126,11 @@ export class PredictionLoop {
     const tick = async () => {
       try {
         const signals = await this.runCycle();
-        onCycle?.(signals);
+        await onCycle?.(signals);
       } catch (err) {
         logger.error('Prediction cycle error', 'PredictionLoop', { err: String(err) });
       }
+      // Always schedule next tick — bot must never stop
       this.timer = setTimeout(tick, this.opts.intervalMs);
     };
 
