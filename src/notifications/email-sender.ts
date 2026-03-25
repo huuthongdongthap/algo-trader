@@ -1,10 +1,13 @@
-// Email sender stub — logs intent, real SMTP requires nodemailer
+// Email sender — real SMTP via built-in Node.js net/tls, no external deps
+// Falls back to logging when SMTP env vars are not configured
 import type { TradeResult } from '../core/types.js';
 import { logger } from '../core/logger.js';
+import { sendSmtpEmail, type SmtpConfig } from './smtp-client.js';
 
 export interface EmailConfig {
   smtpHost: string;
   smtpPort: number;
+  smtpSecure: boolean;
   username: string;
   password: string;
   from: string;
@@ -22,6 +25,7 @@ function buildEmailConfigFromEnv(): EmailConfig | null {
   return {
     smtpHost: host,
     smtpPort: Number(port),
+    smtpSecure: process.env['SMTP_SECURE'] === 'true',
     username: user,
     password: pass,
     from,
@@ -40,31 +44,37 @@ export class EmailSender {
     return this.config !== null;
   }
 
-  /**
-   * Stub: logs the email intent. Wire up nodemailer here when SMTP is ready.
-   */
+  /** Send an email via real SMTP. Logs warning and skips when not configured. */
   async sendEmail(to: string, subject: string, htmlBody: string): Promise<void> {
-    if (!this.isConfigured()) {
+    if (!this.config) {
       logger.warn('Email not configured — skipping send', 'EmailSender', { to, subject });
       return;
     }
 
-    // Stub: replace this block with real nodemailer transport when available
-    logger.info('Email send (stub)', 'EmailSender', {
-      from: this.config!.from,
-      to,
-      subject,
-      smtpHost: this.config!.smtpHost,
-      smtpPort: this.config!.smtpPort,
-      bodyLength: htmlBody.length,
-    });
+    const smtpConfig: SmtpConfig = {
+      host: this.config.smtpHost,
+      port: this.config.smtpPort,
+      secure: this.config.smtpSecure,
+      username: this.config.username,
+      password: this.config.password,
+    };
+
+    try {
+      await sendSmtpEmail(smtpConfig, this.config.from, to, subject, htmlBody);
+    } catch (err) {
+      logger.error('Email send failed', 'EmailSender', {
+        to,
+        subject,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
 
   async sendTradeAlert(to: string, trade: TradeResult): Promise<void> {
     const isBuy = trade.side === 'buy';
     const sideColor = isBuy ? '#2ecc71' : '#e74c3c';
     const sideLabel = trade.side.toUpperCase();
-    const subject = `[AlgoTrade] Trade Alert — ${sideLabel} ${trade.marketId}`;
+    const subject = `[CashClaw] Trade Alert — ${sideLabel} ${trade.marketId}`;
 
     const htmlBody = `
 <!DOCTYPE html>
@@ -81,6 +91,24 @@ export class EmailSender {
       <tr><td style="padding:6px 0;color:#666;">Strategy</td><td>${trade.strategy}</td></tr>
       <tr><td style="padding:6px 0;color:#666;">Time</td><td>${new Date(trade.timestamp).toISOString()}</td></tr>
     </table>
+  </div>
+</body>
+</html>`.trim();
+
+    await this.sendEmail(to, subject, htmlBody);
+  }
+
+  async sendWelcome(to: string, apiKey: string): Promise<void> {
+    const subject = '[CashClaw] Welcome — Your API Key';
+    const htmlBody = `
+<!DOCTYPE html>
+<html>
+<body style="font-family:sans-serif;background:#f5f5f5;padding:24px;">
+  <div style="max-width:480px;margin:0 auto;background:#fff;border-radius:8px;padding:24px;">
+    <h2 style="color:#2ecc71;margin-top:0;">Welcome to CashClaw</h2>
+    <p>Your API key:</p>
+    <code style="display:block;background:#f0f0f0;padding:12px;border-radius:4px;word-break:break-all;">${apiKey}</code>
+    <p style="color:#666;font-size:14px;margin-top:16px;">Keep this key secret. You can rotate it anytime from the dashboard.</p>
   </div>
 </body>
 </html>`.trim();
