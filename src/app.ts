@@ -62,6 +62,7 @@ import { createKalshiClient } from './kalshi/index.js';
 import { setKalshiDeps } from './api/kalshi-routes.js';
 import { TradingRoom } from './trading-room/room-wiring.js';
 import { setTradingRoomOrchestrator } from './api/trading-room-routes.js';
+import { TradingCircuitBreakers } from './core/trading-circuit-breakers.js';
 
 // ── Ports ──────────────────────────────────────────────────────────────────
 
@@ -167,6 +168,26 @@ export async function startApp(): Promise<void> {
   _engine = new TradingEngine();
   logger.info('Trading engine initialised', 'App');
 
+  // 5.1 Trading circuit breakers — unified 5-breaker safety system
+  const circuitBreakers = new TradingCircuitBreakers({
+    dailyLossLimit: Number(process.env['DAILY_LOSS_LIMIT'] ?? 0.05),
+    maxConsecutiveLosses: Number(process.env['MAX_CONSECUTIVE_LOSSES'] ?? 3),
+    consecutiveLossCooldownMs: Number(process.env['CONSECUTIVE_LOSS_COOLDOWN_MS'] ?? 3_600_000),
+    brierThreshold: Number(process.env['BRIER_THRESHOLD'] ?? 0.30),
+    apiErrorThreshold: Number(process.env['API_ERROR_THRESHOLD'] ?? 5),
+    apiErrorWindowMs: Number(process.env['API_ERROR_WINDOW_MS'] ?? 60_000),
+    dbPath: config.dbPath,
+    onAlert: (msg: string) => {
+      eventBus.emit('alert.triggered', { rule: 'circuit-breaker', message: msg });
+    },
+  });
+  // Wire trade results to circuit breaker tracking
+  eventBus.on('trade.executed', (payload: { trade: TradeResult }) => {
+    const pnl = Number(payload.trade.fillPrice ?? 0);
+    circuitBreakers.recordTrade(pnl >= 0);
+  });
+  logger.info('Trading circuit breakers wired', 'App');
+
   // 5a. Wire performance analytics API to engine
   setAnalyticsEngine(_engine);
   logger.info('Performance analytics API wired', 'App');
@@ -204,11 +225,12 @@ export async function startApp(): Promise<void> {
   setUserWebhookRegistry(_userWebhookRegistry);
   logger.info('User webhook registry wired', 'App');
 
-  // 5a5. Usage metering — in-memory sliding window tracker for quota enforcement
-  _usageTracker = new UsageTracker();
+  // 5a5. Usage metering — sliding window tracker with optional SQLite persistence
+  const usageDbPath = process.env['USAGE_DB_PATH'];
+  _usageTracker = new UsageTracker(usageDbPath ? { dbPath: usageDbPath } : undefined);
   const usageTracker = _usageTracker;
   setUsageTracker(usageTracker);
-  logger.info('Usage tracker wired', 'App');
+  logger.info('Usage tracker wired', 'App', { persistent: !!usageDbPath });
 
   // 5a6. Plugin registry — strategy plugin management (Enterprise feature)
   const pluginRegistry = new PluginRegistry();

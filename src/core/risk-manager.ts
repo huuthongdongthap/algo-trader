@@ -143,6 +143,13 @@ export class RiskManager {
     return true;
   }
 
+  /** Manually trip circuit breaker (for /pause command) */
+  tripCircuitBreaker(reason: string): void {
+    this.circuitBreakerTripped = true;
+    this.circuitBreakerResetAt = Date.now() + this.circuitBreakerCooldownMs;
+    logger.warn(`Circuit breaker manually tripped: ${reason}`, 'risk-manager');
+  }
+
   /** Manually reset circuit breaker (for /resume command) */
   resetCircuitBreaker(): void {
     this.circuitBreakerTripped = false;

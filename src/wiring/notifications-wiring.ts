@@ -1,11 +1,11 @@
-// Notifications wiring — bootstraps Telegram bot + trade alerts into app lifecycle
-// Wires: TelegramBot polling, TelegramTradeAlerts event subscriptions, command handlers
+// Notifications wiring — bootstraps Telegram bot + email + trade alerts into app lifecycle
+// Wires: TelegramBot polling, TelegramTradeAlerts event subscriptions, email channel
 import type { EventBus } from '../events/event-bus.js';
 import type { TradingEngine } from '../engine/engine.js';
-import { createTelegramBot } from '../notifications/telegram-bot.js';
-import type { TelegramBot } from '../notifications/telegram-bot.js';
+import { createTelegramBot, TelegramBot } from '../notifications/telegram-bot.js';
 import { TelegramTradeAlerts } from '../notifications/telegram-trade-alerts.js';
 import { NotificationRouter } from '../notifications/notification-router.js';
+import { EmailSender } from '../notifications/email-sender.js';
 import { logger } from '../core/logger.js';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -27,11 +27,12 @@ export function startNotifications(
   engine: TradingEngine,
 ): NotificationsBundle {
   const router = new NotificationRouter();
-  const bot = createTelegramBot();
+  const botOrNoOp = createTelegramBot();
 
-  if (!bot) {
+  if (!(botOrNoOp instanceof TelegramBot)) {
     return { bot: null, alerts: null, router };
   }
+  const bot = botOrNoOp;
 
   const chatId = process.env['TELEGRAM_CHAT_ID'] ?? '';
 
@@ -51,12 +52,32 @@ export function startNotifications(
   // Start long-poll loop
   bot.startPolling();
 
+  // Wire email channel if SMTP configured
+  wireEmailChannel(router);
+
   logger.info('Notifications wiring complete', 'NotificationsWiring', {
     telegram: true,
     channels: router.enabledChannels(),
   });
 
   return { bot, alerts, router };
+}
+
+/** Wire email as notification channel when SMTP env vars are present */
+function wireEmailChannel(router: NotificationRouter): void {
+  const emailSender = new EmailSender();
+  if (!emailSender.isConfigured()) {
+    logger.debug('Email not configured — skipping', 'NotificationsWiring');
+    return;
+  }
+  const defaultTo = process.env['SMTP_ALERT_TO'] ?? process.env['SMTP_FROM'] ?? '';
+  if (!defaultTo) return;
+
+  router.addChannel('email', {
+    sendMessage: (text) => emailSender.sendEmail(defaultTo, '[CashClaw] Alert', `<pre>${text}</pre>`),
+    sendTradeAlert: (trade) => emailSender.sendTradeAlert(defaultTo, trade),
+  });
+  logger.info('Email notification channel wired', 'NotificationsWiring');
 }
 
 /**
