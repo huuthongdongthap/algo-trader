@@ -4,8 +4,10 @@ import { UserStore } from '../../src/users/user-store.js';
 import { createJwt, verifyJwt } from '../../src/api/auth-middleware.js';
 import Database from 'better-sqlite3';
 import { unlinkSync, existsSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
-const TEST_DB = 'data/test-user-role.db';
+const TEST_DB = join(tmpdir(), `test-user-role-${Date.now()}.db`);
 
 describe('User Role System', () => {
   let store: UserStore;

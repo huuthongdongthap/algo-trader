@@ -5,13 +5,15 @@ import { SeedAdminAgent } from '../../src/agents/seed-admin-agent.js';
 import { WarmModelAgent } from '../../src/agents/warm-model-agent.js';
 import { HftLoopAgent } from '../../src/agents/hft-loop-agent.js';
 import { AgentDispatcher } from '../../src/agents/agent-dispatcher.js';
-import { unlinkSync, existsSync } from 'node:fs';
+import { unlinkSync, existsSync, mkdirSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 // ── SeedAdminAgent ─────────────────────────────────────────────────────
 
 describe('SeedAdminAgent', () => {
   const agent = new SeedAdminAgent();
-  const TEST_DB = 'data/test-seed-admin.db';
+  const TEST_DB = join(tmpdir(), `test-seed-admin-${Date.now()}.db`);
 
   beforeEach(() => {
     if (existsSync(TEST_DB)) unlinkSync(TEST_DB);
