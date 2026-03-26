@@ -6,6 +6,7 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { UserStore } from '../users/user-store.js';
 import type { Tier } from '../users/subscription-tier.js';
 import { sendJson, readJsonBody } from './http-response-helpers.js';
+import { hashPassword } from '../users/user-store.js';
 import { AdminAnalytics } from '../admin/admin-analytics.js';
 import { generateLicense, buildPayload } from '../license/license-generator.js';
 import { initLicenseStore, saveLicense, getActiveLicenses, revokeLicense as revokeLicenseKey } from '../license/license-store.js';
@@ -22,8 +23,8 @@ function isAdminUser(userId: string, userTier: Tier, userStore: UserStore): bool
   const user = userStore.getUserById(userId);
   if (!user) return false;
   if (user.email.endsWith(ADMIN_EMAIL_DOMAIN)) return true;
-  // role field is not on User model yet — check tier as fallback sentinel
-  // tier === 'enterprise' users from cashclaw domain get admin; others do not
+  // Check role field on User model
+  if (user.role === 'admin') return true;
   return false;
 }
 
@@ -134,6 +135,87 @@ async function handleAdminSetTier(
   }
 
   sendJson(res, 200, { ok: true, userId: targetUserId, tier });
+}
+
+
+// ─── Batch license issuance ───────────────────────────────────────────────────
+
+interface BatchCustomerInput {
+  email: string;
+  tier?: Tier;
+  password?: string;
+}
+
+interface BatchResult {
+  email: string;
+  apiKey: string;
+  userId: string;
+  status: 'created' | 'existing';
+}
+
+/**
+ * POST /api/admin/licenses/batch
+ * Issue API keys/licenses for up to 50 customers in one call.
+ * Existing users are returned as-is (status: existing), new users are created.
+ */
+async function handleBatchLicenses(
+  req: IncomingMessage,
+  res: ServerResponse,
+  userStore: UserStore,
+): Promise<void> {
+  let body: Record<string, unknown>;
+  try {
+    body = await readJsonBody(req);
+  } catch {
+    sendJson(res, 400, { error: 'Invalid JSON body' });
+    return;
+  }
+
+  const customers = body['customers'] as BatchCustomerInput[] | undefined;
+  if (!Array.isArray(customers) || customers.length === 0) {
+    sendJson(res, 400, { error: 'customers must be a non-empty array' });
+    return;
+  }
+  if (customers.length > 50) {
+    sendJson(res, 400, { error: 'Max 50 customers per batch', received: customers.length });
+    return;
+  }
+
+  const defaultTier = ((body['defaultTier'] as string) || 'free') as Tier;
+  const defaultPassword = (body['defaultPassword'] as string) || 'CashClaw2026!';
+  const validTiers: Tier[] = ['free', 'pro', 'enterprise'];
+
+  const results: BatchResult[] = [];
+  let created = 0;
+  let existing = 0;
+
+  for (const customer of customers) {
+    if (!customer.email || typeof customer.email !== 'string') continue;
+    const email = customer.email.toLowerCase().trim();
+    const tier: Tier = validTiers.includes(customer.tier as Tier) ? customer.tier as Tier : defaultTier;
+
+    // Check if user already exists
+    const existingUser = userStore.getUserByEmail(email);
+    if (existingUser) {
+      results.push({ email, apiKey: existingUser.apiKey, userId: existingUser.id, status: 'existing' });
+      existing++;
+      continue;
+    }
+
+    // Create new user with password
+    const password = customer.password === 'auto' || !customer.password ? defaultPassword : customer.password;
+    const passwordHash = await hashPassword(password);
+    const newUser = userStore.createUserWithPassword(email, passwordHash, tier);
+    results.push({ email, apiKey: newUser.apiKey, userId: newUser.id, status: 'created' });
+    created++;
+  }
+
+  sendJson(res, 200, {
+    total: customers.length,
+    created,
+    existing,
+    results,
+  });
 }
 
 // ─── Main admin route dispatcher ──────────────────────────────────────────────
@@ -258,6 +340,12 @@ export async function handleAdminRoutes(
     } catch {
       sendJson(res, 400, { error: 'Invalid request body' });
     }
+    return;
+  }
+
+  // POST /api/admin/licenses/batch — issue API keys for multiple customers at once
+  if (pathname === '/api/admin/licenses/batch' && method === 'POST') {
+    await handleBatchLicenses(req, res, userStore);
     return;
   }
 
