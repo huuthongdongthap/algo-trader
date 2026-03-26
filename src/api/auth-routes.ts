@@ -23,7 +23,7 @@ function sendJson(res: ServerResponse, status: number, data: unknown): void {
 
 function resolveJwtSecret(): string {
   // Use same secret as server.ts: JWT_SECRET env var or default
-  return process.env['JWT_SECRET'] ?? 'dev-secret-change-me';
+  const secret = process.env['JWT_SECRET']; if (!secret) throw new Error('JWT_SECRET env var required'); return secret;
 }
 
 // ─── Referral integration ────────────────────────────────────────────────────

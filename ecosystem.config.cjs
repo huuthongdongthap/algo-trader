@@ -23,7 +23,7 @@ module.exports = {
         WS_PORT: '3003',
         WEBHOOK_PORT: '3004',
         STATS_PORT: '3005',
-        JWT_SECRET: '413da7ec5284d3679fbbb759e8cfbfafc3834008937efc500473cceb6c79e9b6',
+        JWT_SECRET: process.env.JWT_SECRET || '',
         ADMIN_EMAIL: 'billwill.mentor@gmail.com',
         PATH: '/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin',
       },
