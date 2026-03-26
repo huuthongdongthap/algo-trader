@@ -1,6 +1,7 @@
 /**
  * Request body size limit middleware — protects against large payload (DoS) attacks.
- * Streams incoming data and aborts when byte count exceeds configured limit.
+ * Buffers the full body, enforces size limit, then attaches buffered body to req
+ * so downstream handlers can read it without re-consuming the stream.
  */
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
@@ -8,8 +9,16 @@ const DEFAULT_MAX_BYTES = 1 * 1024 * 1024; // 1 MB
 
 type NextFn = () => void;
 
+// Extend IncomingMessage to carry pre-buffered body
+declare module 'node:http' {
+  interface IncomingMessage {
+    _bodyBuffer?: Buffer;
+  }
+}
+
 /**
  * Returns a middleware that enforces a maximum request body size.
+ * Buffers the body and attaches it as req._bodyBuffer for reuse by handlers.
  * Responds with 413 Payload Too Large when the limit is exceeded.
  *
  * @param maxBytes - Maximum allowed body size in bytes (default: 1 MB)
@@ -33,7 +42,8 @@ export function createBodyLimitMiddleware(
       }
     }
 
-    // Stream-based check for chunked / no Content-Length requests
+    // Buffer entire body, check size, attach to req for handler reuse
+    const chunks: Buffer[] = [];
     let received = 0;
     let limitExceeded = false;
 
@@ -43,11 +53,17 @@ export function createBodyLimitMiddleware(
         limitExceeded = true;
         sendPayloadTooLarge(res);
         req.destroy();
+        return;
+      }
+      if (!limitExceeded) {
+        chunks.push(chunk);
       }
     });
 
     req.on('end', () => {
       if (!limitExceeded) {
+        // Attach buffered body so handlers don't need to re-read the stream
+        req._bodyBuffer = Buffer.concat(chunks);
         next();
       }
     });

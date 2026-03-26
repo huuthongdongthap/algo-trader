@@ -11,19 +11,32 @@ export function sendJson(res: ServerResponse, status: number, data: unknown): vo
   res.end(body);
 }
 
-/** Read and parse the request body as JSON; resolves empty body as {} */
-export async function readJsonBody<T = Record<string, unknown>>(req: IncomingMessage): Promise<T> {
+/**
+ * Read request body as raw string.
+ * Uses req._bodyBuffer if body was pre-buffered by middleware (prevents double-consume bug).
+ * Falls back to stream reading for requests that bypassed the buffer middleware.
+ */
+export function readBody(req: IncomingMessage): Promise<string> {
+  // Use pre-buffered body from request-body-limit-middleware if available
+  if ((req as IncomingMessage & { _bodyBuffer?: Buffer })._bodyBuffer !== undefined) {
+    return Promise.resolve(
+      (req as IncomingMessage & { _bodyBuffer?: Buffer })._bodyBuffer!.toString('utf8')
+    );
+  }
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     req.on('data', (chunk: Buffer) => chunks.push(chunk));
-    req.on('end', () => {
-      try {
-        const raw = Buffer.concat(chunks).toString('utf8');
-        resolve(raw ? (JSON.parse(raw) as T) : ({} as T));
-      } catch {
-        reject(new Error('Invalid JSON body'));
-      }
-    });
+    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
     req.on('error', reject);
   });
+}
+
+/** Read and parse the request body as JSON; resolves empty body as {} */
+export async function readJsonBody<T = Record<string, unknown>>(req: IncomingMessage): Promise<T> {
+  const raw = await readBody(req);
+  try {
+    return raw ? (JSON.parse(raw) as T) : ({} as T);
+  } catch {
+    throw new Error('Invalid JSON body');
+  }
 }

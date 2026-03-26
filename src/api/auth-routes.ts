@@ -6,6 +6,7 @@ import { hashPassword, verifyPassword } from '../users/user-store.js';
 import { createJwt } from './auth-middleware.js';
 import type { AuthenticatedRequest } from './auth-middleware.js';
 import { logger } from '../core/logger.js';
+import { readBody } from './http-response-helpers.js';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -18,25 +19,11 @@ function sendJson(res: ServerResponse, status: number, data: unknown): void {
   res.end(body);
 }
 
-function readBody(req: IncomingMessage): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const chunks: Buffer[] = [];
-    req.on('data', (chunk: Buffer) => chunks.push(chunk));
-    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
-    req.on('error', reject);
-  });
-}
+// readBody imported from http-response-helpers.js
 
 function resolveJwtSecret(): string {
-  if (!process.env['JWT_SECRET']) {
-    // Auto-generate a persistent secret on first run
-    const crypto = require('node:crypto') as typeof import('node:crypto');
-    const secret = crypto.randomBytes(32).toString('hex');
-    process.env['JWT_SECRET'] = secret;
-    // Log warning so operator knows to set it explicitly
-    logger.warn('JWT_SECRET not set — auto-generated ephemeral secret. Set JWT_SECRET env var for persistence across restarts.', 'AuthRoutes');
-  }
-  return process.env['JWT_SECRET']!;
+  // Use same secret as server.ts: JWT_SECRET env var or default
+  return process.env['JWT_SECRET'] ?? 'dev-secret-change-me';
 }
 
 // ─── Referral integration ────────────────────────────────────────────────────
