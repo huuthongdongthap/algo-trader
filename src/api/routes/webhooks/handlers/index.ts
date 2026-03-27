@@ -1,14 +1,11 @@
 /**
- * Polar Webhook Handlers
+ * NOWPayments Webhook Handlers
  */
 
 export {
-  handleSubscriptionCreated,
-  handleSubscriptionActive,
-  handleSubscriptionUpdated,
-  handleSubscriptionCancelled,
+  handleIpnFinished,
+  handleIpnRefunded,
 } from './subscription-handler';
 
-export { handlePaymentSuccess, handlePaymentFailed } from './payment-handler';
+export { handleIpnPaymentSuccess, handleIpnPaymentFailed } from './payment-handler';
 
-export { handleCheckoutCreated } from './checkout-handler';

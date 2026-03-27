@@ -17,6 +17,7 @@ import { signalsRouter } from './routes/signals';
 import { adminRouter } from './routes/admin';
 import { healthRouter } from './routes/health';
 import { revenueRouter } from './routes/revenue';
+import { nowpaymentsWebhookRouter } from './routes/webhooks/nowpayments-webhook';
 import { metricsMiddleware, getMetrics } from '../middleware/prometheus-metrics';
 import { errorHandler } from '../middleware/error-handler';
 
@@ -114,6 +115,9 @@ export class ApiServer {
     this.app.use('/api/signals', signalsRouter);
     this.app.use('/api/admin', adminRouter);
     this.app.use('/api/revenue', revenueRouter);
+
+    // Webhook routes (no rate limit — external provider callbacks)
+    this.app.use('/api/webhooks/nowpayments', nowpaymentsWebhookRouter);
 
     // 404 handler
     this.app.use((_req, res) => {

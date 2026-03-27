@@ -53,8 +53,9 @@ open http://localhost:3002           # Grafana (admin/admin)
 |-----|-------------|
 | `DATABASE_URL` | PostgreSQL connection string |
 | `REDIS_URL` | Redis connection string |
-| `POLAR_API_KEY` | Polar.sh API key for licensing |
-| `POLAR_WEBHOOK_SECRET` | Polar.sh webhook secret |
+| `NOWPAYMENTS_API_KEY` | NOWPayments API key for billing |
+| `NOWPAYMENTS_IPN_SECRET` | NOWPayments IPN secret for webhook verification |
+| `USDT_TRC20_WALLET` | TRC20 wallet address for USDT receivals |
 
 ### Database & Redis
 | Var | Default | Description |

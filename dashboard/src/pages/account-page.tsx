@@ -137,7 +137,7 @@ export function AccountPage() {
               Active <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${badgeClass}`}>{tierLabel}</span> subscription.
             </p>
             <a
-              href="https://polar.sh/cashclaw/portal"
+              href="https://nowpayments.io/dashboard"
               target="_blank"
               rel="noopener noreferrer"
               className="text-xs px-4 py-2 border border-[#2D3142] rounded text-[#00D9FF] hover:bg-[#00D9FF]/10 transition-colors font-mono"

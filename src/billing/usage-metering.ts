@@ -1,11 +1,11 @@
 /**
- * Usage Metering Service - Polar.sh Integration
- * Week 3-4: Billing - Track trades against tier limits and sync with Polar.sh
+ * Usage Metering Service
+ * Track trades against tier limits and sync with payment provider
  *
  * Features:
  * - Track trades per license tier (1k/10k/100k per month)
  * - Calculate overage charges
- * - Sync usage data with Polar.sh via webhooks
+ * - Sync usage data with NOWPayments
  * - Real-time usage monitoring
  */
 
@@ -13,7 +13,7 @@ import { Redis } from 'ioredis';
 import { getRedisClient, type RedisClientType } from '../redis';
 import { logger } from '../utils/logger';
 import { LicenseTier } from '../types/license';
-import { PolarService } from '../billing/polar-service';
+import { NowPaymentsService } from '../billing/nowpayments-service';
 import { EventEmitter } from 'events';
 
 export interface UsageStatus {
@@ -64,7 +64,7 @@ const ALERT_THRESHOLDS = [80, 90, 100];
 export class UsageMeteringService extends EventEmitter {
   private static instance: UsageMeteringService;
   private redis: RedisClientType;
-  private polarService?: PolarService;
+  private nowPaymentsService?: NowPaymentsService;
   private alertedThresholds: Map<string, Set<number>> = new Map();
 
   private constructor() {
@@ -72,12 +72,12 @@ export class UsageMeteringService extends EventEmitter {
     this.redis = getRedisClient();
   }
 
-  static getInstance(polarService?: PolarService): UsageMeteringService {
+  static getInstance(paymentService?: NowPaymentsService): UsageMeteringService {
     if (!UsageMeteringService.instance) {
       UsageMeteringService.instance = new UsageMeteringService();
     }
-    if (polarService) {
-      UsageMeteringService.instance.polarService = polarService;
+    if (paymentService) {
+      UsageMeteringService.instance.nowPaymentsService = paymentService;
     }
     return UsageMeteringService.instance;
   }
@@ -221,11 +221,11 @@ export class UsageMeteringService extends EventEmitter {
   }
 
   /**
-   * Sync usage data with Polar.sh
+   * Sync usage data with payment provider
    */
-  async syncWithPolar(licenseKey: string, tier: LicenseTier): Promise<boolean> {
-    if (!this.polarService) {
-      logger.warn('[UsageMetering] PolarService not configured, skipping sync');
+  async syncUsage(licenseKey: string, tier: LicenseTier): Promise<boolean> {
+    if (!this.nowPaymentsService) {
+      logger.warn('[UsageMetering] NowPaymentsService not configured, skipping sync');
       return false;
     }
 
@@ -233,7 +233,7 @@ export class UsageMeteringService extends EventEmitter {
       const status = this.getUsageStatus(licenseKey, tier);
       const metrics = await this.getMetrics(licenseKey);
 
-      // Prepare usage data for Polar
+      // Prepare usage data for sync
       const usageData = {
         licenseKey,
         period: status.period,
@@ -254,10 +254,10 @@ export class UsageMeteringService extends EventEmitter {
 
       logger.info(`[UsageMetering] Synced usage for ${licenseKey}: ${metrics.totalTrades} trades`);
 
-      this.emit('polar_sync', usageData);
+      this.emit('usage_sync', usageData);
       return true;
     } catch (error) {
-      logger.error('[UsageMetering] Polar sync failed:', { error });
+      logger.error('[UsageMetering] Usage sync failed:', { error });
       return false;
     }
   }
@@ -320,8 +320,8 @@ export class UsageMeteringService extends EventEmitter {
     }
 
     const customerCount = customerSet.size;
-    // Subscription revenue would come from Polar.sh subscription data
-    const subscriptionRevenue = 0; // Placeholder - fetch from PolarService
+    // Subscription revenue from payment provider
+    const subscriptionRevenue = 0; // Placeholder - integrate with payment records
     const totalRevenue = subscriptionRevenue + overageRevenue;
 
     return {

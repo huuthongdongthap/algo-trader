@@ -1,110 +1,78 @@
 /**
- * Polar Subscription Handler
- * Handle subscription lifecycle events from Polar.sh
+ * NOWPayments Subscription Handler
+ * Handle payment lifecycle events from NOWPayments IPN
  */
 
 import { SubscriptionService } from '../../../../billing/subscription-service';
 import { LicenseService } from '../../../../billing/license-service';
 import { AuditLogService } from '../../../../audit/audit-log-service';
+import { NowPaymentsService, NowPaymentsIpnPayload } from '../../../../billing/nowpayments-service';
 import { LicenseTier } from '../../../../types/license';
 
-interface PolarSubscriptionData {
-  id: string;
-  product_id: string;
-  customer_email: string;
-  status: string;
-  current_period_start: string;
-  current_period_end: string;
-  amount?: number;
-  currency?: string;
-}
-
-export async function handleSubscriptionCreated(
-  data: PolarSubscriptionData,
-  subscriptionService: SubscriptionService,
-  auditService: AuditLogService
-): Promise<void> {
-  const tier = mapProductToTier(data.product_id);
-
-  await subscriptionService.createSubscription({
-    polarSubscriptionId: data.id,
-    customerEmail: data.customer_email,
-    productId: data.product_id,
-    status: 'pending',
-    tier,
-    currentPeriodStart: data.current_period_start,
-    currentPeriodEnd: data.current_period_end,
-    amount: data.amount,
-    currency: data.currency,
-  });
-
-  await auditService.log(data.customer_email, 'created', {
-    metadata: {
-      eventType: 'subscription_created',
-      subscriptionId: data.id,
-      tier,
-    },
-  });
-}
-
-export async function handleSubscriptionActive(
-  data: PolarSubscriptionData,
+/**
+ * Handle IPN status=finished → create/activate subscription + license
+ */
+export async function handleIpnFinished(
+  ipn: NowPaymentsIpnPayload,
+  nowpaymentsService: NowPaymentsService,
   subscriptionService: SubscriptionService,
   licenseService: LicenseService,
   auditService: AuditLogService
 ): Promise<void> {
-  let subscription = await subscriptionService.getSubscriptionByPolarId(data.id);
+  const customerRef = ipn.order_id
+    ? nowpaymentsService.parseCustomerRef(ipn.order_id)
+    : null;
+  const customerEmail = customerRef || `payment_${ipn.payment_id}`;
 
-  if (!subscription) {
-    const tier = mapProductToTier(data.product_id);
-    subscription = await subscriptionService.createSubscription({
-      polarSubscriptionId: data.id,
-      customerEmail: data.customer_email,
-      productId: data.product_id,
-      status: 'active',
-      tier,
-      currentPeriodStart: data.current_period_start,
-      currentPeriodEnd: data.current_period_end,
-      amount: data.amount,
-      currency: data.currency,
-    });
-  }
+  // Determine tier from invoice ID
+  const tierConfig = ipn.invoice_id
+    ? nowpaymentsService.getTierByInvoiceId(ipn.invoice_id)
+    : null;
+  const tier = tierConfig?.tier || LicenseTier.PRO;
 
-  const activated = await subscriptionService.activateSubscription(subscription.id);
+  // Check idempotency — skip if already processed
+  const existing = await subscriptionService.getSubscriptionByProviderId(ipn.payment_id);
+  if (existing && existing.status === 'active') return;
 
-  await auditService.log(activated?.licenseId || data.customer_email, 'activated', {
+  // 30-day subscription period
+  const now = new Date();
+  const periodEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+
+  // Create subscription
+  const subscription = await subscriptionService.createSubscription({
+    providerPaymentId: ipn.payment_id,
+    customerEmail,
+    productId: ipn.invoice_id || ipn.payment_id,
+    status: 'active',
+    tier,
+    currentPeriodStart: now.toISOString(),
+    currentPeriodEnd: periodEnd.toISOString(),
+    amount: ipn.price_amount,
+    currency: ipn.price_currency,
+  });
+
+  // Activate and create license
+  await subscriptionService.activateSubscription(subscription.id);
+
+  await auditService.log(customerEmail, 'created', {
     metadata: {
-      eventType: 'subscription_activated',
-      subscriptionId: data.id,
-      tier: subscription.tier,
+      eventType: 'nowpayments_finished',
+      paymentId: ipn.payment_id,
+      tier,
+      amount: ipn.price_amount,
     },
   });
 }
 
-export async function handleSubscriptionUpdated(
-  data: PolarSubscriptionData,
-  subscriptionService: SubscriptionService,
-  licenseService: LicenseService
-): Promise<void> {
-  const subscription = await subscriptionService.getSubscriptionByPolarId(data.id);
-  if (subscription) {
-    const newTier = mapProductToTier(data.product_id);
-    await subscriptionService.updateSubscriptionTier(subscription.id, newTier);
-  }
-}
-
-export async function handleSubscriptionCancelled(
-  data: PolarSubscriptionData,
+/**
+ * Handle IPN status=refunded → cancel subscription
+ */
+export async function handleIpnRefunded(
+  ipn: NowPaymentsIpnPayload,
   subscriptionService: SubscriptionService
 ): Promise<void> {
-  const subscription = await subscriptionService.getSubscriptionByPolarId(data.id);
+  const subscription = await subscriptionService.getSubscriptionByProviderId(ipn.payment_id);
   if (subscription) {
     await subscriptionService.cancelSubscription(subscription.id);
   }
-}
-
-function mapProductToTier(productId: string): LicenseTier {
-  if (productId.includes('enterprise')) return LicenseTier.ENTERPRISE;
-  if (productId.includes('pro') || productId.includes('professional')) return LicenseTier.PRO;
-  return LicenseTier.FREE;
 }

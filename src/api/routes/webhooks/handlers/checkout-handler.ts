@@ -1,16 +1,14 @@
 /**
- * Polar Checkout Handler
- * Handle checkout events from Polar.sh
+ * NOWPayments Checkout Handler
+ * Placeholder for checkout tracking — NOWPayments uses pre-created invoices
  */
 
-interface PolarCheckoutData {
-  id: string;
-  product_id: string;
-  customer_email?: string;
-  status: string;
-  created_at: string;
-}
+import { NowPaymentsIpnPayload } from '../../../../billing/nowpayments-service';
 
-export async function handleCheckoutCreated(data: PolarCheckoutData): Promise<void> {
-  // Track checkout session - no license action needed (pending)
+/**
+ * Track intermediate payment states (waiting, confirming, etc.)
+ * No subscription action needed for intermediate states.
+ */
+export async function handleIpnIntermediate(ipn: NowPaymentsIpnPayload): Promise<void> {
+  // Log intermediate status for monitoring — no action required
 }

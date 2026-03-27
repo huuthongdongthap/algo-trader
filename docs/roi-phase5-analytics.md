@@ -155,7 +155,7 @@ npm run build
 |-------|--------|-------------|-----------|
 | **Phase 1 - GATE** | ✅ | License validation | `raas-gate.ts` |
 | **Phase 2 - LICENSE UI** | ✅ | Admin dashboard | `dashboard/` |
-| **Phase 3 - WEBHOOK** | ✅ | Polar.sh integration | `license-payment-sync.ts` |
+| **Phase 3 - WEBHOOK** | ✅ | NOWPayments integration | `license-payment-sync.ts` |
 | **Phase 4 - METERING** | ✅ | Usage tracking | `usage-metering.ts` |
 | **Phase 5 - ANALYTICS** | ✅ | ROI dashboard | **This Phase** |
 

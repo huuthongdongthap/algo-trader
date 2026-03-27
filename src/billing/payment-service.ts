@@ -1,7 +1,8 @@
 /**
  * Payment Service
- * ROIaaS Phase 3 - Payment tracking and revenue metrics
- * Phase 5 - Integrated with Dunning System for suspension/reinstatement
+ * Payment tracking and revenue metrics
+ * Integrated with Dunning System for suspension/reinstatement
+ * Provider: NOWPayments (USDT TRC20)
  */
 
 import { AuditLogService } from '../audit/audit-log-service';
@@ -11,7 +12,7 @@ import { RevenueMetricsCalculator } from './metrics/revenue-metrics';
 
 export interface Payment {
   id: string;
-  polarPaymentId: string;
+  providerPaymentId: string;
   subscriptionId?: string;
   customerEmail: string;
   amount: number;
@@ -26,7 +27,7 @@ export interface Payment {
 export type PaymentStatus = 'pending' | 'success' | 'failed' | 'refunded';
 
 export interface CreatePaymentInput {
-  polarPaymentId: string;
+  providerPaymentId: string;
   subscriptionId?: string;
   customerEmail: string;
   amount: number;
@@ -75,7 +76,7 @@ export class PaymentService {
 
     const payment: Payment = {
       id,
-      polarPaymentId: input.polarPaymentId,
+      providerPaymentId: input.providerPaymentId,
       subscriptionId: input.subscriptionId,
       customerEmail: input.customerEmail,
       amount: input.amount,
@@ -95,11 +96,9 @@ export class PaymentService {
     return this.payments.get(id);
   }
 
-  async getPaymentByPolarId(polarId: string): Promise<Payment | undefined> {
+  async getPaymentByProviderId(providerId: string): Promise<Payment | undefined> {
     for (const payment of this.payments.values()) {
-      if (payment.polarPaymentId === polarId) {
-        return payment;
-      }
+      if (payment.providerPaymentId === providerId) return payment;
     }
     return undefined;
   }
@@ -121,14 +120,14 @@ export class PaymentService {
   }
 
   async recordPaymentSuccess(
-    polarPaymentId: string,
+    providerPaymentId: string,
     customerEmail: string,
     amount: number,
     currency: string,
     subscriptionId?: string
   ): Promise<Payment> {
     const payment = await this.createPayment({
-      polarPaymentId,
+      providerPaymentId,
       customerEmail,
       amount,
       currency,
@@ -141,14 +140,14 @@ export class PaymentService {
   }
 
   async recordPaymentFailed(
-    polarPaymentId: string,
+    providerPaymentId: string,
     customerEmail: string,
     amount: number,
     currency: string,
     subscriptionId?: string
   ): Promise<Payment> {
     const payment = await this.createPayment({
-      polarPaymentId,
+      providerPaymentId,
       customerEmail,
       amount,
       currency,

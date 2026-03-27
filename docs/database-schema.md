@@ -72,4 +72,4 @@ Persistent license records (replaces in-memory Map on restart).
 | tenantId | string? | Multi-tenant identifier |
 | domain | string? | Allowed domain restriction |
 | expiresAt | ISO string? | Expiry date (null = never) |
-| subscriptionId | string? | Polar.sh subscription ID link |
+| invoiceId | string? | NOWPayments invoice ID link |

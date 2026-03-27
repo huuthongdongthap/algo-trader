@@ -7,11 +7,11 @@
 
 ## Overview
 
-Subscription management API for Polar.sh integration with license tier control.
+Subscription management API for NOWPayments integration with license tier control.
 
 **Features:**
 - License status checking
-- Polar checkout creation
+- NOWPayments invoice creation
 - Manual license activation/downgrade (admin only)
 - Rate limiting per API key
 - Full audit logging
@@ -72,7 +72,7 @@ X-API-Key: your-api-key
 
 ### POST /api/subscription/checkout
 
-Create Polar checkout session for subscription upgrade.
+Create NOWPayments invoice for subscription upgrade.
 
 **Request:**
 ```http
@@ -90,21 +90,23 @@ Content-Type: application/json
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `tier` | string | Yes | `pro` or `enterprise` |
-| `customerEmail` | string | No | Pre-fill customer email |
+| `customerEmail` | string | No | Customer email for invoice |
 
 **Response (200 OK):**
 ```json
 {
-  "checkoutUrl": "https://polar.sh/checkout/abc123",
-  "checkoutId": "chk_abc123"
+  "invoiceUrl": "https://nowpayments.io/invoice/abc123",
+  "invoiceId": "inv_abc123",
+  "amount": "49.00",
+  "currency": "USDT_TRC20"
 }
 ```
 
 **Flow:**
 1. Call this endpoint
-2. Redirect user to `checkoutUrl`
-3. User completes payment on Polar
-4. Polar sends webhook → license activated automatically
+2. Redirect user to `invoiceUrl`
+3. User completes USDT payment on NOWPayments
+4. NOWPayments sends IPN webhook → license activated automatically
 
 **Errors:**
 | Code | Message | Description |
@@ -182,32 +184,32 @@ X-API-Key: admin-api-key
 
 ## Webhook Integration
 
-### Polar Webhooks
+### NOWPayments Webhooks
 
 **Endpoint:** `POST /api/v1/billing/webhook`
 
 **Events Handled:**
-- `subscription.created` → Activate PRO/ENTERPRISE
-- `subscription.active` → Set/upgrade tier
-- `subscription.updated` → Update tier
-- `subscription.cancelled` → Downgrade to FREE
-- `checkout.created` → Log only
+- `payment_status_track_update` with `is_final_amount_received: true` → Activate PRO/ENTERPRISE
+- `invoice.paid` → Activate tier based on invoice amount
+- `invoice.partially_paid` → Log payment progress
+- `invoice.expired` → Mark invoice as expired
+- `invoice.created` → Log only
 
 **Security:**
-- HMAC-SHA256 signature verification
+- HMAC-SHA512 signature verification (x-nowpayments-sig header)
+- IPN secret validation
 - Idempotency key deduplication
-- Timestamp validation (5-min window)
 
 **Webhook Payload:**
 ```json
 {
-  "type": "subscription.created",
-  "data": {
-    "object": {
-      "id": "sub_123",
-      "product_id": "pro-monthly"
-    }
-  }
+  "invoice_id": "inv_abc123",
+  "order_id": "order_123",
+  "payment_status": "finished",
+  "pay_amount": "49.00",
+  "pay_currency": "USDT_TRC20",
+  "is_final_amount_received": true,
+  "created_at": "2026-03-27T10:00:00Z"
 }
 ```
 
@@ -316,4 +318,4 @@ def create_checkout(api_key: str, tier: str):
 - [Security Audit Report](../plans/reports/security-audit-subscription-260305-2320.md)
 - [Phase 5 Production Config](../plans/reports/phase5-production-config-260305-2314.md)
 - [RAAS Gate Implementation](../src/lib/raas-gate.ts)
-- [Polar Webhook Handler](../src/api/routes/webhooks/polar-webhook.ts)
+- [NOWPayments Webhook Handler](../src/api/routes/webhooks/nowpayments-webhook.ts)

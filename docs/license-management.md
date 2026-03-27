@@ -69,55 +69,52 @@ curl -X POST https://api.algo-trader.com/api/v1/licenses \
 
 ---
 
-## Phase 3: Polar.sh Webhook Integration
+## Phase 3: NOWPayments Webhook Integration
 
-**ROIaaS Phase 3** — Automated license management via Polar.sh payment webhooks.
+**ROIaaS Phase 3** — Automated license management via NOWPayments payment webhooks.
 
 ### Webhook Endpoint
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `POST` | `/api/v1/webhooks/polar` | Polar.sh webhook handler |
+| `POST` | `/api/v1/webhooks/nowpayments` | NOWPayments webhook handler |
 
 ### Supported Webhook Events
 
 | Event | Action | License Impact |
 |-------|--------|----------------|
-| `subscription.created` | Create subscription record | Activate PRO/ENTERPRISE license |
-| `subscription.active` | Update subscription status | Set/upgrade license tier |
-| `subscription.updated` | Update tier/period | Update license tier |
-| `subscription.cancelled` | Mark as cancelled | Downgrade to FREE license |
-| `checkout.created` | Track checkout session | No license change (pending) |
-| `payment.success` | Record payment | Maintain current tier |
-| `payment.failed` | Record failed payment | Flag for review |
+| `payment_status_track_update` (is_final_amount_received: true) | Record payment received | Activate PRO/ENTERPRISE license |
+| `invoice.paid` | Mark invoice as paid | Activate license tier per amount |
+| `invoice.partially_paid` | Record partial payment | Update license if threshold met |
+| `invoice.expired` | Mark invoice expired | Flag for review, no tier change |
+| `invoice.created` | Track invoice session | No license change (pending) |
 
 ### Webhook Payload Example
 
 ```json
 {
-  "type": "subscription.active",
-  "data": {
-    "object": {
-      "id": "sub_2JZ9X8Y7W6V5U4T3",
-      "product_id": "pro-monthly",
-      "customer_email": "user@example.com",
-      "status": "active",
-      "current_period_start": "2026-03-01T00:00:00Z",
-      "current_period_end": "2026-04-01T00:00:00Z"
-    }
-  }
+  "invoice_id": "inv_abc123",
+  "order_id": "order_123",
+  "order_description": "PRO License (Monthly)",
+  "payment_status": "finished",
+  "pay_amount": "49.00",
+  "pay_currency": "USDT_TRC20",
+  "is_final_amount_received": true,
+  "customer_email": "user@example.com",
+  "created_at": "2026-03-27T10:00:00Z",
+  "updated_at": "2026-03-27T10:15:00Z"
 }
 ```
 
 ### Webhook Signature Verification
 
-Polar.sh webhooks are signed using HMAC-SHA256. Verify signatures using:
+NOWPayments webhooks are signed using HMAC-SHA512 in the `x-nowpayments-sig` header. Verify signatures using:
 
 ```typescript
-import { PolarService } from '../payment/polar-service';
+import { NOWPaymentsService } from '../payment/nowpayments-service';
 
-const polarService = PolarService.getInstance();
-const isValid = await polarService.verifyWebhook(payload, signature);
+const nowpayments = NOWPaymentsService.getInstance();
+const isValid = await nowpayments.verifyWebhookSignature(payload, signature);
 ```
 
 ### Configuration
@@ -125,20 +122,22 @@ const isValid = await polarService.verifyWebhook(payload, signature);
 Add to `.env`:
 
 ```bash
-# Polar.sh Configuration
-POLAR_API_KEY=sk_polar_...
-POLAR_WEBHOOK_SECRET=whsec_...
-POLAR_SUCCESS_URL=https://algo-trader.com/upgrade/success
+# NOWPayments Configuration
+NOWPAYMENTS_API_KEY=api_key_...
+NOWPAYMENTS_IPN_SECRET=ipn_secret_...
+USDT_TRC20_WALLET=TQz5SqV94hHz2USUbM7opHHVxvF2dgeG65
+NOWPAYMENTS_INVOICE_PRO=49.00
+NOWPAYMENTS_INVOICE_ENTERPRISE=299.00
 ```
 
 ### Payment-License Sync
 
 The `LicensePaymentSync` service tracks:
 
-- **Payment records**: Order ID, amount, currency, status
-- **Subscription records**: Subscription ID, tier, interval, period dates
-- **Revenue metrics**: MRR, total revenue, average license value
-- **Payment status distribution**: Success/failed/pending/refunded counts
+- **Payment records**: Invoice ID, amount, currency (USDT_TRC20), payment status
+- **License records**: Tier (FREE/PRO/ENTERPRISE), activation date, expiration date
+- **Revenue metrics**: Monthly revenue, total revenue, average license value
+- **Payment status distribution**: Finished/incomplete/expired/failed counts
 
 ### Revenue Analytics
 

@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
-const isCloudDeploy = process.env.CF_PAGES === '1' || process.env.VERCEL === '1';
+const isCloudDeploy = process.env.CF_PAGES === '1';
 
 export default defineConfig({
   plugins: [react()],

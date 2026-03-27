@@ -1,6 +1,6 @@
 /**
  * Payment Service Tests
- * ROIaaS Phase 3 - Payment tracking and revenue metrics tests
+ * Payment tracking and revenue metrics tests (NOWPayments provider)
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
@@ -25,7 +25,7 @@ describe('PaymentService', () => {
   describe('createPayment', () => {
     it('should create payment with correct properties', async () => {
       const input = {
-        polarPaymentId: 'pol_pay_123',
+        providerPaymentId: 'np_pay_123',
         customerEmail: 'test@example.com',
         amount: 49.0,
         currency: 'USD',
@@ -36,7 +36,7 @@ describe('PaymentService', () => {
       const payment = await service.createPayment(input);
 
       expect(payment.id).toMatch(/^pay_/);
-      expect(payment.polarPaymentId).toBe('pol_pay_123');
+      expect(payment.providerPaymentId).toBe('np_pay_123');
       expect(payment.customerEmail).toBe('test@example.com');
       expect(payment.amount).toBe(49.0);
       expect(payment.currency).toBe('USD');
@@ -47,7 +47,7 @@ describe('PaymentService', () => {
   describe('getPayment', () => {
     it('should get payment by id', async () => {
       const created = await service.createPayment({
-        polarPaymentId: 'pol_pay_123',
+        providerPaymentId: 'np_pay_123',
         customerEmail: 'test@example.com',
         amount: 49.0,
         currency: 'USD',
@@ -66,23 +66,23 @@ describe('PaymentService', () => {
     });
   });
 
-  describe('getPaymentByPolarId', () => {
-    it('should get payment by polar payment id', async () => {
-      const created = await service.createPayment({
-        polarPaymentId: 'pol_pay_unique_123',
+  describe('getPaymentByProviderId', () => {
+    it('should get payment by provider payment id', async () => {
+      await service.createPayment({
+        providerPaymentId: 'np_pay_unique_123',
         customerEmail: 'test@example.com',
         amount: 49.0,
         currency: 'USD',
         status: 'success',
       });
 
-      const retrieved = await service.getPaymentByPolarId('pol_pay_unique_123');
+      const retrieved = await service.getPaymentByProviderId('np_pay_unique_123');
 
-      expect(retrieved?.polarPaymentId).toBe('pol_pay_unique_123');
+      expect(retrieved?.providerPaymentId).toBe('np_pay_unique_123');
     });
 
-    it('should return undefined for non-existent polar id', async () => {
-      const result = await service.getPaymentByPolarId('non-existent-polar');
+    it('should return undefined for non-existent provider id', async () => {
+      const result = await service.getPaymentByProviderId('non-existent');
       expect(result).toBeUndefined();
     });
   });
@@ -91,14 +91,14 @@ describe('PaymentService', () => {
     it('should get all payments for a customer', async () => {
       const email = 'customer@example.com';
       await service.createPayment({
-        polarPaymentId: 'pol_pay_1',
+        providerPaymentId: 'np_pay_1',
         customerEmail: email,
         amount: 49.0,
         currency: 'USD',
         status: 'success',
       });
       await service.createPayment({
-        polarPaymentId: 'pol_pay_2',
+        providerPaymentId: 'np_pay_2',
         customerEmail: email,
         amount: 149.0,
         currency: 'USD',
@@ -115,7 +115,7 @@ describe('PaymentService', () => {
   describe('updatePaymentStatus', () => {
     it('should update payment status', async () => {
       const payment = await service.createPayment({
-        polarPaymentId: 'pol_pay_123',
+        providerPaymentId: 'np_pay_123',
         customerEmail: 'test@example.com',
         amount: 49.0,
         currency: 'USD',
@@ -137,7 +137,7 @@ describe('PaymentService', () => {
   describe('recordPaymentSuccess', () => {
     it('should create payment and log audit event', async () => {
       const payment = await service.recordPaymentSuccess(
-        'pol_pay_123',
+        'np_pay_123',
         'test@example.com',
         49.0,
         'USD',
@@ -146,14 +146,14 @@ describe('PaymentService', () => {
 
       expect(payment.status).toBe('success');
       expect(payment.amount).toBe(49.0);
-      expect(payment.polarPaymentId).toBe('pol_pay_123');
+      expect(payment.providerPaymentId).toBe('np_pay_123');
     });
   });
 
   describe('recordPaymentFailed', () => {
     it('should create failed payment and trigger dunning', async () => {
       const payment = await service.recordPaymentFailed(
-        'pol_pay_123',
+        'np_pay_123',
         'test@example.com',
         49.0,
         'USD',
@@ -168,14 +168,14 @@ describe('PaymentService', () => {
   describe('getAllPayments', () => {
     it('should return all payments', async () => {
       await service.createPayment({
-        polarPaymentId: 'pol_pay_1',
+        providerPaymentId: 'np_pay_1',
         customerEmail: 'test1@example.com',
         amount: 49.0,
         currency: 'USD',
         status: 'success',
       });
       await service.createPayment({
-        polarPaymentId: 'pol_pay_2',
+        providerPaymentId: 'np_pay_2',
         customerEmail: 'test2@example.com',
         amount: 149.0,
         currency: 'USD',
@@ -191,14 +191,14 @@ describe('PaymentService', () => {
   describe('getRevenueMetrics', () => {
     it('should calculate total revenue from successful payments', async () => {
       await service.createPayment({
-        polarPaymentId: 'pol_pay_1',
+        providerPaymentId: 'np_pay_1',
         customerEmail: 'test1@example.com',
         amount: 100,
         currency: 'USD',
         status: 'success',
       });
       await service.createPayment({
-        polarPaymentId: 'pol_pay_2',
+        providerPaymentId: 'np_pay_2',
         customerEmail: 'test2@example.com',
         amount: 200,
         currency: 'USD',
@@ -212,14 +212,14 @@ describe('PaymentService', () => {
 
     it('should exclude failed payments from revenue', async () => {
       await service.createPayment({
-        polarPaymentId: 'pol_pay_1',
+        providerPaymentId: 'np_pay_1',
         customerEmail: 'test1@example.com',
         amount: 100,
         currency: 'USD',
         status: 'success',
       });
       await service.createPayment({
-        polarPaymentId: 'pol_pay_2',
+        providerPaymentId: 'np_pay_2',
         customerEmail: 'test2@example.com',
         amount: 200,
         currency: 'USD',
@@ -233,21 +233,21 @@ describe('PaymentService', () => {
 
     it('should calculate payment success rate', async () => {
       await service.createPayment({
-        polarPaymentId: 'pol_pay_1',
+        providerPaymentId: 'np_pay_1',
         customerEmail: 'test1@example.com',
         amount: 100,
         currency: 'USD',
         status: 'success',
       });
       await service.createPayment({
-        polarPaymentId: 'pol_pay_2',
+        providerPaymentId: 'np_pay_2',
         customerEmail: 'test2@example.com',
         amount: 100,
         currency: 'USD',
         status: 'success',
       });
       await service.createPayment({
-        polarPaymentId: 'pol_pay_3',
+        providerPaymentId: 'np_pay_3',
         customerEmail: 'test3@example.com',
         amount: 100,
         currency: 'USD',
@@ -267,21 +267,21 @@ describe('PaymentService', () => {
 
     it('should calculate payment status distribution', async () => {
       await service.createPayment({
-        polarPaymentId: 'pol_pay_1',
+        providerPaymentId: 'np_pay_1',
         customerEmail: 'test1@example.com',
         amount: 100,
         currency: 'USD',
         status: 'success',
       });
       await service.createPayment({
-        polarPaymentId: 'pol_pay_2',
+        providerPaymentId: 'np_pay_2',
         customerEmail: 'test2@example.com',
         amount: 100,
         currency: 'USD',
         status: 'failed',
       });
       await service.createPayment({
-        polarPaymentId: 'pol_pay_3',
+        providerPaymentId: 'np_pay_3',
         customerEmail: 'test3@example.com',
         amount: 100,
         currency: 'USD',
@@ -298,14 +298,14 @@ describe('PaymentService', () => {
 
     it('should calculate avg license value', async () => {
       await service.createPayment({
-        polarPaymentId: 'pol_pay_1',
+        providerPaymentId: 'np_pay_1',
         customerEmail: 'unique1@example.com',
         amount: 100,
         currency: 'USD',
         status: 'success',
       });
       await service.createPayment({
-        polarPaymentId: 'pol_pay_2',
+        providerPaymentId: 'np_pay_2',
         customerEmail: 'unique2@example.com',
         amount: 200,
         currency: 'USD',

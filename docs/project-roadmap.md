@@ -48,7 +48,7 @@
 - [x] `/metrics` endpoint — heap, uptime, trades, circuit breaker ✅
 - [x] Deployment guide (Docker/K8s) — `docs/deployment-guide.md` ✅
 - [x] E2E integration tests (7 tests — health, metrics, auth, 404) ✅
-- [x] Polar.sh billing integration ✅ (subscription service, webhook handler, 22 tests)
+- [x] NOWPayments billing integration ✅ (USDT TRC20, invoice creation, webhook handler, HMAC-SHA512)
 - [x] Load/stress testing ✅ (7 benchmarks, 7k-23k RPS, p95 < 14ms)
 
 ## Phase 5: Intelligence & Growth (In Progress)

@@ -25,9 +25,9 @@ export const config = {
   DUNNING_ENABLED: process.env.DUNNING_ENABLED || 'true',
   DUNNING_GRACE_PERIOD_DAYS: process.env.DUNNING_GRACE_PERIOD_DAYS || '7',
 
-  // Polar.sh Configuration
-  POLAR_API_KEY: process.env.POLAR_API_KEY || '',
-  POLAR_WEBHOOK_SECRET: process.env.POLAR_WEBHOOK_SECRET || '',
+  // NOWPayments Configuration (USDT TRC20)
+  NOWPAYMENTS_API_KEY: process.env.NOWPAYMENTS_API_KEY || '',
+  NOWPAYMENTS_IPN_SECRET: process.env.NOWPAYMENTS_IPN_SECRET || '',
 
   // Email Configuration (SendGrid)
   SENDGRID_API_KEY: process.env.SENDGRID_API_KEY || '',
@@ -65,8 +65,8 @@ const REQUIRED_NOTIFICATION_VARS = [
  * Optional environment variables (won't fail startup if missing)
  */
 const OPTIONAL_VARS = [
-  'POLAR_API_KEY',
-  'POLAR_WEBHOOK_SECRET',
+  'NOWPAYMENTS_API_KEY',
+  'NOWPAYMENTS_IPN_SECRET',
   'REDIS_HOST',
   'REDIS_PORT',
   'REDIS_PASSWORD',
@@ -119,7 +119,7 @@ export function logConfigStatus(): void {
     sendgrid: config.SENDGRID_API_KEY ? 'configured' : 'MISSING',
     twilio: config.TWILIO_ACCOUNT_SID ? 'configured' : 'MISSING',
     telegram: config.TELEGRAM_BOT_TOKEN ? 'configured' : 'MISSING',
-    polar: config.POLAR_API_KEY ? 'configured' : 'MISSING',
+    nowpayments: config.NOWPAYMENTS_API_KEY ? 'configured' : 'MISSING',
     redis: `${config.REDIS_HOST}:${config.REDIS_PORT}`,
   };
 

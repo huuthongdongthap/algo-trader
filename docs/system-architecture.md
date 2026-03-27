@@ -136,7 +136,7 @@ graph TD
 - Workers: backtest runner, scan detector, signed webhook delivery, grid search optimizer.
 
 **Billing** (`src/billing/`):
-- Polar.sh — 3 tiers (FREE $0, PRO $49, ENTERPRISE custom), HMAC-SHA256 webhook verification.
+- NOWPayments USDT TRC20 — 3 tiers (FREE $0, PRO $49, ENTERPRISE $299), HMAC-SHA512 webhook verification.
 
 **Monitoring** (`docker-compose.yml`):
 - Prometheus (:9090) + Grafana (:3001).

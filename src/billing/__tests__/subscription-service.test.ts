@@ -1,6 +1,6 @@
 /**
  * Subscription Service Tests
- * ROIaaS Phase 3 - Polar.sh subscription lifecycle management tests
+ * Payment provider-agnostic subscription lifecycle management tests
  */
 
 import { describe, it, expect, beforeEach } from 'vitest';
@@ -22,7 +22,7 @@ describe('SubscriptionService', () => {
   describe('createSubscription', () => {
     it('should create subscription with correct properties', async () => {
       const input = {
-        polarSubscriptionId: 'pol_sub_123',
+        providerPaymentId: 'np_pay_123',
         customerEmail: 'test@example.com',
         productId: 'prod_123',
         status: 'pending' as const,
@@ -36,7 +36,7 @@ describe('SubscriptionService', () => {
       const subscription = await service.createSubscription(input);
 
       expect(subscription.id).toMatch(/^sub_/);
-      expect(subscription.polarSubscriptionId).toBe('pol_sub_123');
+      expect(subscription.providerPaymentId).toBe('np_pay_123');
       expect(subscription.customerEmail).toBe('test@example.com');
       expect(subscription.tier).toBe(LicenseTier.PRO);
       expect(subscription.status).toBe('pending');
@@ -48,7 +48,7 @@ describe('SubscriptionService', () => {
   describe('getSubscription', () => {
     it('should get subscription by id', async () => {
       const created = await service.createSubscription({
-        polarSubscriptionId: 'pol_sub_123',
+        providerPaymentId: 'np_pay_123',
         customerEmail: 'test@example.com',
         productId: 'prod_123',
         status: 'active',
@@ -69,10 +69,10 @@ describe('SubscriptionService', () => {
     });
   });
 
-  describe('getSubscriptionByPolarId', () => {
-    it('should get subscription by polar subscription id', async () => {
+  describe('getSubscriptionByProviderId', () => {
+    it('should get subscription by provider payment id', async () => {
       const created = await service.createSubscription({
-        polarSubscriptionId: 'pol_sub_unique_123',
+        providerPaymentId: 'np_pay_unique_123',
         customerEmail: 'test@example.com',
         productId: 'prod_123',
         status: 'active',
@@ -81,14 +81,14 @@ describe('SubscriptionService', () => {
         currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
       });
 
-      const retrieved = await service.getSubscriptionByPolarId('pol_sub_unique_123');
+      const retrieved = await service.getSubscriptionByProviderId('np_pay_unique_123');
 
       expect(retrieved?.id).toBe(created.id);
-      expect(retrieved?.polarSubscriptionId).toBe('pol_sub_unique_123');
+      expect(retrieved?.providerPaymentId).toBe('np_pay_unique_123');
     });
 
-    it('should return undefined for non-existent polar id', async () => {
-      const result = await service.getSubscriptionByPolarId('non-existent-polar-id');
+    it('should return undefined for non-existent provider id', async () => {
+      const result = await service.getSubscriptionByProviderId('non-existent-id');
       expect(result).toBeUndefined();
     });
   });
@@ -97,7 +97,7 @@ describe('SubscriptionService', () => {
     it('should get all subscriptions for a customer', async () => {
       const email = 'customer@example.com';
       await service.createSubscription({
-        polarSubscriptionId: 'pol_sub_1',
+        providerPaymentId: 'np_pay_1',
         customerEmail: email,
         productId: 'prod_1',
         status: 'active',
@@ -106,7 +106,7 @@ describe('SubscriptionService', () => {
         currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
       });
       await service.createSubscription({
-        polarSubscriptionId: 'pol_sub_2',
+        providerPaymentId: 'np_pay_2',
         customerEmail: email,
         productId: 'prod_2',
         status: 'active',
@@ -125,7 +125,7 @@ describe('SubscriptionService', () => {
   describe('updateSubscriptionStatus', () => {
     it('should update subscription status', async () => {
       const subscription = await service.createSubscription({
-        polarSubscriptionId: 'pol_sub_123',
+        providerPaymentId: 'np_pay_123',
         customerEmail: 'test@example.com',
         productId: 'prod_123',
         status: 'pending',
@@ -142,7 +142,7 @@ describe('SubscriptionService', () => {
 
     it('should set cancelledAt when status is cancelled', async () => {
       const subscription = await service.createSubscription({
-        polarSubscriptionId: 'pol_sub_123',
+        providerPaymentId: 'np_pay_123',
         customerEmail: 'test@example.com',
         productId: 'prod_123',
         status: 'active',
@@ -166,7 +166,7 @@ describe('SubscriptionService', () => {
   describe('activateSubscription', () => {
     it('should activate subscription and create license', async () => {
       const subscription = await service.createSubscription({
-        polarSubscriptionId: 'pol_sub_123',
+        providerPaymentId: 'np_pay_123',
         customerEmail: 'test@example.com',
         productId: 'prod_123',
         status: 'pending',
@@ -186,7 +186,7 @@ describe('SubscriptionService', () => {
   describe('cancelSubscription', () => {
     it('should cancel subscription and downgrade license to FREE', async () => {
       const subscription = await service.createSubscription({
-        polarSubscriptionId: 'pol_sub_123',
+        providerPaymentId: 'np_pay_123',
         customerEmail: 'test@example.com',
         productId: 'prod_123',
         status: 'active',
@@ -195,10 +195,7 @@ describe('SubscriptionService', () => {
         currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
       });
 
-      // Activate first to create license
       await service.activateSubscription(subscription.id);
-      const updatedSubscription = await service.getSubscription(subscription.id);
-
       const cancelled = await service.cancelSubscription(subscription.id);
 
       expect(cancelled?.status).toBe('cancelled');
@@ -213,7 +210,7 @@ describe('SubscriptionService', () => {
   describe('updateSubscriptionTier', () => {
     it('should update subscription tier', async () => {
       const subscription = await service.createSubscription({
-        polarSubscriptionId: 'pol_sub_123',
+        providerPaymentId: 'np_pay_123',
         customerEmail: 'test@example.com',
         productId: 'prod_123',
         status: 'active',
@@ -232,7 +229,7 @@ describe('SubscriptionService', () => {
   describe('getAllSubscriptions', () => {
     it('should return all subscriptions', async () => {
       await service.createSubscription({
-        polarSubscriptionId: 'pol_sub_1',
+        providerPaymentId: 'np_pay_1',
         customerEmail: 'test1@example.com',
         productId: 'prod_1',
         status: 'active',
@@ -241,7 +238,7 @@ describe('SubscriptionService', () => {
         currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
       });
       await service.createSubscription({
-        polarSubscriptionId: 'pol_sub_2',
+        providerPaymentId: 'np_pay_2',
         customerEmail: 'test2@example.com',
         productId: 'prod_2',
         status: 'active',

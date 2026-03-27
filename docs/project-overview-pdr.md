@@ -46,6 +46,7 @@ Algo Trader is a **RaaS (Robot-as-a-Service)** automated trading platform — No
 - TensorFlow.js (GRU, Q-learning), Winston, Jest, Commander CLI
 - React 19, Vite 6, Tailwind CSS, Zustand 5 (dashboard)
 - Docker + docker-compose, Prometheus + Grafana
+- NOWPayments USDT TRC20 for billing & subscriptions
 
 ## Acceptance Criteria
 ✅ **All Completed (Phases 1–17)**

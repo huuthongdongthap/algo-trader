@@ -1,6 +1,7 @@
 /**
  * Subscription Service
- * ROIaaS Phase 3 - Polar.sh subscription lifecycle management
+ * Payment provider-agnostic subscription lifecycle management
+ * Supports NOWPayments (crypto) as primary provider
  */
 
 import { LicenseService } from './license-service';
@@ -9,7 +10,7 @@ import { LicenseTier, LicenseStatus } from '../types/license';
 
 export interface Subscription {
   id: string;
-  polarSubscriptionId: string;
+  providerPaymentId: string;
   customerEmail: string;
   productId: string;
   status: SubscriptionStatus;
@@ -27,7 +28,7 @@ export interface Subscription {
 export type SubscriptionStatus = 'pending' | 'active' | 'cancelled' | 'expired';
 
 export interface CreateSubscriptionInput {
-  polarSubscriptionId: string;
+  providerPaymentId: string;
   customerEmail: string;
   productId: string;
   status: SubscriptionStatus;
@@ -59,7 +60,7 @@ export class SubscriptionService {
     const now = new Date().toISOString();
     const subscription: Subscription = {
       id,
-      polarSubscriptionId: input.polarSubscriptionId,
+      providerPaymentId: input.providerPaymentId,
       customerEmail: input.customerEmail,
       productId: input.productId,
       status: input.status,
@@ -79,9 +80,9 @@ export class SubscriptionService {
     return this.subscriptions.get(id);
   }
 
-  async getSubscriptionByPolarId(polarId: string): Promise<Subscription | undefined> {
+  async getSubscriptionByProviderId(providerId: string): Promise<Subscription | undefined> {
     for (const sub of this.subscriptions.values()) {
-      if (sub.polarSubscriptionId === polarId) return sub;
+      if (sub.providerPaymentId === providerId) return sub;
     }
     return undefined;
   }
@@ -119,7 +120,7 @@ export class SubscriptionService {
     if (!sub) return undefined;
 
     const license = await this.licenseService.createLicense({
-      name: `Subscription ${sub.polarSubscriptionId}`,
+      name: `Subscription ${sub.providerPaymentId}`,
       tier: sub.tier,
       expiresAt: sub.currentPeriodEnd,
     });
@@ -130,7 +131,7 @@ export class SubscriptionService {
 
     await this.auditService.log(license.id, 'activated', {
       tier: sub.tier,
-      metadata: { subscriptionId: sub.polarSubscriptionId, customerEmail: sub.customerEmail },
+      metadata: { paymentId: sub.providerPaymentId, customerEmail: sub.customerEmail },
     });
 
     return sub;

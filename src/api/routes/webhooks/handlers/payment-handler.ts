@@ -1,41 +1,47 @@
 /**
- * Polar Payment Handler
- * Handle payment events from Polar.sh
+ * NOWPayments Payment Handler
+ * Handle payment events from NOWPayments IPN with idempotency
  */
 
 import { PaymentService } from '../../../../billing/payment-service';
+import { NowPaymentsIpnPayload } from '../../../../billing/nowpayments-service';
 
-interface PolarPaymentData {
-  id: string;
-  amount: number;
-  currency: string;
-  status: string;
-  customer_email?: string;
-  subscription_id?: string;
-}
-
-export async function handlePaymentSuccess(
-  data: PolarPaymentData,
+/**
+ * Record successful payment (IPN status=finished)
+ * Idempotent: skips if payment_id already recorded
+ */
+export async function handleIpnPaymentSuccess(
+  ipn: NowPaymentsIpnPayload,
   paymentService: PaymentService
 ): Promise<void> {
+  const existing = await paymentService.getPaymentByProviderId(ipn.payment_id);
+  if (existing) return;
+
   await paymentService.recordPaymentSuccess(
-    data.id,
-    data.customer_email || '',
-    data.amount,
-    data.currency,
-    data.subscription_id
+    ipn.payment_id,
+    ipn.order_id || '',
+    ipn.price_amount,
+    ipn.price_currency,
+    ipn.invoice_id
   );
 }
 
-export async function handlePaymentFailed(
-  data: PolarPaymentData,
+/**
+ * Record failed payment (IPN status=failed/expired/refunded)
+ * Idempotent: skips if payment_id already recorded
+ */
+export async function handleIpnPaymentFailed(
+  ipn: NowPaymentsIpnPayload,
   paymentService: PaymentService
 ): Promise<void> {
+  const existing = await paymentService.getPaymentByProviderId(ipn.payment_id);
+  if (existing) return;
+
   await paymentService.recordPaymentFailed(
-    data.id,
-    data.customer_email || '',
-    data.amount,
-    data.currency,
-    data.subscription_id
+    ipn.payment_id,
+    ipn.order_id || '',
+    ipn.price_amount,
+    ipn.price_currency,
+    ipn.invoice_id
   );
 }

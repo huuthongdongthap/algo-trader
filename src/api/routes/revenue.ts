@@ -194,7 +194,7 @@ function getCurrentPeriod(): string {
 }
 
 function calculateMRR(): MRRResponse {
-  // Placeholder - would integrate with PolarService for actual subscription data
+  // Placeholder - would integrate with NowPaymentsService for actual subscription data
   const subscriptionMRR = 0;
   const overageMRR = 0;
   const currentMRR = subscriptionMRR + overageMRR;
@@ -213,7 +213,7 @@ function calculateMRR(): MRRResponse {
 }
 
 function calculateChurn(period: string): ChurnMetrics {
-  // Placeholder - would integrate with PolarService for actual churn data
+  // Placeholder - would integrate with NowPaymentsService for actual churn data
   return {
     period,
     totalCustomers: 0,
