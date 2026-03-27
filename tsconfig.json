@@ -1,29 +1,40 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "ES2022",
-    "moduleResolution": "bundler",
+    "module": "commonjs",
+    "outDir": "./dist",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true,
-    "outDir": "./dist",
-    "rootDir": "./src",
-    "baseUrl": ".",
+    "jsx": "react",
+    "types": ["node", "jest", "react"],
+    "isolatedModules": false,
+    "typeRoots": ["./node_modules/@types", "../../node_modules/@types", "../../node_modules/.pnpm/node_modules/@types", "../../packages/trading-core/types"],
     "paths": {
-      "@core/*": ["src/core/*"],
-      "@polymarket/*": ["src/polymarket/*"],
-      "@cex/*": ["src/cex/*"],
-      "@dex/*": ["src/dex/*"],
-      "@strategies/*": ["src/strategies/*"],
-      "@data/*": ["src/data/*"],
-      "@cli/*": ["src/cli/*"]
-    }
+      "@agencyos/trading-core": ["../../packages/trading-core/index.ts"],
+      "@agencyos/trading-core/*": ["../../packages/trading-core/*"],
+      "@agencyos/vibe-billing-trading": ["../../packages/vibe-billing-trading/index.ts"],
+      "@agencyos/vibe-billing-trading/*": ["../../packages/vibe-billing-trading/*"]
+    },
+    "incremental": true,
+    "composite": false,
+    "declaration": true,
+    "downlevelIteration": true,
+    "lib": ["ES2023"],
+    "baseUrl": ".",
+    "rootDir": "./src"
   },
-  "include": ["src/**/*.ts"],
-  "exclude": ["node_modules", "dist", "tests"]
+  "include": [
+    "src/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "node_modules/.cache",
+    "**/*.test.ts",
+    "src/api/routes/monitoring-routes.ts",
+    "src/api/routes/monitoring-routes-extension.ts",
+    "dist"
+  ]
 }

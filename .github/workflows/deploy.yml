@@ -1,43 +1,172 @@
-name: Deploy
+name: Deploy to Production
 
 on:
-  # Only deploy after CI workflow completes successfully on main
-  workflow_run:
-    workflows: [CI]
+  push:
     branches: [main]
-    types: [completed]
+  pull_request:
+    branches: [main]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}-algo-trader
+  VPS_HOST: ${{ secrets.VPS_HOST }}
+  VPS_USER: ${{ secrets.VPS_USER }}
 
 jobs:
-  deploy:
-    name: Deploy to M1 Max
-    runs-on: self-hosted
-    # Only run if CI passed
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+  # Job 1: Build & Test
+  test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     steps:
-      - name: Pull latest code
-        run: |
-          cd ~/projects/algo-trade
-          git pull origin main
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: 8
 
       - name: Install dependencies
-        run: |
-          cd ~/projects/algo-trade
-          pnpm install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
-      - name: Restart service
-        run: |
-          cd ~/projects/algo-trade
-          pm2 restart algo-trade --env production 2>/dev/null || pm2 start "npx tsx src/app.ts" --name algo-trade --env production
+      - name: Run tests
+        run: pnpm test
+        env:
+          CI: true
 
-      - name: Health check
+      - name: Build
+        run: pnpm build
+
+  # Job 2: Docker Build & Push
+  docker:
+    name: Docker Build & Push
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'push'
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=sha,prefix=
+            type=ref,event=branch
+            latest
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/algo-trader/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # Job 3: Deploy to VPS
+  deploy:
+    name: Deploy to VPS
+    runs-on: ubuntu-latest
+    needs: docker
+    if: github.event_name == 'push'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH key
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Add VPS to known_hosts
         run: |
-          echo "Waiting 5s for service to restart..."
-          sleep 5
-          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/api/health)
-          echo "Health check HTTP status: $HTTP_STATUS"
-          if [ "$HTTP_STATUS" = "200" ]; then
-            echo "Deploy SUCCESS - algo-trade running on M1 Max"
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ env.VPS_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to VPS
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ env.VPS_USER }}@${{ env.VPS_HOST }} << 'EOF'
+            set -e
+            cd /opt/algo-trader
+
+            # Pull latest code
+            git pull origin main
+
+            # Pull Docker image
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+
+            # Stop old containers
+            docker compose down || true
+
+            # Start new containers
+            docker compose up -d
+
+            # Wait for health check
+            echo "Waiting for service to be healthy..."
+            sleep 30
+
+            # Health check
+            curl -f http://localhost:3000/health || exit 1
+
+            # Clean up old images
+            docker image prune -af
+
+            echo "Deployment successful!"
+          EOF
+
+      - name: Notify deployment status
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ Deployment successful!"
           else
-            echo "Deploy WARNING - health check returned $HTTP_STATUS"
+            echo "❌ Deployment failed!"
+            exit 1
           fi
+
+  # Job 4: Health Check
+  health-check:
+    name: Production Health Check
+    runs-on: ubuntu-latest
+    needs: deploy
+    timeout-minutes: 5
+
+    steps:
+      - name: Wait for deployment
+        run: sleep 30
+
+      - name: Check API health
+        run: |
+          curl -f https://${{ secrets.VPS_HOST }}/health || exit 1
+
+      - name: Check metrics endpoint
+        run: |
+          curl -f https://${{ secrets.VPS_HOST }}/metrics || exit 1
+
+      - name: Verify Grafana
+        run: |
+          curl -f https://${{ secrets.VPS_HOST }}/grafana/login || exit 1

@@ -1,295 +1,263 @@
-# System Architecture
+# System Architecture - Algo Trader
 
-## High-Level Module Organization
+## High-Level Architecture
+Event-Driven + Modular Architecture with 4 tiers:
+- **Execution Layer**: WS price feeds, fee-aware spread calc, atomic order execution, regime detection, order-book depth analysis
+- **RaaS API Layer**: Multi-tenant positions, scan/execute endpoints, position tracking
+- **Client Layer**: Paper trading, CLI dashboard, trade history export
+- **AGI Intelligence Layer**: Market regime detection, triangular arb, funding-rate arb, unified orchestrator
 
-```
-algo-trade RaaS Platform
-├── CLI Layer (src/cli/)
-│   ├─ Command interface (Commander.js)
-│   ├─ Dashboard terminal UI
-│   └─ Setup wizard
-│
-├── Agent Dispatcher (src/agents/)
-│   ├─ AgentDispatcher (routes CLI commands → agents)
-│   ├─ SpecialistAgent interface + command registry
-│   ├─ 7 System Agents (scanner, monitor, estimate, risk, calibrate, report, doctor)
-│   └─ 9 Dark Edge Agents (P1-P3 tier arbitrage/momentum detection)
-│
-├── Dark Edge Layer (High-Edge Opportunities, 43 Strategies)
-│   ├─ P1 Tier (Highest Edge)
-│   │   ├─ NegRiskScanAgent — YES sum != $1.00 arbitrage detection
-│   │   ├─ EndgameAgent — Near-certain outcomes in resolving-soon markets
-│   │   ├─ ResolutionArbAgent — UMA oracle challenge window trading
-│   │   └─ WhaleWatchAgent — On-chain whale monitoring (Polygon CTF)
-│   ├─ P2 Tier (Good Edge)
-│   │   ├─ EventClusterAgent — Cross-market correlation detection
-│   │   ├─ VolumeAlertAgent — Volume/liquidity anomalies
-│   │   └─ SplitMergeArbAgent — YES+NO vs $1.00 split/merge arb
-│   └─ P3 Tier (Momentum/Sentiment)
-│       ├─ NewsSniperAgent — News-driven momentum detection
-│       └─ ContrarianAgent — Herding behavior contrarian trades
-│
-├── API Server (src/api/)
-│   ├─ HTTP server (Node.js native)
-│   ├─ Auth middleware (JWT)
-│   ├─ Rate limiting
-│   ├─ CORS policy
-│   └─ Route handlers
-│
-├── Dashboard Server (src/dashboard/)
-│   ├─ WebSocket broadcaster
-│   ├─ Live metrics (P&L, portfolio)
-│   └─ Real-time UI updates
-│
-├── Webhook Server (src/webhooks/)
-│   ├─ Polar.sh billing webhooks
-│   ├─ Signal parser (TradingView, etc)
-│   ├─ Batch resolution checker (Polymarket outcomes)
-│   └─ Execution router
-│
-├── Trading Engine (src/engine/)
-│   ├─ Strategy runner (concurrent)
-│   ├─ Trade executor
-│   └─ Orchestrator
-│
-├── Market Clients
-│   ├─ Polymarket CLOB (WebSocket)
-│   ├─ CEX (CCXT wrapper)
-│   ├─ DEX (ethers.js)
-│   └─ Kalshi
-│
-├── Strategies (src/strategies/)
-│   ├─ Polymarket (arb, MM)
-│   └─ CEX/DEX (grid, DCA, funding-arb)
-│
-├── OpenClaw AI (src/openclaw/) — DeepSeek R1 + think block handling
-│   ├─ Decision controller (120s timeout)
-│   ├─ Algorithm tuner (parses DeepSeek <think> blocks)
-│   ├─ AI signal generator (think block stripping)
-│   ├─ Risk adjuster (reason field support)
-│   └─ Performance analyzer
-│
-└── Supporting Modules
-    ├─ Billing (Polar.sh)
-    ├─ Metering (quotas)
-    ├─ Analytics (reports)
-    ├─ Shared Utilities (LLM response parser)
-    ├─ Notifications (alerts)
-    └─ Monitoring (metrics)
+```mermaid
+graph TD
+    WS[WebSocket Price Feed Manager] -->|PriceTick| MRD[MarketRegimeDetector]
+    WS -->|PriceTick| SC[Spread Calculator]
+    WS -->|PriceTick| TAS[TriangularArbitrageLiveScanner]
+    API[Funding Rate API] -->|FundingRates| FRS[FundingRateArbitrageScanner]
+    MRD -->|ArbParamSuggestion| RAS[RealtimeArbitrageScanner]
+    SC -->|SpreadResult| RAS
+    RAS -->|ArbitrageOpportunity| OBDA[OrderBookDepthAnalyzer]
+    TAS -->|TriArbOpportunity| OBDA
+    FRS -->|FundingRateOpportunity| AEE[ArbitrageExecutionEngine]
+    OBDA -->|viable| CB[AdaptiveCircuitBreaker]
+    CB -->|allowed| AEE
+    AEE -->|executed| TAB[TelegramAlertBot]
+    AEE -->|Order Status| OH[Order History]
+    OH -->|Trades| PTB[Paper Trading Bridge]
+    PTB -->|Virtual Pos| PTD[Paper Trading Engine]
+    PTD -->|Simulation| DAS[CLI Dashboard]
+    OH -->|CSV/JSON| ATE[Trade History Exporter]
 ```
 
-## Data Flow: Order → Execution → Settlement
+## Core Components
+
+### Phase 1: Core Strategy Engine
+- **BotEngine** (`src/core/BotEngine.ts`): Signal routing, strategy orchestration.
+- **Strategy Layer** (`src/strategies/`): RSI, SMA, Cross-Exchange, Triangular, Statistical, AGI Arbitrage.
+- **RiskManager** (`src/core/`): Position sizing, risk calculation.
+- **OrderManager** (`src/core/`): Order state tracking.
+
+### Phase 2: AGI RaaS Arbitrage Core (Execution Foundation)
+**Execution Layer** (`src/execution/`):
+- **WebSocketMultiExchangePriceFeedManager** — Binance/OKX/Bybit WS, auto-reconnect, real-time tick events.
+- **FeeAwareCrossExchangeSpreadCalculator** — Net spread = gross spread - maker/taker fees - slippage, 5min TTL cache.
+- **AtomicCrossExchangeOrderExecutor** — Promise.allSettled buy/sell parallel, rollback on partial failure.
+
+**Multi-Tenant Core** (`src/core/`):
+- **TenantArbPositionTracker** — Per-tenant positions, tier limits (Basic/Pro/Enterprise).
+- **PaperTradingEngine** — Virtual trading simulation, P&L tracking.
+- **WebSocketServer** — Real-time `spread` + `position` channel broadcast.
+
+**RaaS API** (`src/api/routes/`):
+- `POST /api/v1/arb/scan` — Dry-run spread scan.
+- `POST /api/v1/arb/execute` — Execute trade (Pro/Enterprise).
+- `GET /api/v1/arb/positions` — Current positions.
+- `GET /api/v1/arb/history` — Trade history.
+- `GET /api/v1/arb/stats` — ROI, win rate stats.
+
+### Phase 5: RaaS Dashboard (React SPA)
+**Dashboard** (`dashboard/`):
+- React 19 + TypeScript 5.9 + Tailwind CSS 3.4, dark trading terminal theme.
+- Vite 6, Zustand 5 state, lightweight-charts (TradingView).
+
+**Pages**: DashboardPage, BacktestsPage, MarketplacePage, SettingsPage, ReportingPage.
+
+**Components**: SidebarNavigation, PriceTickerStrip, PositionsTableSortable, SpreadOpportunitiesCardGrid.
+
+**Hooks**: `useWebSocketPriceFeed` (25ms buffered Zustand updates), `useApiClient` (typed fetch).
+
+### Phase 9: AGI Arbitrage Core (Live Execution)
+**New Execution Modules** (`src/execution/`):
+- **RealtimeArbitrageScanner** — EventEmitter; maintains latest bid/ask per exchange:symbol, emits `opportunity` on profitable spreads (configurable `minNetSpreadPct`, `scanIntervalMs`, stale-tick guard).
+- **ArbitrageExecutionEngine** — Wires Scanner → CircuitBreaker → AtomicExecutor → position tracking → Telegram alerts. Cooldown per pair, max concurrent executions, cumulative metrics (`ArbEngineMetrics`).
+- **ArbLiveOrchestrator** (`src/cli/arb-live-cross-exchange-command.ts`) — Composes PriceFeedManager + RealtimeArbitrageScanner + ArbitrageExecutionEngine into a single live session; exposed via `arb:live` CLI.
+
+**CLI**: `arb:live` — Live cross-exchange arb session with configurable symbols/exchanges.
+
+### Phase 10: Order Book Depth Analyzer
+**New Module** (`src/execution/order-book-depth-analyzer.ts`):
+- **OrderBookDepthAnalyzer** — Fetches real L2 order book from each exchange via CCXT, calculates actual slippage for target position size, computes available liquidity depth, and returns `SpreadDepthAnalysis` (viable flag, real slippage pct, worst fill price).
+- Interfaces: `DepthAnalysis`, `SpreadDepthAnalysis`, `DepthAnalyzerConfig`.
+- Wired into ArbitrageExecutionEngine pre-execution check — opportunity discarded if liquidity insufficient.
+
+### Phase 11: AGI Intelligence Suite
+**New Modules** (`src/execution/`):
+- **MarketRegimeDetector** — EventEmitter; classifies market into regimes (trending/ranging/volatile/calm) from rolling volatility, trend strength, spread dispersion. Emits `regime-change` + `params-suggestion` (`ArbParamSuggestion`) → scanner adapts thresholds dynamically.
+- **TriangularArbitrageLiveScanner** — EventEmitter; detects 3-leg intra-exchange cycles (A→B→C→A). Evaluates all `TriArbCycle` combos per tick, filters by net profit after fees, emits `opportunity` (`TriArbOpportunity`).
+- **FundingRateArbitrageScanner** — EventEmitter; polls funding rate API across exchanges at configurable interval, computes net spread (rate diff - fees), emits `opportunity` (`FundingRateOpportunity`). Tracks `FundingRateStats`.
+
+### Phase 12: Unified AGI Arb Command
+**CLI** (`src/cli/arb-agi-auto-execution-commands.ts`):
+- `arb:agi` — Unified command; launches all strategies in parallel: RealtimeArbitrageScanner, TriangularArbitrageLiveScanner, FundingRateArbitrageScanner, with MarketRegimeDetector providing adaptive params. Routes all opportunities through OrderBookDepthAnalyzer → CircuitBreaker → ArbitrageExecutionEngine.
+- `arb:auto` — Autonomous mode with auto-restart on error.
+
+### Phase 7: Live Exchange Manager (Production Live Trading)
+**Core Orchestrator** (`src/execution/live-exchange-manager.ts`):
+- **LiveExchangeManager** — Unified lifecycle orchestrator: composes ExchangeConnectionPool + WebSocketMultiExchangePriceFeedManager + ExchangeRouterWithFallback + ExchangeHealthMonitor.
+- Auto-recovery on connection loss, graceful shutdown, startup health gating.
+- Methods: `start()`, `stop()`, `getRouter()`, `getHealthSnapshot()`.
+
+**Supporting Components** (`src/execution/`):
+- **ExchangeRegistry** (`exchange-registry.ts`) — Central config store: exchange credentials, pairs, rate limits.
+- **ExchangeHealthMonitor** (`exchange-health-monitor.ts`) — Per-exchange health tracking (connected/degraded/disconnected), rolling latency P50/P95, error rate, event bus.
+- **ExchangeConnectionPool** (`exchange-connection-pool.ts`) — CCXT instance pooling, connection lifecycle management.
+- **ExchangeRouterWithFallback** (`exchange-router-with-fallback.ts`) — Route orders with automatic fallback to healthy exchange.
+
+### Phase 15-17: Stealth Execution Layer
+**Anti-Detection** (`src/execution/`):
+- **AntiDetectionSafetyLayer** (`anti-detection-order-randomizer-safety-layer.ts`) — Order timing jitter ±30%, size jitter ±5%, rate governor (calls/min, orders/hour), exchange 429/418 auto-pause, 403/451 kill switch, balance checkpoint auto-stop.
+- **BinhPhapStealthStrategy** (`binh-phap-stealth-trading-strategy.ts`) — 孫子兵法 13-chapter anti-detection: 始計 pre-assessment, 虛實 order splitting (2-5 chunks), 兵勢 volume-aware timing, 九變 5-level threat system, 地形 exchange profiles, 火攻 confidence gate.
+- **PhantomOrderCloakingEngine** (`phantom-order-cloaking-engine.ts`) — 3-layer cloaking: order splitting, randomized timing, size camouflage to mask bot patterns.
+- **stealth-cli-fingerprint-masking-middleware.ts** — Browser-like HTTP headers on all CCXT requests to avoid bot detection.
+- **stealth-execution-algorithms.ts** — Shared stealth math: jitter distributions, normalization.
+
+**Telegram Integration**:
+- Stealth commands: `/safety` (status), `/kill` (emergency stop), `/kill_reset`, `/binh_phap` (stealth report).
+- **TelegramCommandHandler** (`telegram-command-handler.ts`) — Long-polling receiver, chat ID security, commands: /status, /backtest, /balance, /health, /arb, /arb_live, /stop, /help, /safety, /kill.
+
+### CLI Onboarding (Zero-Config)
+**Setup Wizard** (`src/cli/setup-wizard-command.ts`):
+- Interactive readline wizard — prompts exchange API keys, auto-generates `.env` with smart defaults.
+- Validates key format (min length), supports Binance/OKX/Bybit, optional Telegram alerts.
+
+**Quickstart** (`src/cli/quickstart-zero-config-command.ts`):
+- One command: detects `.env` → runs setup if missing → demo backtest → shows available commands.
+- Backtest/dry-run works without Docker (no DB/Redis required).
+
+**Shell Script** (`scripts/one-click-setup-and-start.sh`):
+- Prerequisites check → npm/pnpm install → CLI wizard → optional Docker infra.
+
+### Infrastructure
+**Database** (`prisma/`):
+- PostgreSQL 16 via Prisma ORM — 9 models (Tenant, ApiKey, Strategy, Order, Trade, BacktestResult, Candle, PnlSnapshot, AlertRule).
+- Row-level isolation via tenantId FK on all business tables.
+
+**Job Queue** (`src/jobs/`):
+- BullMQ + Redis 7 — 4 queues: backtest, scan, webhook, optimization.
+- Workers: backtest runner, scan detector, signed webhook delivery, grid search optimizer.
+
+**Billing** (`src/billing/`):
+- Polar.sh — 3 tiers (FREE $0, PRO $49, ENTERPRISE custom), HMAC-SHA256 webhook verification.
+
+**Monitoring** (`docker-compose.yml`):
+- Prometheus (:9090) + Grafana (:3001).
+
+## Data Flow: Full AGI Arbitrage Pipeline
 
 ```
-MARKET DATA ──→ PRICE FEED ──→ STRATEGY EVAL ──→ RISK CHECK ──→ EXECUTE
-   (Prices)     (Aggregator)   (Signals)        (Limits)     (Markets)
-                                                                 │
-                                          ┌─────────────────────┘
-                                          ▼
-                            SETTLEMENT ──→ DB ──→ NOTIFY (Slack/WebSocket)
+WS Ticks → MarketRegimeDetector → regime-change → ArbParamSuggestion
+         → RealtimeArbitrageScanner (cross-exchange) → ArbitrageOpportunity
+         → TriangularArbitrageLiveScanner (intra-exchange) → TriArbOpportunity
+Funding API → FundingRateArbitrageScanner → FundingRateOpportunity
+
+All Opportunities →
+  OrderBookDepthAnalyzer → viable? (real slippage vs threshold)
+  → AdaptiveCircuitBreaker → allowed? (exchange health, trip count)
+  → ArbitrageExecutionEngine → Promise.allSettled atomic orders
+  → TelegramAlertBot → trade notification
+  → OrderHistory → PnlSnapshot → CSV/JSON export
 ```
 
-## Paper Trading Pipeline
+## Technology Stack
+| Layer | Tech |
+|-------|------|
+| Language | TypeScript 5.9, strict mode |
+| Runtime | Node.js 20 |
+| API Gateway | Fastify 5 |
+| WebSocket | ws library |
+| Exchange Abstraction | CCXT 4.5 |
+| Job Queue | BullMQ 5 + Redis 7 (IoRedis) |
+| Database | PostgreSQL 16 via Prisma |
+| Validation | Zod 4.3 |
+| Logging | Winston |
+| Testing | Jest 29 |
+| CLI | Commander |
+| Dashboard | React 19, Vite 6, Zustand 5, Tailwind, TradingView Charts |
 
-Live market flow for simulated trading:
+## Quality Status (All Phases)
 
-```
-Gamma API (Market Events)
-    │
-    ├─→ FILTER (Market conditions, liquidity checks)
-    │
-    ├─→ CLOB PRICES (Polymarket order book aggregation)
-    │
-    ├─→ LLM ENSEMBLE (Dual-model routing)
-    │   ├─ Nemotron-3 (fast pre-screening)
-    │   └─ DeepSeek-R1 (deep analysis when needed)
-    │
-    ├─→ SIGNAL RANKING (Win probability + edge scoring)
-    │
-    ├─→ PAPER TRADE EXECUTION (Simulator state update)
-    │
-    └─→ METRICS & BACKTEST (P&L tracking, performance analysis)
-```
+### Completed Phases
+- Phase 1: Core Strategy Engine
+- Phase 2: AGI RaaS Arbitrage Core (WS feeds, spread calc, atomic executor)
+- Phase 3: Multi-Tenant API & Auth
+- Phase 4: BullMQ Job Queue
+- Phase 5: React Dashboard + RaaS Bootstrap
+- Phase 6: ML Trading (GRU, Q-Learning, Feature Engineering)
+- Phase 7: Production Live Trading (LiveExchangeManager, SignalOrderPipeline, PositionManager, CircuitBreaker v2, TelegramBot, DryRun)
+- Phase 8: AGI Trade Go-Live (AgiTradeOrchestrator, `agi:trade` CLI)
+- Phase 9: AGI Arbitrage Core (RealtimeArbitrageScanner, ArbitrageExecutionEngine)
+- Phase 10: Order Book Depth Analyzer
+- Phase 11: AGI Intelligence Suite (MarketRegimeDetector, TriangularArb, FundingRateArb)
+- Phase 12: Unified AGI Arb Command (`arb:agi`)
+- Phase 13: Zero-Config Quickstart
+- Phase 14: Telegram Phone Trading Bot
+- Phase 15: Anti-Detection Safety Layer
+- Phase 16: BinhPhap Stealth Strategy
+- Phase 17: Phantom Order Cloaking + CLI Fingerprint Masking
 
-**Features**:
-- 50+ concurrent paper trades per strategy
-- Blind prompt strategy (no data leakage)
-- Real CLOB prices, simulated execution
-- AI signal generation with ensemble routing
-- Historical trade tracking (4477 test scenarios)
+### Quality Gates
+- **1216 tests** (102 test suites, Jest 29, 100% pass rate)
+- **232+ source files** (TypeScript 5.9, strict mode)
+- **0 TypeScript errors**
+- **0 `any` types** (test mocks only — acceptable)
+- **0 console.log** (production clean)
+- **0 TODO/FIXME** (zero tech debt)
+- **Binh Phap 6/6 fronts passing**
 
-## Dual-Model LLM Pipeline
+Updated: 2026-03-03
 
-**Hardware**: M1 Max MLX acceleration via Ollama bridges (local inference)
+---
 
-**Model Deployment** (Dual-Port Strategy):
-- **Port 11436**: Nemotron-3 Nano 30B (Fast Scanner)
-  - MoE architecture: 3.5B active params
-  - Throughput: 35-50 t/s (fast pattern recognition)
-  - Function calling support for structured extraction
-  - Use case: Quick market scanning, anomaly detection, signal pre-filtering
+## Security Middleware (Phase 13: ROIaaS Gate)
 
-- **Port 11435**: DeepSeek-R1-Distill-32B (Deep Reasoner)
-  - Full chain-of-thought with `<think>` blocks
-  - Throughput: 15-25 t/s (complex reasoning)
-  - Use case: Trade analysis, optimization decisions, risk assessment
+### Idempotency Middleware
+**Location**: `src/middleware/idempotency-middleware.ts`
 
-**Model Routing** (via OpenClaw):
-- **Simple Tasks** → Nemotron-3 Nano (scanner, quick decisions)
-- **Standard/Complex** → DeepSeek-R1 (trade analysis, optimization)
-- **Fallback**: Claude Sonnet (cloud, budget-gated for edge cases)
+Prevents duplicate webhook processing using event_id deduplication:
 
-**Timeout Configuration**:
-- Nemotron-3: 40s (expected: 15-30s)
-- DeepSeek-R1: 90s (expected: 60-80s)
-- OpenClaw gateway: 120s (`openclaw-config.ts`)
-- Cloud (Claude): 60s with daily budget gating
+- **IdempotencyStore** — In-memory Map với TTL 24h
+- **idempotencyMiddleware** — preHandler hook, kiểm tra event_id trước khi xử lý
+- **createIdempotencyResponseHandler** — onSend hook, cache kết quả sau khi xử lý
 
-**Response Handling**:
-- `src/lib/llm-response-parser.ts` centralized utility
-- Strips DeepSeek R1 `<think>...</think>` blocks automatically
-- Extracts JSON objects, handles markdown fences
-- All LLM modules use shared parser (ai-signal-generator, ai-risk-adjuster, algorithm-tuner, ai-strategy-selector)
-- Supports `reasoning` field for chain-of-thought models
+**Security benefits**:
+- Prevent replay attacks
+- Guarantee exactly-once semantics
+- Handle webhook retries safely
 
-## Risk Management Flow
+### Rate Limiting
+**Location**: `src/auth/sliding-window-rate-limiter.ts`
 
-**Kelly Criterion Position Sizing**:
-- Calculates optimal position size based on historical win rate
-- Conservative multiplier (0.25x) to account for model uncertainty
-- Updated monthly from trade history
+Sliding window rate limiting per API key:
 
-**Drawdown Protection** (default: 20% max):
-- Track daily peak portfolio value
-- Pause new strategies if drawdown exceeded
-- Allow position closing only (circuit breaker)
+- **100 requests/minute** per API key (default)
+- Per-user tracking with Map
+- Reset after window expires
 
-**Per-Trade Stop-Loss**: 10% maximum loss
-**Leverage Enforcement**: 2x maximum
+### RAAS License Gate
+**Location**: `src/lib/raas-gate.ts`
 
-## Database Schema (SQLite)
+Premium feature access control with license tiers:
 
-Key tables:
-- `users` — User accounts + subscription tier
-- `subscriptions` — Polar.sh billing lifecycle
-- `strategies` — Active/paused strategies + config
-- `trades` — Executed trades (immutable)
-- `positions` — Current open positions
-- `usage_logs` — API call metering per user/tier
-- `audit_logs` — Compliance logging (all trades + access)
-- `portfolio_state` — Aggregated P&L + metrics
+| Tier | Features | Quota |
+|------|----------|-------|
+| FREE | Basic strategies, live trading, basic backtest | 1,000/month |
+| PRO | + ML models, premium data, advanced optimization | 10,000/month |
+| ENTERPRISE | + Priority support, custom strategies, multi-exchange | 100,000/month |
 
-## Event Bus (Pub/Sub)
+**Security features**:
+- JWT-based license validation (HS256)
+- Rate limiting on validation failures (5/min/IP)
+- Audit logging for compliance
+- Expiration enforcement
+- Timing-safe checksum validation
 
-All state changes flow through central event bus:
+### Usage Quota Tracking
+**Location**: `src/lib/usage-quota.ts`
 
-**Strategy Events**: StrategyStarted, StrategyEnded
-**Trade Events**: TradeInitiated, OrderPlaced, OrderFilled, TradeSettled
-**Risk Events**: RiskViolation (drawdown/leverage/position)
-**Billing Events**: SubscriptionChanged, APICallLimited
-**System Events**: HealthAlert, ConnectionLost
+Monthly usage quota per license key:
 
-**Subscribers**: EventLogger, DatabaseWriter, MetricsCollector, NotificationRouter, DashboardBroadcaster, AuditLogger
+- Redis-backed storage (ioredis)
+- Memory fallback for dev/testing
+- Alert thresholds at 80%, 90%, 100%
+- 429 response when quota exceeded
 
-## Execution Lifecycle
-
-1. **Load strategy** config + state from DB
-2. **Market subscription** to price feeds (WebSocket/polling)
-3. **Signal generation** (~1s ticks): rule-based + AI conditions
-4. **Risk validation**: position size, drawdown, leverage
-5. **Order placement**: route to Polymarket/CEX/DEX with slippage protection
-6. **Settlement tracking**: poll for fills, calculate P&L
-7. **State persistence**: update DB, emit events, notify users
-
-## Authentication
-
-**JWT Flow**:
-- User login → generate JWT {sub: user_id, tier, exp}
-- Client includes in Authorization header
-- Middleware verifies signature + tier-based access control
-
-**API Key** (legacy):
-- User generates from dashboard
-- Hash stored in DB
-- Middleware validates X-API-Key header
-
-**Tier-Based Limits**:
-- Free: 1 strategy, Polymarket only, 10 req/s
-- Pro: 5 strategies, 1 CEX, 100 req/s
-- Enterprise: unlimited, all markets, 1000 req/s
-
-## Deployment (M1 Max)
-
-```
-PM2 Process Manager
-├─ algo-trade-api (4 cluster workers, port 3000)
-├─ algo-trade-dashboard (1 worker, port 3001)
-├─ algo-trade-webhook (1 worker, port 3002)
-└─ algo-trade-engine (1 worker, in-process trading)
-
-Network:
-- Local: 127.0.0.1:3000,3001,3002
-- Public: Cloudflare Tunnel (cashclaw.cc)
-- DNS: Cloudflare (MX, TXT for email)
-
-Data:
-- SQLite: ./data/algo-trade.db
-- Backups: Daily at 2 AM → S3 (weekly retention)
-- Recovery: Point-in-time restore from backup
-```
-
-## Module Index
-
-**44 modules** across 14 domains:
-
-| Domain | Count | Key Modules |
-|--------|-------|------------|
-| api | 4 | server, routes, auth, rate-limiter |
-| core | 5 | config, logger, risk-manager, types, utils |
-| polymarket | 7 | clob-client, orderbook-stream, trading-pipeline, order-manager |
-| strategies | 6 | cross-market-arb, market-maker, grid-trading, dca-bot, funding-arb |
-| engine | 3 | engine, strategy-runner, trade-executor |
-| openclaw | 11 | controller, ai-router, algorithm-tuner, performance-analyzer |
-| data | 4 | database, price-feed, sentiment-feed, price-feed |
-| billing | 6 | polar-client, polar-webhook, subscription-manager, invoice-tracker |
-| notifications | 7 | notification-router, slack-webhook, discord-webhook, telegram-bot, email-sender |
-| trading-room | 12 | command-registry, command-parser, room-commands, telegram-controller |
-| cex | 3 | exchange-client, market-data, order-executor |
-| dex | 3 | evm-client, solana-client, swap-router |
-| analytics | 3 | performance-metrics, report-exporter, tax-reporter |
-| scheduler | 3 | job-scheduler, job-registry, job-history |
-| agents | 16 | dispatcher, command-registry, base (7 system + 9 dark edge agents) |
-| scripts | 2 | check-batch-resolutions (monitor Polymarket outcomes) |
-| lib | 1 | llm-response-parser (DeepSeek R1 think block handling) |
-
-## Scaling Constraints
-
-**Current (Single Instance)**:
-- Max ~100 concurrent strategies (CPU-bound)
-- Max ~50 orders/sec (Polymarket CLOB limits)
-- Max ~2GB SQLite file size
-
-**Future (Post-$1M ARR)**:
-- PostgreSQL (multi-instance)
-- Kafka/RabbitMQ (decoupling strategy pipeline)
-- Redis (price feed cache + sessions)
-- HAProxy (load balancing)
-- Prometheus + Grafana monitoring
-
-## Known Limitations
-
-1. Single-instance deployment (no horizontal scaling)
-2. SQLite concurrency (single writer assumption)
-3. Polymarket rate limits (needs request batching)
-4. DEX MEV protection (future: 1Inch API)
-5. Backtesting (historical data loading incomplete)
-6. Multi-tenant RLS (basic user isolation, no row-level security)
-
-## Recovery & Disaster
-
-| Failure Mode | Recovery |
-|--------------|----------|
-| Network outage | Reconnect every 5s, pause new orders, alert operator |
-| Strategy crash | Catch exception, save state, pause strategy, notify user |
-| DB corruption | Detect on startup, restore from backup (max 24h data loss) |
-| Hardware failure | Restore from S3 daily backup on new M1 Max (<1h downtime) |
+---

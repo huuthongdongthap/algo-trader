@@ -1,13 +1,12 @@
-// Barrel export for algo-trade REST API module
-export { createServer, stopServer } from './server.js';
-export { createAuthMiddleware, createJwt, verifyJwt, generateApiKeyToken } from './auth-middleware.js';
-export { createRateLimitMiddleware, checkRateLimit, clearRateLimitState } from './api-rate-limiter-middleware.js';
-export {
-  handleRequest,
-  handleHealth,
-  handleStatus,
-  handleTrades,
-  handlePnl,
-  handleStrategyStart,
-  handleStrategyStop,
-} from './routes.js';
+/**
+ * API Module
+ * REST API gateway
+ */
+
+export * from './server';
+export * from './routes/trades';
+export * from './routes/pnl';
+export * from './routes/signals';
+export * from './routes/admin';
+export * from './routes/health';
+export * from './middleware/error-handler';

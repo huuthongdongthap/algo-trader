@@ -1,657 +1,155 @@
-# API Reference
+# Algo Trader API Documentation
 
-API documentation for the Algo-Trade RaaS platform. All endpoints return JSON and support native TypeScript via the SDK.
+## Core Modules
 
-## Overview
+### RiskManager
+The RiskManager module provides essential risk management functionality for trading strategies.
 
-The Algo-Trade API provides remote control of algorithmic trading strategies, portfolio monitoring, billing integration, and system health checks. No framework dependencies — pure Node.js HTTP.
+#### Static Methods
 
-**Base URL:** `https://api.algo-trade.io` (production) or `http://localhost:3000` (local)
+**calculatePositionSize(balance: number, riskPercentage: number, currentPrice: number): number**
+- Calculates the position size based on account balance and risk parameters
+- Throws errors if invalid parameters are provided (negative values, percentage > 100%)
 
-## Authentication
+**checkStopLossTakeProfit(currentPrice: number, entryPrice: number, side: 'buy' | 'sell', config: StopLossTakeProfitConfig): StopLossTakeProfitResult**
+- Checks if current price triggers hard stop-loss or take-profit levels
+- Returns an object indicating whether stop-loss or take-profit was hit
 
-Two authentication methods are supported:
+**isDailyLossLimitHit(dailyPnL: number, limitUsd?: number): boolean**
+- Checks if daily loss limit has been exceeded
+- Returns true if limit is exceeded (should halt trading)
 
-### Bearer JWT Tokens
+**initTrailingStop(price: number, config: TrailingStopConfig, defaultOffset: number = 0.02): TrailingStopState**
+- Initializes a trailing stop state
+- Sets up the initial stop price and tracking values
 
-For session-based authentication:
+**updateTrailingStop(price: number, state: TrailingStopState, config: TrailingStopConfig, defaultOffset: number = 0.02): { state: TrailingStopState; stopHit: boolean }**
+- Updates a trailing stop state based on the current price
+- Returns updated state and whether the stop was triggered
 
-```
-Authorization: Bearer <jwt_token>
-```
+**calculateDynamicPositionSize(baseBalance: number, baseRiskPercent: number, currentPrice: number, atr: number, config: VolatilityAdjustmentConfig = {}): number**
+- Calculates position size adjusted based on market volatility
+- Reduces position size as market volatility increases
 
-JWT tokens expire after 1 hour by default. Create tokens server-side using your secret:
+**calculateAtrStopLoss(entryPrice: number, atr: number, atrMultiplier: number = 2, side: 'buy' | 'sell'): number**
+- Calculates stop-loss based on Average True Range (ATR)
+- Provides dynamic stop-loss levels based on market volatility
 
-```typescript
-import { createJwt } from '@algo-trade/sdk';
+**checkDrawdownLimit(currentBalance: number, peakBalance: number, config: DrawdownControlConfig): { exceeded: boolean; drawdownPercent: number }**
+- Checks drawdown against configured limits
+- Helps control maximum drawdown during trading
 
-const token = createJwt(
-  { id: 'user123', email: 'user@example.com', tier: 'pro' },
-  process.env.JWT_SECRET,
-  3600 // 1 hour
-);
-```
+**calculateRiskAdjustedMetrics(portfolioReturn: number, portfolioRisk: number, riskFreeRate: number, maxDrawdown: number): { sharpeRatio: number; sortinoRatio: number; calmarRatio: number }**
+- Calculates risk-adjusted performance metrics
+- Returns Sharpe, Sortino, and Calmar ratios
 
-### API Keys
+**calculateDynamicRiskParams(volatilityPercent: number, trendStrength: number = 0.5, marketRegime: 'trending' | 'mean-reverting' | 'volatile' | 'quiet' = 'trending'): DynamicRiskParams**
+- Calculates dynamic risk parameters based on market conditions
+- Adjusts risk parameters based on volatility, trend strength, and market regime
 
-For service-to-service or long-lived access:
+### AtomicCrossExchangeOrderExecutor
+The AtomicCrossExchangeOrderExecutor handles cross-exchange order execution with rollback capabilities.
 
-```
-Authorization: ApiKey <your_api_key>
-```
+#### Constructor
+**constructor(config: AtomicExecutorConfig = {})**
+- Creates a new executor with optional configuration for retry and circuit breaker features
 
-Or legacy header:
+#### Methods
 
-```
-X-API-Key: <your_api_key>
-```
+**executeAtomic(params: AtomicOrderParams): Promise<AtomicExecutionResult>**
+- Executes buy and sell orders on two exchanges simultaneously
+- Performs rollback if one side fails to prevent naked positions
+- Returns detailed execution results including success status, order information, latency metrics, and error details
 
-API keys are 32-byte hex strings managed per user in the user store. Request a key from your account dashboard or create via the user management API.
+### BacktestRunner
+The BacktestRunner provides comprehensive backtesting functionality for trading strategies.
 
-**Public endpoints** (no auth required):
-- `GET /api/health`
-- `POST /api/webhooks/polar` (HMAC verified)
+#### Constructor
+**constructor(strategy: IStrategy, dataProvider: IDataProvider, initialBalance: number = 10000, config?: EnhancedBacktestConfig)**
+- Initializes a backtester with the given strategy, data provider, and configuration
 
-## Rate Limiting
+#### Methods
 
-Requests are rate-limited by subscription tier using a sliding 60-second window:
+**run(days: number = 30, silent = false): Promise<BacktestResult>**
+- Runs a backtest over the specified number of days
+- Returns comprehensive performance metrics
 
-| Tier | Limit | Window |
-|------|-------|--------|
-| Free | 10 req/min | 60s |
-| Pro | 100 req/min | 60s |
-| Enterprise | 1000 req/min | 60s |
+**getResults(): BacktestResult**
+- Gets structured results for programmatic use
+- Includes all performance metrics and trade details
 
-Rate limit status is returned in response headers:
+## Advanced Modules
 
-```
-X-RateLimit-Limit: 100
-X-RateLimit-Remaining: 95
-Retry-After: 5
-```
+### VaRCalculator
+Calculates Value at Risk (VaR) and Conditional Value at Risk (CVaR) for portfolio risk assessment.
 
-When limit is exceeded, the server responds with:
+#### Static Methods
 
-```json
-{
-  "error": "Too Many Requests",
-  "message": "Rate limit exceeded. Retry after 5s.",
-  "retryAfter": 5
-}
-```
+**calculateVar(data: HistoricalDataPoint[], params: VarCalculationParams): VarResult**
+- Calculates VaR and CVaR using specified method (historical, variance-covariance, or Monte Carlo)
 
-HTTP Status: `429`
+### CorrelationCalculator
+Calculates correlation matrices between different assets in a portfolio.
 
-## System Endpoints
+#### Static Methods
 
-### GET /api/health
+**calculateCorrelationMatrix(assetsData: Map<string, AssetDataPoint[]>): PortfolioCorrelationResult**
+- Calculates correlation matrix for a set of assets
+- Returns matrix and related stability metrics
 
-Health check endpoint. No authentication required.
+**analyzeRiskFactors(result: PortfolioCorrelationResult): { diversificationBenefit: number; concentrationRisk: number; stabilityMetric: number }**
+- Analyzes correlation matrix for risk factors
+- Returns diversification benefit, concentration risk, and stability metrics
 
-**Response** (200 OK):
+### WalkForwardAnalyzer
+Implements expanding and rolling window validation techniques for strategy validation.
 
-```json
-{
-  "status": "ok",
-  "uptime": 3600000,
-  "db": "ok",
-  "pipeline": "running",
-  "wsClients": 42,
-  "version": "0.1.0"
-}
-```
+#### Static Methods
 
-| Field | Type | Description |
-|-------|------|-------------|
-| status | string | "ok", "degraded", or "down" |
-| uptime | number | Milliseconds since server start |
-| db | string | "ok" or "error" |
-| pipeline | string | "running" or "stopped" |
-| wsClients | number | Active WebSocket connections |
-| version | string | Server version |
+**performWalkForwardAnalysis(historicalData: any[], config: WalkForwardConfig): Promise<WalkForwardResult>**
+- Performs walk-forward analysis on historical data
+- Supports both expanding and rolling window approaches
 
-**Example:**
-
-```bash
-curl -X GET http://localhost:3000/api/health
-```
-
----
-
-### GET /api/metrics
-
-Prometheus-format metrics endpoint. No authentication required.
-
-**Response** (200 OK):
-
-Plain text Prometheus format:
-
-```
-# HELP algo_trades_total Total trades executed by strategy and outcome
-# TYPE algo_trades_total counter
-algo_trades_total{strategy="grid-trading",outcome="fill"} 42
+**validateWalkForwardResult(result: WalkForwardResult, minOutOfSampleRatio: number = 0.2, minPerformanceConsistency: number = 0.5): boolean**
+- Validates if a strategy passes walk-forward analysis criteria
 
-# HELP algo_pnl_total Total realized PnL in USD
-# TYPE algo_pnl_total gauge
-algo_pnl_total 1234.56
-```
+**createAdaptiveConfig(marketRegime: 'trending' | 'mean-reverting' | 'volatile' | 'quiet'): WalkForwardConfig**
+- Creates a walk-forward configuration optimized for different market regimes
 
-Exported metrics:
-- `algo_trades_total` — Counter by strategy and outcome
-- `algo_pnl_total` — Gauge of total P&L
-- `algo_win_rate` — Gauge (0-1)
-- `algo_active_positions` — Gauge count
-- `algo_api_request_duration_seconds` — Histogram
-
-**Example:**
-
-```bash
-curl -X GET http://localhost:3000/api/metrics
-```
-
----
-
-## Engine Endpoints
-
-All engine endpoints require authentication (Bearer JWT or API Key).
-
-### GET /api/status
-
-Engine status, running strategies, and trade counts.
-
-**Response** (200 OK):
-
-```json
-{
-  "running": true,
-  "strategies": ["grid-trading", "dca-bot"],
-  "tradeCount": 123,
-  "config": {
-    "exchange": "kraken",
-    "pairs": ["BTC/USD", "ETH/USD"]
-  },
-  "uptime": 7200000
-}
-```
+### MonteCarloSimulator
+Evaluates strategy robustness through randomized market simulations.
 
-**Example:**
+#### Static Methods
 
-```bash
-curl -H "X-API-Key: your_api_key" \
-  http://localhost:3000/api/status
-```
+**runSimulation(baselineResult: any, historicalData: any[], strategyFn: (data: any[]) => Promise<any>, config: MonteCarloConfig): Promise<MonteCarloResult>**
+- Runs Monte Carlo simulation to assess strategy robustness
+- Returns comprehensive analysis of simulation results
 
----
+**evaluateRobustness(result: MonteCarloResult, targetReturn: number = 0): { robustnessScore: number; riskOfSpuriousness: number; confidenceInPerformance: number }**
+- Evaluates strategy robustness based on Monte Carlo results
 
-### GET /api/trades
+### AdvancedMetricsCalculator
+Calculates sophisticated performance metrics including Sortino, Calmar, and Sterling ratios.
 
-Retrieve the last 100 executed trades.
+#### Static Methods
 
-**Response** (200 OK):
+**calculateMetrics(trades: Trade[], equityCurve: number[], riskFreeRate: number = 0.02): AdvancedBacktestMetrics**
+- Calculates advanced performance metrics for backtesting
+- Returns comprehensive performance and risk metrics
 
-```json
-{
-  "trades": [
-    {
-      "orderId": "order-001",
-      "marketId": "BTC/USD",
-      "side": "buy",
-      "fillPrice": "42500.50",
-      "fillSize": "0.1",
-      "fees": "0.00425",
-      "timestamp": 1700000000000,
-      "strategy": "grid-trading"
-    }
-  ],
-  "count": 42
-}
-```
+### SlippageModeler
+Implements realistic slippage modeling based on order book depth.
 
-| Field | Type | Description |
-|-------|------|-------------|
-| orderId | string | Unique order identifier |
-| marketId | string | Trading pair (e.g., BTC/USD) |
-| side | string | "buy" or "sell" |
-| fillPrice | string | Execution price |
-| fillSize | string | Quantity filled |
-| fees | string | Fees paid in USD |
-| timestamp | number | Unix milliseconds |
-| strategy | string | Strategy name |
+#### Static Methods
 
-**Example:**
+**calculateSlippage(originalPrice: number, tradeSize: number, tradeSide: 'buy' | 'sell', orderBook: OrderBookLevel[], config: SlippageConfig = {}): SlippageEstimate**
+- Calculates realistic slippage based on order book depth and trade size
+- Returns detailed execution and slippage metrics
 
-```bash
-curl -H "X-API-Key: your_api_key" \
-  http://localhost:3000/api/trades
-```
+**estimateLiquidity(orderBook: OrderBookLevel[]): MarketLiquidityMetrics**
+- Estimates market liquidity metrics based on order book data
+- Provides information about bid-ask spreads and market depth
 
----
-
-### GET /api/pnl
-
-Aggregated profit & loss summary by strategy.
-
-**Response** (200 OK):
-
-```json
-{
-  "totalFees": "0.012345",
-  "tradeCount": 234,
-  "tradesByStrategy": {
-    "grid-trading": 120,
-    "dca-bot": 114
-  }
-}
-```
-
-| Field | Type | Description |
-|-------|------|-------------|
-| totalFees | string | Total fees paid (decimal string) |
-| tradeCount | number | Total executed trades |
-| tradesByStrategy | object | Trade counts by strategy name |
-
-**Example:**
-
-```bash
-curl -H "X-API-Key: your_api_key" \
-  http://localhost:3000/api/pnl
-```
-
----
-
-## Strategy Endpoints
-
-Control strategy execution via these endpoints.
-
-### POST /api/strategy/start
-
-Start a named strategy.
-
-**Request Body:**
-
-```json
-{
-  "name": "grid-trading"
-}
-```
-
-Valid strategy names:
-- `cross-market-arb`
-- `market-maker`
-- `grid-trading`
-- `dca-bot`
-- `funding-rate-arb`
-
-**Response** (200 OK):
-
-```json
-{
-  "ok": true,
-  "strategy": "grid-trading",
-  "action": "started"
-}
-```
-
-**Error Response** (400 Bad Request):
-
-```json
-{
-  "error": "Invalid strategy name",
-  "valid": ["cross-market-arb", "market-maker", "grid-trading", "dca-bot", "funding-rate-arb"]
-}
-```
-
-**Example:**
-
-```bash
-curl -X POST \
-  -H "X-API-Key: your_api_key" \
-  -H "Content-Type: application/json" \
-  -d '{"name":"grid-trading"}' \
-  http://localhost:3000/api/strategy/start
-```
-
----
-
-### POST /api/strategy/stop
-
-Stop a running strategy.
-
-**Request Body:**
-
-```json
-{
-  "name": "grid-trading"
-}
-```
-
-**Response** (200 OK):
-
-```json
-{
-  "ok": true,
-  "strategy": "grid-trading",
-  "action": "stopped"
-}
-```
-
-**Example:**
-
-```bash
-curl -X POST \
-  -H "X-API-Key: your_api_key" \
-  -H "Content-Type: application/json" \
-  -d '{"name":"grid-trading"}' \
-  http://localhost:3000/api/strategy/stop
-```
-
----
-
-## Billing Endpoints
-
-### POST /api/checkout
-
-Create a Polar.sh hosted checkout session for tier upgrades.
-
-**Request Body:**
-
-```json
-{
-  "tier": "pro",
-  "userId": "user-abc-123",
-  "successUrl": "https://yourapp.com/success",
-  "cancelUrl": "https://yourapp.com/cancel"
-}
-```
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| tier | string | Yes | "pro" or "enterprise" |
-| userId | string | Yes | User ID to associate subscription |
-| successUrl | string | Yes | Redirect after successful payment |
-| cancelUrl | string | No | Redirect if user cancels |
-
-**Response** (200 OK):
-
-```json
-{
-  "checkoutUrl": "https://checkout.polar.sh/xyz123",
-  "checkoutId": "checkout-abc-123"
-}
-```
-
-**Error Response** (400 Bad Request):
-
-```json
-{
-  "error": "Missing required fields: tier, userId, successUrl"
-}
-```
-
-**Example:**
-
-```bash
-curl -X POST \
-  -H "X-API-Key: your_api_key" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "tier": "pro",
-    "userId": "user-123",
-    "successUrl": "https://example.com/success"
-  }' \
-  http://localhost:3000/api/checkout
-```
-
----
-
-### POST /api/webhooks/polar
-
-Receive Polar subscription events. HMAC-signed webhook endpoint.
-
-**Webhook Headers** (required):
-
-```
-webhook-id: evt_xyz123
-webhook-timestamp: 1700000000
-webhook-signature: v1,<hmac_signature>
-```
-
-**Request Body** (Polar webhook payload):
-
-```json
-{
-  "type": "subscription.created",
-  "data": {
-    "id": "sub-123",
-    "customer_id": "cus-456",
-    "product_id": "prod-pro",
-    "status": "active"
-  }
-}
-```
-
-Handled events:
-- `subscription.created` — Activate subscription and set tier
-- `subscription.updated` — Update user tier
-- `subscription.canceled` — Downgrade to free tier
-
-**Response** (200 OK):
-
-```json
-{
-  "acknowledged": true
-}
-```
-
-**Verification:** HMAC-SHA256 signature over raw request body using `POLAR_WEBHOOK_SECRET`.
-
----
-
-## Error Handling
-
-### Standard Error Response
-
-All errors return JSON with this structure:
-
-```json
-{
-  "error": "Error Type",
-  "message": "Human-readable message"
-}
-```
-
-### Common HTTP Status Codes
-
-| Code | Meaning |
-|------|---------|
-| 200 | Request succeeded |
-| 400 | Invalid request body or parameters |
-| 401 | Missing or invalid authentication |
-| 404 | Endpoint or resource not found |
-| 405 | HTTP method not allowed |
-| 429 | Rate limit exceeded |
-| 500 | Server error |
-| 502 | Billing provider error |
-| 503 | Service unavailable (e.g., Polar not configured) |
-
-### Error Examples
-
-**401 Unauthorized:**
-
-```json
-{
-  "error": "Unauthorized",
-  "message": "Invalid or expired JWT token"
-}
-```
-
-**429 Too Many Requests:**
-
-```json
-{
-  "error": "Too Many Requests",
-  "message": "Rate limit exceeded. Retry after 5s.",
-  "retryAfter": 5
-}
-```
-
----
-
-## SDK Usage
-
-Use the TypeScript SDK for type-safe API calls:
-
-```typescript
-import { CashClawClient } from '@algo-trade/sdk';
-
-const client = new CashClawClient({
-  baseUrl: 'http://localhost:3000',
-  apiKey: 'your_api_key'
-});
-
-try {
-  const health = await client.getHealth();
-  console.log('Status:', health.status);
-} catch (error) {
-  console.error('API error:', error.message);
-}
-```
-
-See [SDK Quickstart](./sdk-quickstart.md) for detailed examples.
-
----
-
-## OpenAPI Specification
-
-Full OpenAPI 3.0 specification available at:
-
-```
-GET http://localhost:3000/api-docs/openapi.json
-```
-
-Use with:
-- **Swagger UI:** http://localhost:3000/api-docs
-- **Code generators:** openapi-generator, swagger-codegen
-- **Client SDKs:** SwaggerHub, OpenAPI client libraries
-
----
-
-## Rate Limiting Strategy
-
-The rate limiter uses a **sliding 60-second window** for each user/tier:
-
-1. Each request is timestamped
-2. Timestamps older than 60 seconds are pruned
-3. If remaining timestamps ≥ tier limit, request is rejected
-4. Otherwise, current timestamp is recorded and request proceeds
-
-**Retry Strategy:**
-
-When rate-limited, use the `Retry-After` header:
-
-```bash
-# Request denied
-HTTP/1.1 429 Too Many Requests
-Retry-After: 5
-
-# Wait 5 seconds, then retry
-sleep 5
-curl ... # retry
-```
-
-Implement exponential backoff for production:
-
-```typescript
-async function retryWithBackoff(fn, maxAttempts = 3) {
-  for (let i = 0; i < maxAttempts; i++) {
-    try {
-      return await fn();
-    } catch (e) {
-      if (e.statusCode === 429) {
-        const delay = Math.pow(2, i) * 1000;
-        await new Promise(r => setTimeout(r, delay));
-      } else {
-        throw e;
-      }
-    }
-  }
-}
-```
-
----
-
-## Webhook Security
-
-All Polar webhooks are HMAC-SHA256 signed. Verify before processing:
-
-1. Extract `webhook-signature` header
-2. Compute HMAC: `HMAC-SHA256(raw_body, POLAR_WEBHOOK_SECRET)`
-3. Compare signatures using constant-time comparison
-4. Process only if signatures match
-
-Example verification (from source):
-
-```typescript
-import { createHmac, timingSafeEqual } from 'node:crypto';
-
-function verifyWebhook(rawBody, signature, secret) {
-  const expected = createHmac('sha256', secret)
-    .update(rawBody)
-    .digest('base64');
-
-  return timingSafeEqual(
-    Buffer.from(signature),
-    Buffer.from(expected)
-  );
-}
-```
-
----
-
-## Subscription Tiers
-
-Three tiers available via Polar:
-
-| Tier | Price | Requests/min | Features |
-|------|-------|--------------|----------|
-| Free | $0 | 10 | Read-only endpoints |
-| Pro | $49/mo | 100 | Start/stop strategies |
-| Enterprise | Custom | 1000 | Custom features, SLA |
-
-Tiers are set via Polar product IDs:
-- Free: no product (default)
-- Pro: `prod-pro`
-- Enterprise: `prod-enterprise`
-
-Product mappings are maintained in `src/billing/polar-product-map.ts`.
-
----
-
-## Monitoring
-
-Monitor API health via:
-
-1. **Health endpoint:** `GET /api/health` (every 30s)
-2. **Prometheus metrics:** `GET /api/metrics`
-3. **Webhook delivery:** Polar webhook logs in platform
-4. **Response codes:** Track 5xx errors
-
-Set up alerts for:
-- Health status `degraded` or `down`
-- 429 rate limit errors (capacity planning)
-- 5xx errors (investigation needed)
-- Webhook failures (subscription sync issues)
-
----
-
-## Changelog
-
-### v1.0.0 (Current)
-
-- Initial API release
-- JWT and API Key authentication
-- Rate limiting by tier
-- Strategy start/stop
-- Trade history and P&L endpoints
-- Polar billing integration
-- Prometheus metrics export
+**adjustForVolatility(baseEstimate: SlippageEstimate, originalPrice: number, tradeSide: 'buy' | 'sell', volatility: number): SlippageEstimate**
+- Adjusts slippage calculations based on market volatility
+- Increases expected slippage in high volatility conditions
