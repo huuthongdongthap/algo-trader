@@ -11,11 +11,11 @@ compatibility_flags = ["nodejs_compat"]
 [vars]
 ENVIRONMENT = "production"
 
-# KV namespace for rate limiting + cache
+# KV namespace for edge caching
 [[kv_namespaces]]
 binding = "CACHE"
-id = ""
-preview_id = ""
+id = "6c7199c0259b42db943aa13b200d8ea1"
+preview_id = "ca8f3f11882e426e952e322963077f73"
 
 # Staging
 [env.staging]
@@ -25,7 +25,7 @@ ENVIRONMENT = "staging"
 
 # Build config
 [build]
-command = "pnpm run build:worker"
+command = "npx tsc -p tsconfig.worker.json"
 
 # Custom domain (configure in CF dashboard)
 # routes = [{ pattern = "api.yourdomain.com/*", zone_name = "yourdomain.com" }]
