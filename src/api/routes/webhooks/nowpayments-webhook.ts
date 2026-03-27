@@ -25,12 +25,14 @@ import {
 
 export const nowpaymentsWebhookRouter: Router = Router();
 
-// Use raw body for signature verification
-nowpaymentsWebhookRouter.use((req: Request, _res: Response, next) => {
-  // express.json() already parsed; we need raw body for sig verification
-  // Store raw body via express.json({ verify: ... }) — handled in server setup
-  next();
-});
+// Capture raw body BEFORE express.json() parses it
+nowpaymentsWebhookRouter.use(
+  require('express').json({
+    verify: (req: any, _res: any, buf: Buffer) => {
+      req.rawBody = buf.toString('utf-8');
+    },
+  })
+);
 
 nowpaymentsWebhookRouter.post('/', async (req: Request, res: Response) => {
   const nowpaymentsService = NowPaymentsService.getInstance();
@@ -40,7 +42,7 @@ nowpaymentsWebhookRouter.post('/', async (req: Request, res: Response) => {
   const auditService = AuditLogService.getInstance();
 
   const signature = req.headers['x-nowpayments-sig'] as string;
-  const rawBody = JSON.stringify(req.body);
+  const rawBody = (req as any).rawBody || JSON.stringify(req.body);
 
   if (!signature) {
     return res.status(400).json({ error: 'Missing x-nowpayments-sig header' });

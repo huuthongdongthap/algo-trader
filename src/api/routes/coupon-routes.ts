@@ -7,6 +7,7 @@
  */
 
 import { Router, Request, Response, NextFunction } from 'express';
+import { timingSafeEqual } from 'crypto';
 import { CouponService } from '../../billing/coupon-service';
 import { logger } from '../../utils/logger';
 
@@ -48,16 +49,24 @@ const PROJECT_URLS: Record<string, { success: string; cancel: string }> = {
 
 const NOWPAYMENTS_API_KEY = process.env.NOWPAYMENTS_API_KEY || '';
 
-// Express admin auth middleware — validates X-API-Key header
+// Express admin auth middleware — timing-safe API key validation
 function requireAdmin(req: Request, res: Response, next: NextFunction): void {
-  const adminKeys = new Set(
-    (process.env.ADMIN_API_KEYS || '').split(',').filter(Boolean)
-  );
+  const adminKeys = (process.env.ADMIN_API_KEYS || '').split(',').filter(Boolean);
   const defaultKey = process.env.ADMIN_API_KEY;
-  if (defaultKey) adminKeys.add(defaultKey);
+  if (defaultKey) adminKeys.push(defaultKey);
 
   const apiKey = req.headers['x-api-key'] as string | undefined;
-  if (!apiKey || !adminKeys.has(apiKey)) {
+  if (!apiKey || apiKey.length === 0) {
+    res.status(401).json({ error: 'Unauthorized — valid X-API-Key required' });
+    return;
+  }
+
+  const match = adminKeys.some((key) => {
+    if (key.length !== apiKey.length) return false;
+    return timingSafeEqual(Buffer.from(key), Buffer.from(apiKey));
+  });
+
+  if (!match) {
     res.status(401).json({ error: 'Unauthorized — valid X-API-Key required' });
     return;
   }
@@ -115,6 +124,7 @@ couponRouter.post('/apply', async (req: Request, res: Response) => {
 
   // 100% discount = free
   if (result.discountedPrice === 0) {
+    couponService.recordUse(code);
     return res.json({
       success: true,
       discountPercent: result.discountPercent,
@@ -151,6 +161,7 @@ couponRouter.post('/apply', async (req: Request, res: Response) => {
       return res.status(500).json({ error: 'Payment provider error' });
     }
 
+    couponService.recordUse(code);
     return res.json({
       success: true,
       discountPercent: result.discountPercent,
