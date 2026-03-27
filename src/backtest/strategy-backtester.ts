@@ -81,7 +81,8 @@ export function generateSyntheticData(config: {
   const random = createLCG(seed);
   const candles: BacktestCandle[] = [];
   let price = startPrice;
-  const baseTimestamp = Date.now();
+  // Use fixed base when seed is provided for reproducibility; otherwise use current time
+  const baseTimestamp = config.seed !== undefined ? 1_700_000_000_000 : Date.now();
 
   for (let i = 0; i < ticks; i++) {
     // Geometric Brownian Motion: dS/S = mu*dt + sigma*dW
