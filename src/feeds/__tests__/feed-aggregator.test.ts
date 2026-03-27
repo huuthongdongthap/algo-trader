@@ -29,16 +29,14 @@ describe('FeedAggregator', () => {
   });
 
   it('should connect to all exchanges', async () => {
-    // Mock WebSocket to avoid actual connections in tests
-    const connectSpy = vi.spyOn(aggregator as any, 'connect');
+    // Mock each client's connect() to avoid real WebSocket connections
+    const clients = (aggregator as any).clients as Map<string, any>;
+    for (const client of clients.values()) {
+      vi.spyOn(client, 'connect').mockResolvedValue(undefined);
+    }
 
-    // In a real test, we would mock the WebSocket clients
-    // For now, just verify the method exists and returns a promise
-    const connectPromise = aggregator.connect();
-    expect(connectPromise).toBeInstanceOf(Promise);
-
-    // Clean up
-    await connectPromise.catch(() => {}); // Ignore connection errors in test
+    await aggregator.connect();
+    expect(aggregator.isConnected()).toBe(true);
   });
 
   it('should register feed handlers', () => {
