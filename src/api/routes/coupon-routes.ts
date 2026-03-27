@@ -10,10 +10,38 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { CouponService } from '../../billing/coupon-service';
 import { logger } from '../../utils/logger';
 
-const TIER_PRICES: Record<string, { price: number; invoiceId: string }> = {
-  STARTER: { price: 49, invoiceId: '4725459350' },
-  PRO: { price: 149, invoiceId: '5493882802' },
-  ELITE: { price: 499, invoiceId: '5264305182' },
+// All tiers across all projects (shared NOWPayments account)
+const TIER_PRICES: Record<string, Record<string, { price: number; invoiceId: string }>> = {
+  cashclaw: {
+    STARTER: { price: 49, invoiceId: '4725459350' },
+    PRO: { price: 149, invoiceId: '5493882802' },
+    ELITE: { price: 499, invoiceId: '5264305182' },
+  },
+  openclaw: {
+    STARTER: { price: 49, invoiceId: '6245075877' },
+    PRO: { price: 149, invoiceId: '5438578229' },
+    GROWTH: { price: 399, invoiceId: '5749708735' },
+    PREMIUM: { price: 799, invoiceId: '4598891970' },
+    MASTER: { price: 4999, invoiceId: '4296538179' },
+  },
+  sophia: {
+    STARTER: { price: 199, invoiceId: '5710519960' },
+    GROWTH: { price: 399, invoiceId: '4559269964' },
+    PREMIUM: { price: 799, invoiceId: '6336799275' },
+    MASTER: { price: 4999, invoiceId: '5589879034' },
+  },
+  mekong: {
+    STARTER: { price: 49, invoiceId: '6245075877' },
+    PRO: { price: 149, invoiceId: '5438578229' },
+  },
+};
+
+// Project success/cancel URLs
+const PROJECT_URLS: Record<string, { success: string; cancel: string }> = {
+  cashclaw: { success: 'https://cashclaw.cc/dashboard.html', cancel: 'https://cashclaw.cc/#pricing' },
+  openclaw: { success: 'https://agencyos.network/dashboard', cancel: 'https://agencyos.network/pricing' },
+  sophia: { success: 'https://sophia.agencyos.network/dashboard', cancel: 'https://sophia.agencyos.network/pricing' },
+  mekong: { success: 'https://raas-landing.pages.dev/', cancel: 'https://raas-landing.pages.dev/' },
 };
 
 const NOWPAYMENTS_API_KEY = process.env.NOWPAYMENTS_API_KEY || '';
@@ -59,16 +87,23 @@ couponRouter.delete('/:code', requireAdmin, (req: Request, res: Response) => {
 });
 
 // Customer: apply coupon → create discounted NOWPayments invoice → return checkout URL
+// Accepts: { code, tier, project? } — project defaults to "cashclaw"
 couponRouter.post('/apply', async (req: Request, res: Response) => {
-  const { code, tier } = req.body;
+  const { code, tier, project } = req.body;
   if (!code || !tier) {
     return res.status(400).json({ error: 'code and tier required' });
   }
 
+  const projectKey = (project || 'cashclaw').toLowerCase();
   const tierKey = tier.toUpperCase();
-  const tierConfig = TIER_PRICES[tierKey];
+  const projectTiers = TIER_PRICES[projectKey];
+  if (!projectTiers) {
+    return res.status(400).json({ error: `Unknown project: ${projectKey}` });
+  }
+  const tierConfig = projectTiers[tierKey];
   if (!tierConfig) {
-    return res.status(400).json({ error: 'Invalid tier. Use STARTER, PRO, or ELITE' });
+    const validTiers = Object.keys(projectTiers).join(', ');
+    return res.status(400).json({ error: `Invalid tier for ${projectKey}. Use: ${validTiers}` });
   }
 
   const result = couponService.applyCoupon(code, tierKey, tierConfig.price);
@@ -76,7 +111,7 @@ couponRouter.post('/apply', async (req: Request, res: Response) => {
     return res.status(400).json({ error: result.error });
   }
 
-  // 100% discount = free, activate directly
+  // 100% discount = free
   if (result.discountedPrice === 0) {
     return res.json({
       success: true,
@@ -89,6 +124,7 @@ couponRouter.post('/apply', async (req: Request, res: Response) => {
   }
 
   // Create discounted invoice via NOWPayments API
+  const urls = PROJECT_URLS[projectKey] || PROJECT_URLS.cashclaw;
   try {
     const invoiceRes = await fetch('https://api.nowpayments.io/v1/invoice', {
       method: 'POST',
@@ -99,14 +135,14 @@ couponRouter.post('/apply', async (req: Request, res: Response) => {
       body: JSON.stringify({
         price_amount: result.discountedPrice,
         price_currency: 'usd',
-        order_id: `cashclaw_${tierKey}_coupon_${code}_${Date.now()}`,
-        order_description: `CashClaw ${tierKey} (${result.discountPercent}% off with ${code})`,
-        success_url: 'https://cashclaw.cc/dashboard.html',
-        cancel_url: 'https://cashclaw.cc/#pricing',
+        order_id: `${projectKey}_${tierKey}_coupon_${code}_${Date.now()}`,
+        order_description: `${projectKey} ${tierKey} (${result.discountPercent}% off with ${code})`,
+        success_url: urls.success,
+        cancel_url: urls.cancel,
       }),
     });
 
-    const invoice = await invoiceRes.json() as { id?: string; invoice_url?: string };
+    const invoice = await invoiceRes.json() as { id?: string };
 
     if (!invoice.id) {
       logger.error('[Coupon] NOWPayments invoice creation failed', invoice);

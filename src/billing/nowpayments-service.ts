@@ -1,6 +1,6 @@
 /**
  * NOWPayments Crypto Payment Service
- * Replaces Polar.sh — USDT TRC20 payments via NOWPayments IPN
+ * USDT TRC20 payments via NOWPayments IPN
  *
  * Features:
  * - IPN signature verification (HMAC-SHA512)
