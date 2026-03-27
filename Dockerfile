@@ -28,8 +28,8 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
 COPY package.json pnpm-lock.yaml* ./
 
-# Production deps only
-RUN pnpm install --frozen-lockfile --prod
+# Production deps only (ignore scripts — no build tools in runner)
+RUN pnpm install --frozen-lockfile --prod --ignore-scripts
 
 COPY --from=builder /app/dist ./dist
 
