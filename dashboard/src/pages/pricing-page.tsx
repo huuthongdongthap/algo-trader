@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { PublicNavbar } from '../components/public-navbar';
 import { Footer } from '../components/footer';
+import { TIER_LIMITS } from '../lib/tier-config';
 
 const PLANS = [
   {
@@ -16,10 +17,10 @@ const PLANS = [
     cta: 'Get Started',
     highlight: false,
     features: [
-      { label: 'Active strategies', value: '1' },
-      { label: 'Trades per day', value: '5' },
-      { label: 'Daily loss cap', value: '$50' },
-      { label: 'Max position size', value: '$500' },
+      { label: 'Active strategies', value: TIER_LIMITS.free.activeStrategies },
+      { label: 'Trades per day', value: TIER_LIMITS.free.tradesPerDay },
+      { label: 'Daily loss cap', value: TIER_LIMITS.free.dailyLossCap },
+      { label: 'Max position size', value: TIER_LIMITS.free.maxPosition },
       { label: 'Market scanning', value: 'Basic' },
       { label: 'Safety limits', value: true },
       { label: 'API access', value: false },
@@ -34,10 +35,10 @@ const PLANS = [
     cta: 'Start Pro',
     highlight: true,
     features: [
-      { label: 'Active strategies', value: '5' },
-      { label: 'Trades per day', value: 'Unlimited' },
-      { label: 'Daily loss cap', value: '$500' },
-      { label: 'Max position size', value: '$5,000' },
+      { label: 'Active strategies', value: TIER_LIMITS.pro.activeStrategies },
+      { label: 'Trades per day', value: TIER_LIMITS.pro.tradesPerDay },
+      { label: 'Daily loss cap', value: TIER_LIMITS.pro.dailyLossCap },
+      { label: 'Max position size', value: TIER_LIMITS.pro.maxPosition },
       { label: 'Market scanning', value: 'Advanced' },
       { label: 'Safety limits', value: true },
       { label: 'API access', value: true },
@@ -52,10 +53,10 @@ const PLANS = [
     cta: 'Get Started',
     highlight: false,
     features: [
-      { label: 'Active strategies', value: 'Unlimited' },
-      { label: 'Trades per day', value: 'Unlimited' },
-      { label: 'Daily loss cap', value: '$5,000' },
-      { label: 'Max position size', value: '$50,000' },
+      { label: 'Active strategies', value: TIER_LIMITS.enterprise.activeStrategies },
+      { label: 'Trades per day', value: TIER_LIMITS.enterprise.tradesPerDay },
+      { label: 'Daily loss cap', value: TIER_LIMITS.enterprise.dailyLossCap },
+      { label: 'Max position size', value: TIER_LIMITS.enterprise.maxPosition },
       { label: 'Market scanning', value: 'Full coverage' },
       { label: 'Safety limits', value: true },
       { label: 'API access', value: true },

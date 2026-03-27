@@ -56,48 +56,10 @@ function MetricCell({ label, value, colored }: { label: string; value: string; c
   );
 }
 
-const MOCK_RESULTS: BacktestResult[] = [
-  {
-    id: '1',
-    strategyName: 'arb-spread-v1',
-    pair: 'BTC/USDT',
-    timeframe: '1h',
-    days: 30,
-    sharpeRatio: 1.82,
-    sortinoRatio: 2.14,
-    maxDrawdownPct: 4.3,
-    totalReturnPct: 18.7,
-    createdAt: '2026-03-01T10:00:00Z',
-  },
-  {
-    id: '2',
-    strategyName: 'mean-reversion',
-    pair: 'ETH/USDT',
-    timeframe: '4h',
-    days: 60,
-    sharpeRatio: 0.67,
-    sortinoRatio: 0.89,
-    maxDrawdownPct: 11.2,
-    totalReturnPct: 6.1,
-    createdAt: '2026-02-28T14:30:00Z',
-  },
-  {
-    id: '3',
-    strategyName: 'trend-follow',
-    pair: 'SOL/USDT',
-    timeframe: '1d',
-    days: 90,
-    sharpeRatio: -0.23,
-    sortinoRatio: -0.31,
-    maxDrawdownPct: 28.6,
-    totalReturnPct: -3.4,
-    createdAt: '2026-02-25T09:15:00Z',
-  },
-];
 
 export function BacktestsPage() {
   const { fetchApi, loading } = useApiClient();
-  const [results, setResults] = useState<BacktestResult[]>(MOCK_RESULTS);
+  const [results, setResults] = useState<BacktestResult[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
 
@@ -124,7 +86,7 @@ export function BacktestsPage() {
     if (res) {
       setSuccessMsg(`Job submitted: ${res.jobId ?? 'queued'}`);
     } else {
-      setSuccessMsg('Submitted (backend unavailable — mock mode)');
+      setSuccessMsg('Không thể kết nối backend. Vui lòng thử lại.');
     }
   }
 

@@ -234,7 +234,7 @@ MM_MAX_MARKETS=5
           <div>
             <p className="text-xs font-mono text-[#00D9FF] uppercase tracking-widest mb-2">Daily log template</p>
             <CopyBlock code={`# Date: YYYY-MM-DD
-# Capital: $XXX
+# Capital: $100–$5,000
 # Fills today: XX
 # P&L: +$XX / -$XX
 # Notes: `} />

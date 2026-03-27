@@ -3,6 +3,7 @@
  */
 import { useAuthStore } from '../stores/auth-store';
 import { Link } from 'react-router-dom';
+import { getTierLimits } from '../lib/tier-config';
 
 const TIER_LABELS: Record<string, string> = {
   free: 'Free',
@@ -14,12 +15,6 @@ const TIER_BADGE_COLORS: Record<string, string> = {
   free: 'bg-[#2D3142] text-[#8892B0]',
   pro: 'bg-[#00D9FF]/10 text-[#00D9FF] border border-[#00D9FF]/30',
   enterprise: 'bg-[#FFD700]/10 text-[#FFD700] border border-[#FFD700]/30',
-};
-
-const TIER_LIMITS: Record<string, { tradesPerDay: string; dailyLossCap: string; maxPosition: string }> = {
-  free:       { tradesPerDay: '10',        dailyLossCap: '$50',    maxPosition: '$100'   },
-  pro:        { tradesPerDay: '500',       dailyLossCap: '$2,000', maxPosition: '$10,000' },
-  enterprise: { tradesPerDay: 'Unlimited', dailyLossCap: 'Custom', maxPosition: 'Custom'  },
 };
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
@@ -43,7 +38,7 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 export function AccountPage() {
   const { email, tier, tenantId, apiKey, token } = useAuthStore();
 
-  const limits = TIER_LIMITS[tier] ?? TIER_LIMITS['free'];
+  const limits = getTierLimits(tier);
   const badgeClass = TIER_BADGE_COLORS[tier] ?? TIER_BADGE_COLORS['free'];
   const tierLabel = TIER_LABELS[tier] ?? tier;
 
@@ -109,13 +104,21 @@ export function AccountPage() {
           <button
             disabled
             title="Contact support to regenerate your API key"
+            aria-label="Regenerate API key — contact support to enable"
             className="text-xs px-3 py-1.5 border border-[#2D3142] rounded text-muted font-mono cursor-not-allowed opacity-50"
           >
             Regenerate
           </button>
         </div>
         <p className="text-muted text-[10px] font-mono">
-          Key regeneration is disabled. Contact support if you need to rotate your key.
+          Key regeneration is disabled.{' '}
+          <a
+            href="mailto:support@cashclaw.cc"
+            className="text-[#00D9FF] hover:underline"
+          >
+            Contact support
+          </a>{' '}
+          to rotate your key.
         </p>
       </Card>
 
@@ -136,14 +139,12 @@ export function AccountPage() {
             <p className="text-muted text-xs font-mono">
               Active <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${badgeClass}`}>{tierLabel}</span> subscription.
             </p>
-            <a
-              href="https://nowpayments.io/dashboard"
-              target="_blank"
-              rel="noopener noreferrer"
+            <Link
+              to="/pricing"
               className="text-xs px-4 py-2 border border-[#2D3142] rounded text-[#00D9FF] hover:bg-[#00D9FF]/10 transition-colors font-mono"
             >
-              Manage Subscription
-            </a>
+              Upgrade / Manage →
+            </Link>
           </div>
         )}
       </Card>

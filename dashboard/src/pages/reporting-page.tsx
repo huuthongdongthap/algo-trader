@@ -22,21 +22,6 @@ type SortDir = 'asc' | 'desc';
 
 const PAGE_SIZE = 20;
 
-const MOCK_TRADES: Trade[] = Array.from({ length: 47 }, (_, i) => {
-  const side: 'BUY' | 'SELL' = i % 2 === 0 ? 'BUY' : 'SELL';
-  const pnl = (Math.random() - 0.45) * 200;
-  return {
-    id: `t${i + 1}`,
-    date: new Date(Date.now() - i * 3_600_000 * 4).toISOString(),
-    pair: ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT'][i % 4],
-    side,
-    price: 40000 + Math.random() * 20000,
-    amount: 0.01 + Math.random() * 0.5,
-    fee: Math.random() * 2,
-    pnl: parseFloat(pnl.toFixed(2)),
-    exchange: ['binance', 'kraken', 'coinbase', 'bybit'][i % 4],
-  };
-});
 
 function fmt(n: number, decimals = 2) {
   return n.toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
@@ -91,7 +76,7 @@ function SortHeader({ label, col, current, dir, onSort }: SortHeaderProps) {
 
 export function ReportingPage() {
   const { fetchApi } = useApiClient();
-  const [trades, setTrades] = useState<Trade[]>(MOCK_TRADES);
+  const [trades, setTrades] = useState<Trade[]>([]);
   const [sortKey, setSortKey] = useState<SortKey>('date');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [page, setPage] = useState(0);
@@ -182,95 +167,106 @@ export function ReportingPage() {
 
       {/* Trade history table */}
       <div className="bg-bg-card border border-bg-border rounded-lg overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[700px] text-xs font-mono">
-            <thead className="border-b border-bg-border bg-bg">
-              <tr>
-                {COLS.map((c) => (
-                  <SortHeader
-                    key={c.key}
-                    label={c.label}
-                    col={c.key}
-                    current={sortKey}
-                    dir={sortDir}
-                    onSort={handleSort}
-                  />
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {pageSlice.map((t, idx) => (
-                <tr
-                  key={t.id}
-                  className={`border-b border-bg-border hover:bg-bg/50 transition-colors ${
-                    idx % 2 === 0 ? '' : 'bg-bg/20'
-                  }`}
-                >
-                  <td className="px-3 py-2 text-muted whitespace-nowrap">
-                    {new Date(t.date).toLocaleString('en-US', {
-                      month: 'short',
-                      day: '2-digit',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </td>
-                  <td className="px-3 py-2 text-white whitespace-nowrap">{t.pair}</td>
-                  <td
-                    className={`px-3 py-2 font-bold whitespace-nowrap ${
-                      t.side === 'BUY' ? 'text-accent' : 'text-loss'
-                    }`}
-                  >
-                    {t.side}
-                  </td>
-                  <td className="px-3 py-2 text-white text-right whitespace-nowrap">
-                    ${fmt(t.price)}
-                  </td>
-                  <td className="px-3 py-2 text-white text-right whitespace-nowrap">
-                    {t.amount.toFixed(4)}
-                  </td>
-                  <td className="px-3 py-2 text-muted text-right whitespace-nowrap">
-                    ${t.fee.toFixed(4)}
-                  </td>
-                  <td
-                    className={`px-3 py-2 font-bold text-right whitespace-nowrap ${pnlClass(t.pnl)}`}
-                  >
-                    {t.pnl >= 0 ? '+' : ''}${fmt(t.pnl)}
-                  </td>
-                  <td className="px-3 py-2 text-muted whitespace-nowrap capitalize">
-                    {t.exchange}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        <div className="flex items-center justify-between px-4 py-3 border-t border-bg-border">
-          <span className="text-muted text-xs">
-            {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, sorted.length)} of{' '}
-            {sorted.length} trades
-          </span>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setPage((p) => Math.max(0, p - 1))}
-              disabled={page === 0}
-              className="px-3 py-1 text-xs border border-bg-border rounded text-muted hover:border-accent hover:text-accent disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            >
-              ← Prev
-            </button>
-            <span className="px-3 py-1 text-xs text-muted font-mono">
-              {page + 1} / {totalPages}
-            </span>
-            <button
-              onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-              disabled={page >= totalPages - 1}
-              className="px-3 py-1 text-xs border border-bg-border rounded text-muted hover:border-accent hover:text-accent disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            >
-              Next →
-            </button>
+        {trades.length === 0 ? (
+          <div className="p-8 text-center">
+            <p className="text-muted text-sm font-mono">Chưa có giao dịch.</p>
+            <p className="text-muted text-xs font-mono mt-1">Dữ liệu sẽ xuất hiện sau khi bot thực hiện giao dịch đầu tiên.</p>
           </div>
-        </div>
+        ) : (
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[700px] text-xs font-mono">
+                <thead className="border-b border-bg-border bg-bg">
+                  <tr>
+                    {COLS.map((c) => (
+                      <SortHeader
+                        key={c.key}
+                        label={c.label}
+                        col={c.key}
+                        current={sortKey}
+                        dir={sortDir}
+                        onSort={handleSort}
+                      />
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageSlice.map((t, idx) => (
+                    <tr
+                      key={t.id}
+                      className={`border-b border-bg-border hover:bg-bg/50 transition-colors ${
+                        idx % 2 === 0 ? '' : 'bg-bg/20'
+                      }`}
+                    >
+                      <td className="px-3 py-2 text-muted whitespace-nowrap">
+                        {new Date(t.date).toLocaleString('en-US', {
+                          month: 'short',
+                          day: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </td>
+                      <td className="px-3 py-2 text-white whitespace-nowrap">{t.pair}</td>
+                      <td
+                        className={`px-3 py-2 font-bold whitespace-nowrap ${
+                          t.side === 'BUY' ? 'text-accent' : 'text-loss'
+                        }`}
+                      >
+                        {t.side}
+                      </td>
+                      <td className="px-3 py-2 text-white text-right whitespace-nowrap">
+                        ${fmt(t.price)}
+                      </td>
+                      <td className="px-3 py-2 text-white text-right whitespace-nowrap">
+                        {t.amount.toFixed(4)}
+                      </td>
+                      <td className="px-3 py-2 text-muted text-right whitespace-nowrap">
+                        ${t.fee.toFixed(4)}
+                      </td>
+                      <td
+                        className={`px-3 py-2 font-bold text-right whitespace-nowrap ${pnlClass(t.pnl)}`}
+                      >
+                        {t.pnl >= 0 ? '+' : ''}${fmt(t.pnl)}
+                      </td>
+                      <td className="px-3 py-2 text-muted whitespace-nowrap capitalize">
+                        {t.exchange}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            <div className="flex items-center justify-between px-4 py-3 border-t border-bg-border">
+              <span className="text-muted text-xs">
+                {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, sorted.length)} of{' '}
+                {sorted.length} trades
+              </span>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setPage((p) => Math.max(0, p - 1))}
+                  disabled={page === 0}
+                  aria-label="Previous page"
+                  className="px-3 py-1 text-xs border border-bg-border rounded text-muted hover:border-accent hover:text-accent disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  ← Prev
+                </button>
+                <span className="px-3 py-1 text-xs text-muted font-mono">
+                  {page + 1} / {totalPages}
+                </span>
+                <button
+                  onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
+                  disabled={page >= totalPages - 1}
+                  aria-label="Next page"
+                  className="px-3 py-1 text-xs border border-bg-border rounded text-muted hover:border-accent hover:text-accent disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  Next →
+                </button>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

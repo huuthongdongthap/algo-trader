@@ -23,6 +23,13 @@ export interface SignalsResponse {
 }
 
 // === P&L API ===
+export interface PnLHistoryPoint {
+  pnl: number;
+  trades?: number;
+  label?: string;
+  date?: string;
+}
+
 export interface PerformanceMetrics {
   totalPnl: number;
   dailyPnl: number;
@@ -34,6 +41,8 @@ export interface PerformanceMetrics {
   avgTrade: number;
   bestTrade: number;
   worstTrade: number;
+  /** Time-series history for chart rendering. Optional — omitted when no data. */
+  pnlHistory?: PnLHistoryPoint[];
 }
 
 export interface PnLSummary {
