@@ -25,9 +25,11 @@ const TIER_PRICES: Record<string, Record<string, { price: number; invoiceId: str
     MASTER: { price: 4999, invoiceId: '4296538179' },
   },
   sophia: {
+    BASIC: { price: 199, invoiceId: '5710519960' },
     STARTER: { price: 199, invoiceId: '5710519960' },
+    PREMIUM: { price: 399, invoiceId: '4559269964' },
     GROWTH: { price: 399, invoiceId: '4559269964' },
-    PREMIUM: { price: 799, invoiceId: '6336799275' },
+    ENTERPRISE: { price: 799, invoiceId: '6336799275' },
     MASTER: { price: 4999, invoiceId: '5589879034' },
   },
   mekong: {
