@@ -30,29 +30,47 @@ const MM_FIELDS: { key: string; label: string; description: string; placeholder:
 ];
 
 function MmParametersForm() {
+  const { fetchApi } = useApiClient();
+  const { tenantId } = useAuthStore();
   const [values, setValues] = useState<Record<string, string>>({
     MM_SPREAD: '0.05',
     MM_SIZE: '10',
     MM_MAX_MARKETS: '5',
     MM_MAX_INVENTORY: '50',
   });
-  const [saved, setSaved] = useState(false);
+  const [statusMsg, setStatusMsg] = useState<{ text: string; ok: boolean } | null>(null);
+  const [saving, setSaving] = useState(false);
 
   function handleChange(key: string, val: string) {
     setValues((prev) => ({ ...prev, [key]: val }));
-    setSaved(false);
+    setStatusMsg(null);
   }
 
-  function handleSave(e: React.FormEvent) {
+  async function handleSave(e: React.FormEvent) {
     e.preventDefault();
-    setSaved(true);
+    setSaving(true);
+    setStatusMsg(null);
+    const res = await fetchApi(`/tenants/${tenantId ?? 'me'}/mm-parameters`, {
+      method: 'POST',
+      body: JSON.stringify(values),
+    });
+    setSaving(false);
+    if (res !== null) {
+      setStatusMsg({ text: 'Saved', ok: true });
+    } else {
+      setStatusMsg({ text: 'Backend not configured — changes not persisted', ok: false });
+    }
   }
 
   return (
     <form onSubmit={handleSave} className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-white text-sm font-bold font-mono">MM Parameters</h2>
-        {saved && <span className="text-profit text-xs font-mono">Saved</span>}
+        {statusMsg && (
+          <span className={`text-xs font-mono ${statusMsg.ok ? 'text-profit' : 'text-muted'}`}>
+            {statusMsg.text}
+          </span>
+        )}
       </div>
       <p className="text-muted text-xs font-mono">Market making strategy configuration. Changes take effect on next requote cycle.</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -72,9 +90,10 @@ function MmParametersForm() {
       </div>
       <button
         type="submit"
-        className="bg-accent text-bg font-bold text-xs font-mono px-4 py-2 rounded hover:bg-accent/80 transition-colors"
+        disabled={saving}
+        className="bg-accent text-bg font-bold text-xs font-mono px-4 py-2 rounded hover:bg-accent/80 disabled:opacity-50 transition-colors"
       >
-        Save Parameters
+        {saving ? 'Saving…' : 'Save Parameters'}
       </button>
     </form>
   );

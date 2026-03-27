@@ -16,6 +16,8 @@ import { DocsPage } from './pages/docs-page';
 import { GuidePage } from './pages/guide-page';
 import { AccountPage } from './pages/account-page';
 import { CouponAdminPage } from './pages/coupon-admin-page';
+import { TermsPage } from './pages/terms-page';
+import { PrivacyPage } from './pages/privacy-page';
 
 /**
  * Handle uncaught errors in the app.
@@ -34,6 +36,8 @@ export function App() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/pricing" element={<PricingPage />} />
         <Route path="/docs" element={<DocsPage />} />
+        <Route path="/terms" element={<TermsPage />} />
+        <Route path="/privacy" element={<PrivacyPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
 

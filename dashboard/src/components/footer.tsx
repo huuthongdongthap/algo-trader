@@ -49,10 +49,14 @@ export function Footer() {
             <p className="text-white text-xs font-mono uppercase tracking-widest mb-3">Legal</p>
             <ul className="space-y-2">
               <li>
-                <span className="text-[#8892B0] text-xs font-mono">Terms of Service</span>
+                <Link to="/terms" className="text-[#8892B0] hover:text-white text-xs font-mono transition-colors">
+                  Terms of Service
+                </Link>
               </li>
               <li>
-                <span className="text-[#8892B0] text-xs font-mono">Privacy Policy</span>
+                <Link to="/privacy" className="text-[#8892B0] hover:text-white text-xs font-mono transition-colors">
+                  Privacy Policy
+                </Link>
               </li>
             </ul>
           </div>

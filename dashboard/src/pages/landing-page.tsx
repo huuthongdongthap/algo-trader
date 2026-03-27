@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom';
 import { PublicNavbar } from '../components/public-navbar';
 import { Footer } from '../components/footer';
 import { TerminalAnimation } from '../components/terminal-animation';
+import { TIER_LIMITS } from '../lib/tier-config';
 
 function useFadeIn(selector: string) {
   useEffect(() => {
@@ -63,11 +64,26 @@ const STATS = [
 
 const PRICING_CARDS = [
   { name: 'Free', price: '$0', sub: 'forever', cta: 'Start Free', href: '/signup?tier=free', highlight: false,
-    features: ['1 active strategy', '5 trades / day', '$50 daily loss cap', '$500 max position'] },
+    features: [
+      `${TIER_LIMITS.free.activeStrategies} active strategy`,
+      `${TIER_LIMITS.free.tradesPerDay} trades / day`,
+      `${TIER_LIMITS.free.dailyLossCap} daily loss cap`,
+      `${TIER_LIMITS.free.maxPosition} max position`,
+    ] },
   { name: 'Pro', price: '$49', sub: 'per month', cta: 'Start Pro', href: '/signup?tier=pro', highlight: true,
-    features: ['5 active strategies', 'Unlimited trades', '$500 daily loss cap', '$5,000 max position'] },
+    features: [
+      `${TIER_LIMITS.pro.activeStrategies} active strategies`,
+      `${TIER_LIMITS.pro.tradesPerDay} trades`,
+      `${TIER_LIMITS.pro.dailyLossCap} daily loss cap`,
+      `${TIER_LIMITS.pro.maxPosition} max position`,
+    ] },
   { name: 'Enterprise', price: '$199', sub: 'per month', cta: 'Contact Us', href: '/signup?tier=enterprise', highlight: false,
-    features: ['Unlimited strategies', 'Unlimited trades', '$5,000 daily loss cap', '$50,000 max position'] },
+    features: [
+      `${TIER_LIMITS.enterprise.activeStrategies} strategies`,
+      `${TIER_LIMITS.enterprise.tradesPerDay} trades`,
+      `${TIER_LIMITS.enterprise.dailyLossCap} daily loss cap`,
+      `${TIER_LIMITS.enterprise.maxPosition} max position`,
+    ] },
 ];
 
 export function LandingPage() {

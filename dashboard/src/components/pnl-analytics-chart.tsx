@@ -28,31 +28,27 @@ interface ChartData {
   cumulative: number;
 }
 
-// Mock data generator for demonstration (replace with real API data)
-function generateMockData(range: TimeRange): ChartData[] {
-  const days = range === 'day' ? 24 : range === 'week' ? 7 : 30;
-  const data: ChartData[] = [];
+/**
+ * Build chart data from real PerformanceMetrics.
+ * Returns empty array when no metrics available — never generates fake data.
+ */
+function buildChartData(metrics: PerformanceMetrics | null): ChartData[] {
+  if (!metrics || !metrics.pnlHistory || metrics.pnlHistory.length === 0) return [];
   let cumulative = 0;
-
-  for (let i = 0; i < days; i++) {
-    const pnl = (Math.random() - 0.45) * 500; // Slight positive bias
-    cumulative += pnl;
-    data.push({
-      name: range === 'day'
-        ? `${i}:00`
-        : `Day ${i + 1}`,
-      pnl: parseFloat(pnl.toFixed(2)),
-      trades: Math.floor(Math.random() * 10),
+  return metrics.pnlHistory.map((point) => {
+    cumulative += point.pnl;
+    return {
+      name: point.label ?? point.date ?? '',
+      pnl: parseFloat(point.pnl.toFixed(2)),
+      trades: point.trades ?? 0,
       cumulative: parseFloat(cumulative.toFixed(2)),
-    });
-  }
-
-  return data;
+    };
+  });
 }
 
 export function PnLAnalyticsChart({ metrics, loading, error }: PnLAnalyticsChartProps) {
   const [timeRange, setTimeRange] = useState<TimeRange>('week');
-  const data = generateMockData(timeRange);
+  const data = buildChartData(metrics);
 
   if (loading) {
     return (
@@ -66,6 +62,32 @@ export function PnLAnalyticsChart({ metrics, loading, error }: PnLAnalyticsChart
     return (
       <div className="bg-bg-card border border-bg-border rounded-lg p-8 text-center">
         <p className="text-loss text-sm">{error}</p>
+      </div>
+    );
+  }
+
+  if (!metrics) {
+    return (
+      <div className="bg-bg-card border border-bg-border rounded-lg p-8 text-center">
+        <p className="text-muted text-sm font-mono">Chưa có dữ liệu P&L.</p>
+        <p className="text-muted text-xs font-mono mt-1">Dữ liệu sẽ xuất hiện sau khi bot thực hiện giao dịch đầu tiên.</p>
+      </div>
+    );
+  }
+
+  if (data.length === 0) {
+    return (
+      <div className="bg-bg-card border border-bg-border rounded-lg p-8 text-center">
+        {metrics && (
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-6">
+            <MetricCard label="Total P&L" value={formatUsd(metrics.totalPnl)} />
+            <MetricCard label="Daily P&L" value={formatUsd(metrics.dailyPnl)} />
+            <MetricCard label="Weekly P&L" value={formatUsd(metrics.weeklyPnl)} />
+            <MetricCard label="Win Rate" value={`${(metrics.winRate * 100).toFixed(1)}%`} />
+            <MetricCard label="Avg Trade" value={formatUsd(metrics.avgTrade)} />
+          </div>
+        )}
+        <p className="text-muted text-sm font-mono">Chưa có lịch sử giao dịch để vẽ biểu đồ.</p>
       </div>
     );
   }
@@ -87,6 +109,8 @@ export function PnLAnalyticsChart({ metrics, loading, error }: PnLAnalyticsChart
             <button
               key={range}
               onClick={() => setTimeRange(range)}
+              aria-label={`Show ${range} view`}
+              aria-pressed={timeRange === range}
               className={`
                 px-3 py-1 text-xs rounded transition-colors
                 ${timeRange === range

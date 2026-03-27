@@ -60,17 +60,13 @@ export const useAuthStore = create<AuthState>()(
             set({ loading: false, error: err.error ?? 'Invalid credentials' });
             return;
           }
-        } catch (error) {
-          console.error('[Auth Store] Login API unavailable:', error);
+        } catch {
+          // API unreachable — never auto-grant access
+          set({ loading: false, error: 'Không thể kết nối server. Vui lòng thử lại.' });
+          return;
         }
-        set({
-          loggedIn: true,
-          email,
-          tier: 'free',
-          token: null,
-          tenantId: `local_${email}`,
-          loading: false,
-        });
+        // Non-OK, non-401 response (e.g. 500)
+        set({ loading: false, error: 'Đăng nhập thất bại. Vui lòng thử lại.' });
       },
 
       signup: async (email: string, password: string, tier: 'free' | 'pro' | 'enterprise') => {
@@ -103,18 +99,13 @@ export const useAuthStore = create<AuthState>()(
             set({ loading: false, error: err.error ?? 'Invalid input' });
             return;
           }
-        } catch (error) {
-          console.error('[Auth Store] Signup API unavailable:', error);
+        } catch {
+          // API unreachable — never auto-grant access
+          set({ loading: false, error: 'Không thể kết nối server. Vui lòng thử lại.' });
+          return;
         }
-        set({
-          loggedIn: true,
-          email,
-          tier,
-          token: null,
-          tenantId: `local_${email}`,
-          apiKey: null,
-          loading: false,
-        });
+        // Non-OK, non-400/409 response (e.g. 500)
+        set({ loading: false, error: 'Đăng ký thất bại. Vui lòng thử lại.' });
       },
 
       fetchMe: async () => {
