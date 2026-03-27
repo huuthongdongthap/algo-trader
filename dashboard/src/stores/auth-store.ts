@@ -43,30 +43,20 @@ export const useAuthStore = create<AuthState>()(
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password }),
           });
+          const ct = res.headers.get('content-type') ?? '';
+          if (!ct.includes('application/json')) {
+            set({ loading: false, error: 'Backend chưa được cấu hình. Liên hệ support@cashclaw.cc' });
+            return;
+          }
+          const data = await res.json();
           if (res.ok) {
-            const data = await res.json();
-            set({
-              loggedIn: true,
-              token: data.token,
-              tenantId: data.tenantId,
-              email: data.email,
-              tier: data.tier ?? 'free',
-              loading: false,
-            });
+            set({ loggedIn: true, token: data.token, tenantId: data.tenantId, email: data.email, tier: data.tier ?? 'free', loading: false });
             return;
           }
-          const err = await res.json().catch(() => ({ error: 'Login failed' }));
-          if (res.status === 401) {
-            set({ loading: false, error: err.error ?? 'Invalid credentials' });
-            return;
-          }
+          set({ loading: false, error: data.error ?? 'Đăng nhập thất bại' });
         } catch {
-          // API unreachable — never auto-grant access
           set({ loading: false, error: 'Không thể kết nối server. Vui lòng thử lại.' });
-          return;
         }
-        // Non-OK, non-401 response (e.g. 500)
-        set({ loading: false, error: 'Đăng nhập thất bại. Vui lòng thử lại.' });
       },
 
       signup: async (email: string, password: string, tier: 'free' | 'pro' | 'enterprise') => {
@@ -77,35 +67,20 @@ export const useAuthStore = create<AuthState>()(
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password, tier }),
           });
+          const ct = res.headers.get('content-type') ?? '';
+          if (!ct.includes('application/json')) {
+            set({ loading: false, error: 'Backend chưa được cấu hình. Liên hệ support@cashclaw.cc' });
+            return;
+          }
+          const data = await res.json();
           if (res.ok) {
-            const data = await res.json();
-            set({
-              loggedIn: true,
-              token: data.token,
-              tenantId: data.tenantId,
-              email: data.email,
-              tier: data.tier ?? tier,
-              apiKey: data.apiKey,
-              loading: false,
-            });
+            set({ loggedIn: true, token: data.token, tenantId: data.tenantId, email: data.email, tier: data.tier ?? tier, apiKey: data.apiKey, loading: false });
             return;
           }
-          const err = await res.json().catch(() => ({ error: 'Signup failed' }));
-          if (res.status === 409) {
-            set({ loading: false, error: err.error ?? 'Email already registered' });
-            return;
-          }
-          if (res.status === 400) {
-            set({ loading: false, error: err.error ?? 'Invalid input' });
-            return;
-          }
+          set({ loading: false, error: data.error ?? 'Đăng ký thất bại' });
         } catch {
-          // API unreachable — never auto-grant access
           set({ loading: false, error: 'Không thể kết nối server. Vui lòng thử lại.' });
-          return;
         }
-        // Non-OK, non-400/409 response (e.g. 500)
-        set({ loading: false, error: 'Đăng ký thất bại. Vui lòng thử lại.' });
       },
 
       fetchMe: async () => {
