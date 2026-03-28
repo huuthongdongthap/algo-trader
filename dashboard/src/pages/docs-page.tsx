@@ -11,11 +11,13 @@ import { GuideContent } from '../components/guide-content';
 
 const TOC_ITEMS = [
   { id: 'how-it-works', label: 'How It Works' },
+  { id: 'returns', label: 'Expected Returns' },
   { id: 'quick-start', label: 'Quick Start' },
-  { id: 'parameters', label: 'Parameters' },
-  { id: 'pricing', label: 'Pricing' },
   { id: 'daily-ops', label: 'Daily Operations' },
+  { id: 'parameters', label: 'Parameters' },
   { id: 'troubleshooting', label: 'Troubleshooting' },
+  { id: 'emergency', label: 'Emergency Stop' },
+  { id: 'glossary', label: 'Glossary' },
 ];
 
 export function DocsPage() {
