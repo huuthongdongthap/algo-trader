@@ -2,7 +2,6 @@
  * Shared UI components for guide/SOP pages.
  * CopyBlock: code snippet with copy-to-clipboard.
  * CollapsibleItem: expandable FAQ/troubleshoot item.
- * InfoBanner: colored alert banner.
  */
 import { useState } from 'react';
 
@@ -19,7 +18,7 @@ export function CopyBlock({ code }: { code: string }) {
             await navigator.clipboard.writeText(code);
             setCopied(true);
           } catch {
-            // clipboard API unavailable
+            // clipboard API unavailable (HTTP context or permission denied)
           }
           setTimeout(() => setCopied(false), 2000);
         }}
