@@ -1,101 +1,108 @@
 /**
- * Guide section: VPS/Cloud deployment setup (alternative to M1 Max).
+ * Guide section: Trading Parameters — configuration and tuning for customers.
  */
 import { CopyBlock } from './guide-shared-components';
 
-export function GuideVpsSetup() {
+export function GuideParameters() {
   return (
-    <section id="vps-setup">
-      <h2 className="text-xl font-bold font-mono text-white mb-2">VPS / Cloud Setup (Alternative)</h2>
-      <p className="text-sm font-mono text-[#8892B0] mb-4">
-        Deploy on any Linux VPS ($10-20/mo) as backup or primary. Docker or bare metal.
-      </p>
+    <section id="parameters">
+      <h2 className="text-xl font-bold font-mono text-white mb-4">Trading Parameters</h2>
 
       <div className="space-y-6">
-        {/* Option A: Docker */}
-        <div>
-          <p className="text-sm font-mono text-white mb-2">
-            <span className="text-[#00FF41] font-bold">Option A:</span> Docker (recommended)
-          </p>
-          <CopyBlock code={`ssh root@YOUR_VPS_IP
-
-# Install Docker
-curl -fsSL https://get.docker.com | sh
-
-# Clone and run
-git clone https://github.com/longtho638-jpg/algo-trader.git
-cd algo-trader
-cp .env.example .env
-# Edit .env with your keys
-
-# Single container
-docker compose up -d
-
-# Check status
-docker compose ps
-docker compose logs -f algo-trade`} />
+        {/* Parameter Table */}
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm font-mono border-collapse">
+            <thead>
+              <tr className="border-b border-[#2D3142]">
+                <th className="text-left py-2 pr-6 text-[#00D9FF]">Parameter</th>
+                <th className="text-left py-2 pr-4 text-[#00FF41]">Safe</th>
+                <th className="text-left py-2 pr-4 text-[#00D9FF]">Optimal</th>
+                <th className="text-left py-2 text-red-400">Dangerous</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[#2D3142]">
+              <tr>
+                <td className="py-2 pr-6 text-white">MM_SPREAD</td>
+                <td className="py-2 pr-4 text-[#00FF41]">0.10</td>
+                <td className="py-2 pr-4">0.06-0.08</td>
+                <td className="py-2 text-red-400">&lt;0.04</td>
+              </tr>
+              <tr>
+                <td className="py-2 pr-6 text-white">MM_SIZE</td>
+                <td className="py-2 pr-4 text-[#00FF41]">20</td>
+                <td className="py-2 pr-4">30-50</td>
+                <td className="py-2 text-red-400">&gt;100</td>
+              </tr>
+              <tr>
+                <td className="py-2 pr-6 text-white">MM_MAX_MARKETS</td>
+                <td className="py-2 pr-4 text-[#00FF41]">5</td>
+                <td className="py-2 pr-4">8-10</td>
+                <td className="py-2 text-red-400">&gt;15</td>
+              </tr>
+              <tr>
+                <td className="py-2 pr-6 text-white">MAX_BANKROLL</td>
+                <td className="py-2 pr-4 text-[#00FF41]">200</td>
+                <td className="py-2 pr-4">500-2000</td>
+                <td className="py-2 text-red-400">&gt;5000</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
 
-        {/* Option B: Bare metal */}
-        <div>
-          <p className="text-sm font-mono text-white mb-2">
-            <span className="text-[#00D9FF] font-bold">Option B:</span> Bare metal (Node.js + PM2)
-          </p>
-          <CopyBlock code={`ssh root@YOUR_VPS_IP
-
-# Install Node.js 20 + pnpm + PM2
-curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-apt-get install -y nodejs
-npm install -g pnpm pm2
-
-# Clone and install
-git clone https://github.com/longtho638-jpg/algo-trader.git
-cd algo-trader && git checkout main
-pnpm install --ignore-scripts
-cp .env.example .env
-
-# Start API server
-pm2 start "npx tsx src/app.ts" --name algo-trade
-pm2 save && pm2 startup`} />
+        {/* Tuning Rules */}
+        <div className="space-y-2 text-sm font-mono">
+          <p className="text-white font-bold mb-2">Tuning Rules</p>
+          <p>Fills &lt;3/day &rarr; reduce spread (tighter)</p>
+          <p>Fills &gt;30/day &rarr; increase spread (wider)</p>
+          <p>2-day consecutive loss &rarr; widen spread + reduce size</p>
+          <p>Consistent profit &rarr; slowly increase MM_SIZE by 10</p>
         </div>
 
-        {/* CI/CD */}
+        {/* Fair Value Mode */}
         <div>
-          <p className="text-sm font-mono text-white mb-2">
-            <span className="text-yellow-400 font-bold">CI/CD:</span> GitHub Actions
-          </p>
-          <p className="text-sm font-mono text-[#8892B0] mb-2">
-            Push to <span className="text-white">main</span> triggers auto-deploy via GitHub Actions.
-            Dashboard deploys to CF Pages. API updates require PM2 restart on VPS/M1 Max.
-          </p>
-          <CopyBlock code={`# On VPS: pull latest and restart
-cd ~/algo-trader
-git pull origin main
-pnpm install --ignore-scripts
-pm2 restart algo-trade`} />
-        </div>
+          <p className="text-sm font-mono text-white font-bold mb-2">Fair Value Mode (Advanced)</p>
+          <div className="text-sm font-mono text-[#8892B0] space-y-2">
+            <p>
+              By default the bot quotes around the <span className="text-white">market midpoint</span> (blind mode).
+              Set your own probability estimate for better edge:
+            </p>
+            <CopyBlock code={`# List current estimates
+pnpm fv:list
 
-        {/* CF Worker Edge Proxy */}
-        <div>
-          <p className="text-sm font-mono text-white mb-2">
-            <span className="text-[#00D9FF] font-bold">Edge Proxy:</span> CF Worker with KV Cache
-          </p>
-          <p className="text-sm font-mono text-[#8892B0]">
-            Auth requests go through a CF Worker at{' '}
-            <span className="text-white">algo-trader.agencyos-openclaw.workers.dev</span>.
-            User accounts stored in CF KV. JWT tokens issued for dashboard auth.
-            No database server needed for auth — fully serverless.
-          </p>
-        </div>
+# Set estimate: slug value confidence [notes]
+pnpm fv -- set will-btc-hit-100k 0.35 medium "Based on on-chain data"
 
-        {/* Parallel setup note */}
-        <div className="border border-[#00D9FF]/30 bg-[#00D9FF]/5 rounded-lg p-4">
-          <p className="text-sm font-mono text-[#00D9FF] font-bold mb-1">M1 Max + VPS in Parallel</p>
-          <p className="text-sm font-mono text-[#8892B0] leading-relaxed">
-            You can run M1 Max as primary (CF Tunnel for API) and VPS as failover.
-            Both pull from the same Git repo. Only one should handle IPN webhooks at a time
-            to avoid duplicate subscription activations.
-          </p>
+# Remove estimate (revert to blind mode)
+pnpm fv -- remove will-btc-hit-100k`} />
+            <div className="overflow-x-auto mt-3">
+              <table className="w-full text-xs font-mono border-collapse">
+                <thead>
+                  <tr className="border-b border-[#2D3142]">
+                    <th className="text-left py-2 pr-6 text-[#00D9FF]">Confidence</th>
+                    <th className="text-left py-2 pr-6 text-[#00D9FF]">Auto Spread</th>
+                    <th className="text-left py-2 text-[#00D9FF]">When to use</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#2D3142]">
+                  <tr>
+                    <td className="py-2 pr-6 text-[#00FF41]">high</td>
+                    <td className="py-2 pr-6">6c</td>
+                    <td className="py-2">Strong research, primary sources</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2 pr-6 text-yellow-400">medium</td>
+                    <td className="py-2 pr-6">8c</td>
+                    <td className="py-2">Good data, reasonable estimate</td>
+                  </tr>
+                  <tr>
+                    <td className="py-2 pr-6 text-[#8892B0]">low</td>
+                    <td className="py-2 pr-6">12c</td>
+                    <td className="py-2">Rough guess, directional only</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </div>
     </section>

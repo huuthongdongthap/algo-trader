@@ -1,157 +1,199 @@
 /**
- * Guide section: M1 Max local server setup instructions.
+ * Guide section: Quick Start — customer VPS setup guide.
+ * Generic instructions for any VPS provider, no internal IPs.
  */
 import { CopyBlock, CollapsibleItem } from './guide-shared-components';
 
-export function GuideM1MaxSetup() {
+export function GuideQuickStart() {
   return (
-    <section id="m1-max-setup">
-      <h2 className="text-xl font-bold font-mono text-white mb-2">M1 Max Setup (Primary)</h2>
+    <section id="quick-start">
+      <h2 className="text-xl font-bold font-mono text-white mb-2">Quick Start</h2>
       <p className="text-sm font-mono text-[#8892B0] mb-4">
-        Local server on Apple Silicon. SSH access + PM2 process management + CF Tunnel.
+        Setup takes ~15 minutes. You need: a Polymarket account, a VPS ($10-20/mo), and a terminal.
       </p>
 
       <div className="space-y-6">
-        {/* SSH Access */}
+        {/* Step 1 */}
         <div>
           <p className="text-sm font-mono text-white mb-2">
-            <span className="text-[#00D9FF] font-bold">Step 1:</span> SSH into M1 Max
+            <span className="text-[#00D9FF] font-bold">Step 1:</span> Create Polymarket Wallet
           </p>
-          <CopyBlock code="ssh macbook@192.168.11.111" />
+          <p className="text-sm font-mono text-[#8892B0]">
+            Go to <span className="text-[#00D9FF]">polymarket.com</span> &rarr; connect wallet &rarr; save your{' '}
+            <span className="text-yellow-400">PRIVATE KEY</span> securely.
+            Fund your wallet with at least $100 USDC on Polygon.
+          </p>
         </div>
 
-        {/* Clone & Install */}
+        {/* Step 2 */}
         <div>
           <p className="text-sm font-mono text-white mb-2">
-            <span className="text-[#00D9FF] font-bold">Step 2:</span> Clone and install
-          </p>
-          <CopyBlock code={`git clone https://github.com/longtho638-jpg/algo-trader.git
-cd algo-trader && git checkout main
-pnpm install --ignore-scripts
-cp .env.example .env`} />
-        </div>
-
-        {/* Env Config */}
-        <div>
-          <p className="text-sm font-mono text-white mb-2">
-            <span className="text-[#00D9FF] font-bold">Step 3:</span> Configure .env
-          </p>
-          <CopyBlock code={`# Required API keys
-NOWPAYMENTS_API_KEY=your_nowpayments_api_key
-NOWPAYMENTS_IPN_SECRET=your_ipn_secret
-ADMIN_API_KEY=your_admin_key
-
-# Polymarket
-PRIVATE_KEY=0x_your_private_key
-DRY_RUN=true
-
-# Server
-PORT=3000
-NODE_ENV=production
-
-# Local LLMs (MLX on M1 Max)
-OPENCLAW_GATEWAY_URL=http://localhost:11435/v1
-OPENCLAW_SCANNER_URL=http://localhost:11436/v1`} />
-        </div>
-
-        {/* PM2 Processes */}
-        <div>
-          <p className="text-sm font-mono text-white mb-2">
-            <span className="text-[#00D9FF] font-bold">Step 4:</span> Start PM2 processes
-          </p>
-          <CopyBlock code={`# API server (entry: src/app.ts)
-pm2 start "npx tsx src/app.ts" --name algo-trade
-
-# OpenClaw daemon (AI agent coordinator)
-pm2 start "npx tsx src/openclaw/daemon.ts" --name openclaw-daemon
-
-# OpenClaw gateway (LLM proxy :8000)
-pm2 start "npx tsx src/openclaw/gateway.ts" --name openclaw-gateway
-
-# Paper trading (risk-free validation)
-pm2 start "npx tsx src/paper-trading/runner.ts" --name paper-trading
-
-# Save PM2 config for auto-restart
-pm2 save`} />
-        </div>
-
-        {/* CF Tunnel */}
-        <div>
-          <p className="text-sm font-mono text-white mb-2">
-            <span className="text-[#00D9FF] font-bold">Step 5:</span> Cloudflare Tunnel
+            <span className="text-[#00D9FF] font-bold">Step 2:</span> Rent a VPS
           </p>
           <p className="text-sm font-mono text-[#8892B0] mb-2">
-            Tunnel ID: <span className="text-white">e568b5a2-ffe0-40bf-8f44-dd558e6c2767</span> (HTTP/2 protocol)
-          </p>
-          <CopyBlock code={`# Install cloudflared
-brew install cloudflare/cloudflare/cloudflared
-
-# Login (one-time)
-cloudflared tunnel login
-
-# Run tunnel (routes api.cashclaw.cc -> localhost:3000)
-cloudflared tunnel run e568b5a2-ffe0-40bf-8f44-dd558e6c2767`} />
-        </div>
-
-        {/* Local LLMs */}
-        <div>
-          <p className="text-sm font-mono text-white mb-2">
-            <span className="text-[#00D9FF] font-bold">Step 6:</span> Local LLMs (MLX)
+            Any Linux VPS works. Recommended: DigitalOcean, Hetzner, or Vultr.
           </p>
           <div className="overflow-x-auto">
             <table className="w-full text-xs font-mono border-collapse">
               <thead>
                 <tr className="border-b border-[#2D3142]">
-                  <th className="text-left py-2 pr-4 text-[#00D9FF]">Model</th>
-                  <th className="text-left py-2 pr-4 text-[#00D9FF]">Purpose</th>
-                  <th className="text-left py-2 pr-4 text-[#00D9FF]">Speed</th>
-                  <th className="text-left py-2 text-[#00D9FF]">Port</th>
+                  <th className="text-left py-2 pr-4 text-[#00D9FF]">Provider</th>
+                  <th className="text-left py-2 pr-4 text-[#00D9FF]">Price</th>
+                  <th className="text-left py-2 text-[#00D9FF]">Specs</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#2D3142]">
                 <tr>
-                  <td className="py-2 pr-4 text-white">Nemotron-3 Nano</td>
-                  <td className="py-2 pr-4">Fast scanner</td>
-                  <td className="py-2 pr-4">35-50 t/s</td>
-                  <td className="py-2">11436</td>
+                  <td className="py-2 pr-4 text-white">DigitalOcean</td>
+                  <td className="py-2 pr-4">$12/mo</td>
+                  <td className="py-2">2GB RAM, Ubuntu 24, 1 vCPU</td>
                 </tr>
                 <tr>
-                  <td className="py-2 pr-4 text-white">DeepSeek R1</td>
-                  <td className="py-2 pr-4">Deep reasoning</td>
-                  <td className="py-2 pr-4">8-15 t/s</td>
-                  <td className="py-2">11435</td>
+                  <td className="py-2 pr-4 text-white">Hetzner</td>
+                  <td className="py-2 pr-4">$5/mo</td>
+                  <td className="py-2">4GB RAM, Ubuntu 24, 2 vCPU</td>
                 </tr>
                 <tr>
-                  <td className="py-2 pr-4 text-white">Qwen2.5 Coder</td>
-                  <td className="py-2 pr-4">Code generation</td>
-                  <td className="py-2 pr-4">20-30 t/s</td>
-                  <td className="py-2">11437</td>
+                  <td className="py-2 pr-4 text-white">Vultr</td>
+                  <td className="py-2 pr-4">$6/mo</td>
+                  <td className="py-2">2GB RAM, Ubuntu 24, 1 vCPU</td>
                 </tr>
               </tbody>
             </table>
           </div>
         </div>
 
-        {/* Troubleshooting */}
-        <div className="space-y-2">
-          <p className="text-sm font-mono text-white font-bold mb-2">Troubleshooting</p>
-          <CollapsibleItem title="PM2 process keeps restarting">
-            <p>Check logs for the specific process:</p>
-            <CopyBlock code="pm2 logs algo-trade --lines 50" />
-            <p className="mt-2">Common causes: missing .env keys, port already in use, TypeScript errors.</p>
+        {/* Step 3 */}
+        <div>
+          <p className="text-sm font-mono text-white mb-2">
+            <span className="text-[#00D9FF] font-bold">Step 3:</span> Install CashClaw
+          </p>
+          <CopyBlock code={`ssh root@YOUR_VPS_IP
+
+# Install Node.js 20 + tools
+curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+apt-get install -y nodejs
+npm install -g pnpm pm2
+
+# Clone CashClaw
+git clone https://github.com/longtho638-jpg/algo-trader.git
+cd algo-trader && git checkout main
+pnpm install --ignore-scripts
+
+# Copy config template
+cp .env.example .env`} />
+        </div>
+
+        {/* Step 4 */}
+        <div>
+          <p className="text-sm font-mono text-white mb-2">
+            <span className="text-[#00D9FF] font-bold">Step 4:</span> Configure .env
+          </p>
+          <CopyBlock code={`# Your Polymarket credentials
+PRIVATE_KEY=0x_your_private_key
+DRY_RUN=true    # START WITH TRUE! Test before live trading
+
+# Trading parameters (safe defaults)
+MAX_BANKROLL=200
+MM_SPREAD=0.10
+MM_SIZE=20
+MM_MAX_MARKETS=5
+
+# License (omit = FREE tier: 1 market, 5 trades/day)
+# RAAS_LICENSE_KEY=your_license_key_here`} />
+          <div className="mt-3 border border-yellow-500/30 bg-yellow-500/5 rounded-lg p-3">
+            <p className="text-xs font-mono text-yellow-400 font-bold mb-1">License Tiers</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs font-mono text-[#8892B0]">
+              <div className="bg-[#1A1A2E] rounded p-2">
+                <span className="text-white block mb-1">Starter ($49/mo)</span>
+                1 strategy &middot; Polymarket only
+              </div>
+              <div className="bg-[#1A1A2E] rounded p-2">
+                <span className="text-[#00D9FF] block mb-1">Pro ($149/mo)</span>
+                5 strategies &middot; all markets &middot; AI scanner
+              </div>
+              <div className="bg-[#1A1A2E] rounded p-2">
+                <span className="text-yellow-400 block mb-1">Elite ($499/mo)</span>
+                Unlimited &middot; all features &middot; dedicated support
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Step 5 */}
+        <div>
+          <p className="text-sm font-mono text-white mb-2">
+            <span className="text-[#00D9FF] font-bold">Step 5:</span> Start the Bot
+          </p>
+          <CopyBlock code={`# Start in DRY RUN first (no real money)
+pm2 start "npx tsx src/app.ts" --name cashclaw
+
+# Check it's running
+pm2 status
+
+# View live logs
+pm2 logs cashclaw --lines 30
+
+# Save PM2 config (auto-restart on reboot)
+pm2 save && pm2 startup`} />
+        </div>
+
+        {/* Step 6 */}
+        <div>
+          <p className="text-sm font-mono text-white mb-2">
+            <span className="text-[#00D9FF] font-bold">Step 6:</span> Go Live
+          </p>
+          <p className="text-sm font-mono text-[#8892B0] mb-2">
+            After 2-3 days of successful DRY_RUN, switch to live trading:
+          </p>
+          <CopyBlock code={`# Edit .env: change DRY_RUN=false
+nano .env
+
+# Restart with live trading
+pm2 restart cashclaw`} />
+          <div className="mt-3 border-l-4 border-red-500 bg-red-500/10 px-4 py-3 rounded-r-lg">
+            <p className="text-sm font-mono text-red-400 font-bold">Before going live</p>
+            <p className="text-sm font-mono text-red-300 mt-1">
+              Start with small bankroll ($100-200). Watch for 48 hours. Scale up slowly.
+            </p>
+          </div>
+        </div>
+
+        {/* Docker alternative */}
+        <div>
+          <p className="text-sm font-mono text-white font-bold mb-2">Alternative: Docker Setup</p>
+          <CollapsibleItem title="Use Docker instead of bare metal">
+            <CopyBlock code={`# Install Docker
+curl -fsSL https://get.docker.com | sh
+
+# Clone and run
+git clone https://github.com/longtho638-jpg/algo-trader.git
+cd algo-trader
+cp .env.example .env
+# Edit .env with your keys
+
+docker compose up -d
+docker compose logs -f cashclaw`} />
           </CollapsibleItem>
-          <CollapsibleItem title="CF Tunnel not connecting">
-            <p>Verify tunnel status and credentials:</p>
-            <CopyBlock code={`cloudflared tunnel info e568b5a2-ffe0-40bf-8f44-dd558e6c2767
-# Restart tunnel
-cloudflared tunnel run e568b5a2-ffe0-40bf-8f44-dd558e6c2767`} />
-          </CollapsibleItem>
-          <CollapsibleItem title="MLX model out of memory">
-            <p>M1 Max has 64GB unified memory. If OOM, reduce concurrent models:</p>
-            <CopyBlock code={`# Stop one model to free memory
-pm2 stop openclaw-gateway
-# Check memory usage
-vm_stat | head -5`} />
+        </div>
+
+        {/* Apple Silicon */}
+        <div>
+          <p className="text-sm font-mono text-white font-bold mb-2">Alternative: Apple Silicon (M1/M2/M3/M4)</p>
+          <CollapsibleItem title="Run on your Mac instead of VPS">
+            <p className="mb-2">If you have a Mac with Apple Silicon, you can run CashClaw locally with bonus AI features:</p>
+            <CopyBlock code={`# Clone and install (same as VPS)
+git clone https://github.com/longtho638-jpg/algo-trader.git
+cd algo-trader && git checkout main
+pnpm install --ignore-scripts
+cp .env.example .env
+
+# Start bot
+pm2 start "npx tsx src/app.ts" --name cashclaw`} />
+            <p className="mt-2">
+              <span className="text-[#00D9FF]">Bonus:</span> On Apple Silicon with 32GB+ RAM, you can run local AI models
+              (Nemotron, DeepSeek R1) for enhanced market scanning without API costs.
+            </p>
           </CollapsibleItem>
         </div>
       </div>
