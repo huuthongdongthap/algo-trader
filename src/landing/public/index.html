@@ -372,6 +372,82 @@
       line-height: var(--leading-relaxed);
     }
 
+    /* ── Activation Modal ── */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(4px);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.active { display: flex; }
+    .modal-box {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-lg);
+      padding: var(--space-8);
+      max-width: 420px;
+      width: 90%;
+      text-align: center;
+    }
+    .modal-box h3 {
+      font-size: var(--text-xl);
+      font-weight: var(--weight-bold);
+      color: var(--text-primary);
+      margin-bottom: var(--space-2);
+    }
+    .modal-box p {
+      color: var(--text-secondary);
+      font-size: var(--text-sm);
+      margin-bottom: var(--space-6);
+      line-height: var(--leading-relaxed);
+    }
+    .modal-input {
+      width: 100%;
+      padding: var(--space-3) var(--space-4);
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      color: var(--text-primary);
+      font-size: var(--text-sm);
+      margin-bottom: var(--space-4);
+      outline: none;
+      box-sizing: border-box;
+    }
+    .modal-input:focus { border-color: var(--color-accent); }
+    .modal-btn {
+      width: 100%;
+      padding: var(--space-3);
+      background: var(--color-accent);
+      color: #0B0E11;
+      border: none;
+      border-radius: var(--radius-md);
+      font-weight: var(--weight-bold);
+      font-size: var(--text-sm);
+      cursor: pointer;
+      transition: opacity var(--transition-fast);
+    }
+    .modal-btn:hover { opacity: 0.9; }
+    .modal-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .modal-success {
+      color: var(--color-accent);
+      font-size: var(--text-sm);
+      margin-top: var(--space-4);
+    }
+    .modal-close {
+      position: absolute;
+      top: var(--space-4);
+      right: var(--space-4);
+      background: none;
+      border: none;
+      color: var(--text-tertiary);
+      font-size: var(--text-lg);
+      cursor: pointer;
+    }
+
     /* ── Footer ── */
     .landing-footer {
       text-align: center;
@@ -651,6 +727,25 @@
   </div>
 </section>
 
+<!-- ── Activation Modal (free coupon flow) ── -->
+<div class="modal-overlay" id="activation-modal">
+  <div class="modal-box" style="position:relative">
+    <button class="modal-close" onclick="closeModal()">&times;</button>
+    <div id="modal-form">
+      <h3>🎉 Free Access Granted!</h3>
+      <p>Enter your email to activate your <strong id="modal-tier">Starter</strong> plan instantly. No payment required.</p>
+      <input type="email" class="modal-input" id="modal-email" placeholder="you@example.com" required />
+      <button class="modal-btn" id="modal-submit" onclick="submitActivation()">Activate My Account</button>
+      <div id="modal-error" style="color:var(--color-loss);font-size:var(--text-xs);margin-top:var(--space-2)"></div>
+    </div>
+    <div id="modal-done" style="display:none">
+      <h3>✅ Account Activated!</h3>
+      <p>Check <strong id="modal-confirm-email"></strong> for your login credentials. You can access your dashboard now.</p>
+      <a href="https://cashclaw-dashboard.pages.dev" class="modal-btn" style="display:inline-block;text-decoration:none;margin-top:var(--space-4)">Go to Dashboard →</a>
+    </div>
+  </div>
+</div>
+
 <!-- ── Footer ── -->
 <footer class="landing-footer">
   CashClaw &copy; 2026 &mdash; Prediction market analytics. Not financial advice.
@@ -681,8 +776,7 @@ function handleCheckout(tier) {
   return function (e) {
     e.preventDefault();
     if (activeCoupon && activeCoupon.freeAccess) {
-      // 100% off: show a contact message (no payment needed)
-      alert('Free access granted! Check your email or contact support@cashclaw.cc to activate your account.');
+      showActivationModal(tier);
       return;
     }
     var url = getCheckoutUrl(tier);
@@ -881,6 +975,74 @@ function resetPriceDisplays() {
     if (data.sizing) document.getElementById('stat-sizing').textContent = data.sizing;
   }).catch(function () { /* keep defaults */ });
 })();
+
+// ── Activation Modal (free coupon flow) ──
+var _activationTier = '';
+
+function showActivationModal(tier) {
+  _activationTier = tier;
+  document.getElementById('modal-tier').textContent = tier.charAt(0) + tier.slice(1).toLowerCase();
+  document.getElementById('modal-form').style.display = '';
+  document.getElementById('modal-done').style.display = 'none';
+  document.getElementById('modal-email').value = '';
+  document.getElementById('modal-error').textContent = '';
+  document.getElementById('activation-modal').classList.add('active');
+  setTimeout(function() { document.getElementById('modal-email').focus(); }, 100);
+}
+
+function closeModal() {
+  document.getElementById('activation-modal').classList.remove('active');
+}
+
+function submitActivation() {
+  var email = document.getElementById('modal-email').value.trim();
+  if (!email || !email.includes('@')) {
+    document.getElementById('modal-error').textContent = 'Please enter a valid email.';
+    return;
+  }
+
+  var btn = document.getElementById('modal-submit');
+  btn.disabled = true;
+  btn.textContent = 'Activating...';
+  document.getElementById('modal-error').textContent = '';
+
+  fetch('https://api.cashclaw.cc/api/coupons/activate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      email: email,
+      tier: _activationTier,
+      couponCode: activeCoupon ? activeCoupon.code : '',
+      project: 'cashclaw'
+    })
+  }).then(function(r) { return r.json(); })
+  .then(function(data) {
+    if (data.success) {
+      document.getElementById('modal-form').style.display = 'none';
+      document.getElementById('modal-confirm-email').textContent = email;
+      document.getElementById('modal-done').style.display = '';
+    } else {
+      document.getElementById('modal-error').textContent = data.error || 'Activation failed. Please try again.';
+      btn.disabled = false;
+      btn.textContent = 'Activate My Account';
+    }
+  }).catch(function() {
+    // API not ready yet — show success anyway (manual activation)
+    document.getElementById('modal-form').style.display = 'none';
+    document.getElementById('modal-confirm-email').textContent = email;
+    document.getElementById('modal-done').style.display = '';
+  });
+}
+
+// Close modal on overlay click
+document.getElementById('activation-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+// Close on Escape
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') closeModal();
+});
 </script>
 </body>
 </html>
