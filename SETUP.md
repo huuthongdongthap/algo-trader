@@ -69,31 +69,44 @@ cp .env.example .env  # Then edit with your credentials
 # IMPORTANT: Always send $1 test first
 ```
 
-### A5. Polymarket Account
+### A5. Create Dedicated Algo Wallet & Export Private Key
 
 ```bash
-# Enable VPN → visit https://polymarket.com
-# Log In → Connect Wallet → MetaMask
-# Deposit USDC into Polymarket
+# We highly recommend generating a dedicated wallet for the bot rather than using your main account.
+# Run the built-in generator script:
+npm run wallet:generate
+
+# Copy the generated Private Key.
+# Save it as: POLYMARKET_PRIVATE_KEY=0x... in your .env file
 ```
 
-### A6. Polymarket API Keys
+### A6. Polymarket Account Login
 
 ```bash
-# Polymarket → Settings → API Keys → Create API Key
-# Save these 3 values:
+# 1. Open MetaMask -> Account Dropdown -> "Add account or hardware wallet" -> "Import account"
+# 2. Paste the generated Private Key from Step A5.
+# 3. Enable VPN → visit https://polymarket.com
+# 4. Log In → Connect Wallet → MetaMask (Select the imported account)
+# 
+# *NOTE: If MetaMask shows a QR code popup and the browser doesn't automatically redirect/connect, press F5 (Refresh) and try connecting again.*
+```
+
+### A7. Generate Polymarket API Keys
+
+```bash
+# 1. Deposit at least $10 USDC via Polygon to the newly generated wallet address if you want to trade live.
+# 2. Go to Polymarket → Settings → Builder Keys tab → Click "+ Create New"
+# 
+# IMPORTANT FOR NEW WALLETS: Polymarket will show an "Enable Trading" popup requiring 3 actions:
+#   - Deploy Proxy Wallet (Click Deploy & Confirm in MetaMask window)
+#   - Enable Trading (Click Sign & Sign in MetaMask window)
+#   - Approve Tokens (Click Sign & Sign in MetaMask window)
+# 
+# Save these 3 values to your .env file:
 #   POLYMARKET_API_KEY=...
 #   POLYMARKET_API_SECRET=...
 #   POLYMARKET_PASSPHRASE=...
 # WARNING: API Secret shown only once!
-```
-
-### A7. Export Wallet Private Key
-
-```bash
-# MetaMask → ⋮ → Account Details → Show Private Key → Enter password
-# Or create dedicated bot wallet: MetaMask → Avatar → Add Account
-# Save as: POLY_PRIVATE_KEY=0x...
 ```
 
 ---
