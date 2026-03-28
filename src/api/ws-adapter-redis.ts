@@ -29,7 +29,7 @@ export interface WSAdapterConfig {
 
 const DEFAULT_CONFIG: WSAdapterConfig = {
   path: '/ws',
-  channels: ['trades', 'signals', 'orders', 'market-data', 'pnl', 'admin', 'health'],
+  channels: ['trades', 'signals', 'orders', 'market-data', 'pnl', 'admin', 'health', 'bot_status', 'strategies'],
   heartbeatIntervalMs: 30000,
   maxPayloadSize: 1024 * 1024, // 1MB
 };
