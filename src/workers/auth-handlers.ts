@@ -27,6 +27,7 @@ interface StoredUser {
   hash: string;
   salt: string;
   tier: string;
+  role: 'admin' | 'user';
   tenantId: string;
   apiKey: string;
   createdAt: string;
@@ -48,11 +49,12 @@ export async function handleSignup(request: Request, env: Env): Promise<Response
     const apiKey = `ck_${crypto.randomUUID().replace(/-/g, '')}`;
     const id = crypto.randomUUID();
 
-    const user: StoredUser = { id, email, hash, salt, tier, tenantId, apiKey, createdAt: new Date().toISOString() };
+    const role = 'user' as const;
+    const user: StoredUser = { id, email, hash, salt, tier, role, tenantId, apiKey, createdAt: new Date().toISOString() };
     await env.CACHE.put(`user:${email}`, JSON.stringify(user));
 
-    const token = await createJwt({ sub: email, tenantId, tier }, getSecret(env));
-    return json({ token, tenantId, email, tier, apiKey }, 201);
+    const token = await createJwt({ sub: email, tenantId, tier, role }, getSecret(env));
+    return json({ token, tenantId, email, tier, role, apiKey }, 201);
   } catch (e) {
     return json({ error: (e as Error).message || 'Signup failed' }, 500);
   }
@@ -72,8 +74,9 @@ export async function handleLogin(request: Request, env: Env): Promise<Response>
     const valid = await verifyPassword(password, user.hash, user.salt);
     if (!valid) return json({ error: 'Invalid credentials' }, 401);
 
-    const token = await createJwt({ sub: email, tenantId: user.tenantId, tier: user.tier }, getSecret(env));
-    return json({ token, tenantId: user.tenantId, email: user.email, tier: user.tier });
+    const role = user.role || 'user';
+    const token = await createJwt({ sub: email, tenantId: user.tenantId, tier: user.tier, role }, getSecret(env));
+    return json({ token, tenantId: user.tenantId, email: user.email, tier: user.tier, role });
   } catch (e) {
     return json({ error: (e as Error).message || 'Login failed' }, 500);
   }
@@ -86,7 +89,58 @@ export async function handleMe(request: Request, env: Env): Promise<Response> {
   const payload = await verifyJwt(auth.slice(7), getSecret(env));
   if (!payload) return json({ error: 'Invalid or expired token' }, 401);
 
-  return json({ tenantId: payload.tenantId, email: payload.sub, tier: payload.tier });
+  return json({ tenantId: payload.tenantId, email: payload.sub, tier: payload.tier, role: payload.role || 'user' });
+}
+
+/** Admin: list all users (requires admin API key) */
+export async function handleListUsers(request: Request, env: Env): Promise<Response> {
+  const apiKey = request.headers.get('x-api-key');
+  const adminKey = (env as any).ADMIN_API_KEY;
+  if (!apiKey || !adminKey || apiKey !== adminKey) return json({ error: 'Unauthorized' }, 401);
+
+  const list = await env.CACHE.list({ prefix: 'user:' });
+  const users = [];
+  for (const key of list.keys) {
+    const raw = await env.CACHE.get(key.name);
+    if (raw) {
+      const u = JSON.parse(raw) as StoredUser;
+      users.push({ email: u.email, tier: u.tier, role: u.role || 'user', tenantId: u.tenantId, createdAt: u.createdAt });
+    }
+  }
+  return json({ users });
+}
+
+/** Admin: set user role (requires admin API key) */
+export async function handleSetRole(request: Request, env: Env): Promise<Response> {
+  const apiKey = request.headers.get('x-api-key');
+  const adminKey = (env as any).ADMIN_API_KEY;
+  if (!apiKey || !adminKey || apiKey !== adminKey) return json({ error: 'Unauthorized' }, 401);
+
+  const body = await request.json() as { email?: string; role?: string };
+  if (!body.email || !body.role) return json({ error: 'email and role required' }, 400);
+  if (body.role !== 'admin' && body.role !== 'user') return json({ error: 'role must be admin or user' }, 400);
+
+  const raw = await env.CACHE.get(`user:${body.email}`);
+  if (!raw) return json({ error: 'User not found' }, 404);
+
+  const user = JSON.parse(raw) as StoredUser;
+  user.role = body.role as 'admin' | 'user';
+  await env.CACHE.put(`user:${body.email}`, JSON.stringify(user));
+
+  return json({ success: true, email: user.email, role: user.role });
+}
+
+/** Admin: delete user (requires admin API key) */
+export async function handleDeleteUser(request: Request, env: Env): Promise<Response> {
+  const apiKey = request.headers.get('x-api-key');
+  const adminKey = (env as any).ADMIN_API_KEY;
+  if (!apiKey || !adminKey || apiKey !== adminKey) return json({ error: 'Unauthorized' }, 401);
+
+  const body = await request.json() as { email?: string };
+  if (!body.email) return json({ error: 'email required' }, 400);
+
+  await env.CACHE.delete(`user:${body.email}`);
+  return json({ success: true, deleted: body.email });
 }
 
 export function corsPreflightResponse(): Response {

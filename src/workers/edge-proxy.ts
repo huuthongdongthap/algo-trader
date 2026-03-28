@@ -4,7 +4,7 @@
  * When not set: handles auth + basic data locally via KV
  */
 
-import { handleSignup, handleLogin, handleMe, corsPreflightResponse, notImplementedResponse } from './auth-handlers';
+import { handleSignup, handleLogin, handleMe, handleListUsers, handleSetRole, handleDeleteUser, corsPreflightResponse, notImplementedResponse } from './auth-handlers';
 
 interface Env {
   CACHE: KVNamespace;
@@ -42,6 +42,9 @@ export default {
     if (path === '/api/auth/signup' && request.method === 'POST') return handleSignup(request, env);
     if (path === '/api/auth/login' && request.method === 'POST') return handleLogin(request, env);
     if (path === '/api/auth/me' && request.method === 'GET') return handleMe(request, env);
+    if (path === '/api/auth/users' && request.method === 'GET') return handleListUsers(request, env);
+    if (path === '/api/auth/role' && request.method === 'POST') return handleSetRole(request, env);
+    if (path === '/api/auth/delete' && request.method === 'POST') return handleDeleteUser(request, env);
 
     // Markets placeholder
     if (path === '/api/markets' && request.method === 'GET') {

@@ -11,6 +11,7 @@ interface NavItem {
   label: string;
   path: string;
   icon: ReactNode;
+  adminOnly?: boolean;
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -57,6 +58,7 @@ const NAV_ITEMS: NavItem[] = [
   {
     label: 'Coupons',
     path: '/app/coupons',
+    adminOnly: true,
     icon: (
       <svg width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
         <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
@@ -125,7 +127,7 @@ interface SidebarNavigationProps {
 export function SidebarNavigation({ onNavigate }: SidebarNavigationProps) {
   const { pathname } = useLocation();
   const connected = useTradingStore((s: any) => s.connected);
-  const { email, tier, logout } = useAuthStore();
+  const { email, tier, role, logout } = useAuthStore();
 
   const tierBadge: Record<string, string> = {
     free: 'text-[#8892B0] bg-[#2D3142]',
@@ -140,7 +142,7 @@ export function SidebarNavigation({ onNavigate }: SidebarNavigationProps) {
   return (
     <nav className="flex flex-col h-full">
       <ul className="flex-1 py-2">
-        {NAV_ITEMS.map(({ label, path, icon }) => {
+        {NAV_ITEMS.filter((item) => !item.adminOnly || role === 'admin').map(({ label, path, icon }) => {
           const active = isActive(path);
           return (
             <li key={path}>

@@ -6,12 +6,13 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
-const API_BASE = (import.meta as any).env?.VITE_API_URL ?? '';
+const API_BASE = (import.meta as any).env?.VITE_API_URL ?? 'https://algo-trader.agencyos-openclaw.workers.dev';
 
 interface AuthState {
   loggedIn: boolean;
   email: string;
   tier: 'free' | 'pro' | 'enterprise';
+  role: 'admin' | 'user';
   token: string | null;
   tenantId: string | null;
   apiKey: string | null;
@@ -29,6 +30,7 @@ export const useAuthStore = create<AuthState>()(
       loggedIn: false,
       email: '',
       tier: 'free',
+      role: 'user',
       token: null,
       tenantId: null,
       apiKey: null,
@@ -50,7 +52,7 @@ export const useAuthStore = create<AuthState>()(
           }
           const data = await res.json();
           if (res.ok) {
-            set({ loggedIn: true, token: data.token, tenantId: data.tenantId, email: data.email, tier: data.tier ?? 'free', loading: false });
+            set({ loggedIn: true, token: data.token, tenantId: data.tenantId, email: data.email, tier: data.tier ?? 'free', role: data.role ?? 'user', loading: false });
             return;
           }
           set({ loading: false, error: data.error ?? 'Đăng nhập thất bại' });
@@ -74,7 +76,7 @@ export const useAuthStore = create<AuthState>()(
           }
           const data = await res.json();
           if (res.ok) {
-            set({ loggedIn: true, token: data.token, tenantId: data.tenantId, email: data.email, tier: data.tier ?? tier, apiKey: data.apiKey, loading: false });
+            set({ loggedIn: true, token: data.token, tenantId: data.tenantId, email: data.email, tier: data.tier ?? tier, role: data.role ?? 'user', apiKey: data.apiKey, loading: false });
             return;
           }
           set({ loading: false, error: data.error ?? 'Đăng ký thất bại' });
@@ -96,6 +98,7 @@ export const useAuthStore = create<AuthState>()(
               tenantId: data.tenantId,
               email: data.email,
               tier: data.tier ?? 'free',
+              role: data.role ?? 'user',
             });
           }
         } catch {
@@ -104,7 +107,7 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: () =>
-        set({ loggedIn: false, email: '', tier: 'free', token: null, tenantId: null, apiKey: null, error: null }),
+        set({ loggedIn: false, email: '', tier: 'free', role: 'user', token: null, tenantId: null, apiKey: null, error: null }),
     }),
     { name: 'cashclaw-auth' }
   )
