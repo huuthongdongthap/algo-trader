@@ -3,6 +3,7 @@
  * Algorithmic trading platform with zero-config onboarding
  */
 
+import 'dotenv/config';
 import { Command } from 'commander';
 import { initSentry } from './utils/sentry-init';
 import { runMigrations } from './db/migration-runner';

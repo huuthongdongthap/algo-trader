@@ -5,6 +5,7 @@
 
 import { TradingLoop } from '../arbitrage/trading-loop';
 import { logger } from '../utils/logger';
+import { DashboardTelemetry } from '../redis/telemetry-publisher';
 import { existsSync } from 'fs';
 import { join } from 'path';
 
@@ -134,6 +135,10 @@ export async function runArbAuto(options: AutoCommandOptions = {}): Promise<void
   try {
     await tradingLoop.start();
 
+    // Attach dashboard telemetry
+    const telemetry = new DashboardTelemetry(dryRun);
+    telemetry.attach(tradingLoop);
+
     logger.info('🔍 Scanning markets for arbitrage opportunities...\n');
     logger.info('Press Ctrl+C to stop\n');
 
@@ -144,6 +149,7 @@ export async function runArbAuto(options: AutoCommandOptions = {}): Promise<void
         logger.info(`\n📈 METRICS: Opps=${metrics.opportunitiesFound} Exec=${metrics.opportunitiesExecuted} P95=${metrics.p95LatencyMs}ms Profit=$${metrics.totalProfit.toFixed(2)}\n`);
       }
     }, 60000); // Every minute
+
 
   } catch (error) {
     logger.error('\n❌ TRADING LOOP ERROR\n');
