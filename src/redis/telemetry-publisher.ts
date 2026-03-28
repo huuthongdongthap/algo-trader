@@ -35,6 +35,7 @@ export class DashboardTelemetry {
       if (loop.isLoopRunning()) {
         const metrics = loop.getMetrics();
         this.broadcastAdmin(metrics);
+        this.broadcastBotStatus(metrics);
         this.broadcastPnL(metrics);
       }
     }, 5000);
@@ -49,7 +50,7 @@ export class DashboardTelemetry {
 
   private handleOpportunity(opp: TradingOpportunity): void {
     this.pubClient.publish('signals', JSON.stringify({
-      type: 'signals_update',
+      type: 'signal_update',
       data: [{
         id: opp.id,
         symbol: opp.symbol,
@@ -104,6 +105,32 @@ export class DashboardTelemetry {
         },
         timestamp: Date.now()
       }
+    })).catch(() => {});
+  }
+
+  private broadcastBotStatus(metrics: TradingLoopMetrics): void {
+    this.pubClient.publish('bot_status', JSON.stringify({
+      type: 'bot_status_update',
+      data: {
+        running: true,
+        mode: this.isDryRun ? 'dry-run' : 'live',
+        uptime: metrics.uptimeMs,
+        totalSignals: metrics.opportunitiesFound,
+        executedTrades: metrics.opportunitiesExecuted,
+        rejectedTrades: metrics.errors,
+        dailyPnl: this.totalProfit
+      }
+    })).catch(() => {});
+    
+    this.pubClient.publish('strategies', JSON.stringify({
+      type: 'strategy_update',
+      data: [{
+        name: 'Arbitrage VIP Engine',
+        enabled: true,
+        signalCount: metrics.opportunitiesFound,
+        lastSignalAt: new Date().toISOString(),
+        mode: this.isDryRun ? 'dry-run' : 'live'
+      }]
     })).catch(() => {});
   }
 
