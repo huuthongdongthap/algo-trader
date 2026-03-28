@@ -38,7 +38,7 @@ export function useRealtimeUpdates(): RealtimeUpdatesState & { reconnect: () => 
   const reconnectDelayRef = useRef(1000);
   const latencySamplesRef = useRef<number[]>([]);
 
-  const bufferRef = useRef<Record<string, unknown[]>>({});
+  const bufferRef = useRef<Record<string, any>>({});
   const timerRef = useRef<Record<string, ReturnType<typeof setTimeout> | null>>({});
 
   const { setSignals, setMetrics, setAdminStatus } = useDashboardStore();
@@ -69,11 +69,10 @@ export function useRealtimeUpdates(): RealtimeUpdatesState & { reconnect: () => 
   }, []);
 
   const flushBuffer = useCallback((channel: string) => {
-    const items = bufferRef.current[channel];
-    if (!items || items.length === 0) return;
+    const data = bufferRef.current[channel];
+    if (data === undefined) return;
 
-    const data = [...items];
-    bufferRef.current[channel] = [];
+    bufferRef.current[channel] = undefined;
     timerRef.current[channel] = null;
 
     switch (channel) {
@@ -105,10 +104,8 @@ export function useRealtimeUpdates(): RealtimeUpdatesState & { reconnect: () => 
   }, [setMetrics, setPositions, setSpreads, setTrades, setStrategies, setBotStatus, setSignals, setAdminStatus]);
 
   const queueUpdate = useCallback((channel: string, data: unknown) => {
-    if (!bufferRef.current[channel]) {
-      bufferRef.current[channel] = [];
-    }
-    bufferRef.current[channel].push(data);
+    // Overwrite to keep the latest state before flush (fixes array-wrapping bugs)
+    bufferRef.current[channel] = data;
 
     // Flush after 25ms buffer window
     if (!timerRef.current[channel]) {

@@ -66,8 +66,8 @@ function loadConfiguration(): Record<string, any> {
     riskPerTrade: parseFloat(env.RISK_PER_TRADE || '1'),
     maxDailyLoss: parseFloat(env.MAX_DAILY_LOSS || '5'),
     enableBacktesting: env.ENABLE_BACKTESTING !== 'false',
-    enableLiveTrading: env.ENABLE_LIVE_TRADING === 'true',
-    apiKeyConfigured: !!(env.EXCHANGE_API_KEY && env.EXCHANGE_SECRET),
+    enableLiveTrading: env.PAPER_TRADING !== 'true',
+    apiKeyConfigured: !!(env.POLY_API_KEY && env.POLY_API_SECRET),
     telegramConfigured: !!(env.TELEGRAM_BOT_TOKEN && env.TELEGRAM_CHAT_ID),
   };
 }

@@ -6,20 +6,30 @@
 
 import 'dotenv/config';
 import { ApiServer } from './api/server';
+import { startWebSocketServer, RedisWSAdapter } from './api/ws-adapter-redis';
 import { logger } from './utils/logger';
 
 let server: ApiServer | null = null;
+let wsAdapter: RedisWSAdapter | null = null;
 
 export async function startApp(): Promise<void> {
   server = new ApiServer();
   await server.start();
 
+  const wsPort = parseInt(process.env.WS_PORT || '3001', 10);
+  wsAdapter = await startWebSocketServer(wsPort);
+
   const port = process.env.API_PORT || '3000';
   const env = process.env.NODE_ENV || 'development';
   logger.info(`[App] AlgoTrade API running — port=${port} env=${env}`);
+  logger.info(`[App] AlgoTrade WebSocket running — port=${wsPort}`);
 }
 
 export async function stopApp(): Promise<void> {
+  if (wsAdapter) {
+    await wsAdapter.shutdown();
+    wsAdapter = null;
+  }
   if (server) {
     await server.stop();
     server = null;

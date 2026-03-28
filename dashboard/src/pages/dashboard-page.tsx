@@ -5,6 +5,7 @@
  */
 import { useState, useEffect } from 'react';
 import { useTradingStore } from '../stores/trading-store';
+import { useDashboardStore } from '../stores/dashboard-store';
 import { useWebSocketPriceFeed } from '../hooks/use-websocket-price-feed';
 import { useRealtimeUpdates } from '../hooks/use-realtime-updates';
 import { useSignals } from '../hooks/use-signals';
@@ -58,9 +59,9 @@ export function DashboardPage() {
   const { connected: wsConnected, latency, error: wsError, reconnectCount } = useRealtimeUpdates();
 
   // Phase 3 API hooks with loading states
-  const { signals, loading: signalsLoading, error: signalsError, refresh: refreshSignals } = useSignals(0, 50);
-  const { metrics, loading: pnlLoading, error: pnlError } = usePnlAnalytics();
-  const { status: adminStatus, halt, resume, loading: adminLoading, error: adminError, refresh: refreshAdmin } = useAdminControls();
+  const { signals: restSignals, loading: signalsLoading, error: signalsError, refresh: refreshSignals } = useSignals(0, 50);
+  const { metrics: restMetrics, loading: pnlLoading, error: pnlError } = usePnlAnalytics();
+  const { status: restAdminStatus, halt, resume, loading: adminLoading, error: adminError, refresh: refreshAdmin } = useAdminControls();
   useHealthStatus();
 
   // Trading store data (Phase 1/2)
@@ -69,6 +70,15 @@ export function DashboardPage() {
   const strategies = useTradingStore((s: any) => s.strategies);
   const trades = useTradingStore((s: any) => s.trades);
   const botStatus = useTradingStore((s: any) => s.botStatus);
+
+  // Phase 3 Real-time WS Data Overlay
+  const wsMetrics = useDashboardStore((s: any) => s.metrics);
+  const wsSignals = useDashboardStore((s: any) => s.signals);
+  const wsAdminStatus = useDashboardStore((s: any) => s.adminStatus);
+
+  const metrics = wsMetrics && restMetrics ? { ...restMetrics, ...wsMetrics } : (wsMetrics || restMetrics);
+  const signals = wsSignals?.length > 0 ? wsSignals : restSignals;
+  const adminStatus = wsAdminStatus && restAdminStatus ? { ...restAdminStatus, ...wsAdminStatus } : (wsAdminStatus || restAdminStatus);
 
   const lastUpdate = useNow();
 

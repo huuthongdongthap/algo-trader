@@ -10,7 +10,7 @@
  */
 
 import { Cluster } from 'ioredis';
-import { FastifyInstance, FastifyRequest } from 'fastify';
+import { Server as HttpServer, IncomingMessage } from 'http';
 import WebSocket, { WebSocketServer } from 'ws';
 import {
   getRedisClusterClient,
@@ -29,7 +29,7 @@ export interface WSAdapterConfig {
 
 const DEFAULT_CONFIG: WSAdapterConfig = {
   path: '/ws',
-  channels: ['trades', 'signals', 'orders', 'market-data'],
+  channels: ['trades', 'signals', 'orders', 'market-data', 'pnl', 'admin', 'health', 'bot_status', 'strategies'],
   heartbeatIntervalMs: 30000,
   maxPayloadSize: 1024 * 1024, // 1MB
 };
@@ -51,7 +51,7 @@ export class RedisWSAdapter {
   private clientIdCounter = 0;
 
   constructor(
-    private fastify: FastifyInstance,
+    private server: HttpServer | number,
     config?: Partial<WSAdapterConfig>
   ) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -66,7 +66,7 @@ export class RedisWSAdapter {
     }
 
     this.wsServer = new WebSocket.Server({
-      server: fastify.server,
+      ...(typeof server === 'number' ? { port: server } : { server }),
       path: this.config.path,
       maxPayload: this.config.maxPayloadSize,
     });
@@ -80,7 +80,7 @@ export class RedisWSAdapter {
    * Setup WebSocket server
    */
   private setupWebSocket(): void {
-    this.wsServer.on('connection', (ws: WebSocket, req: FastifyRequest['raw']) => {
+    this.wsServer.on('connection', (ws: WebSocket, req: IncomingMessage) => {
       const clientId = `client-${Date.now()}-${++this.clientIdCounter}`;
       const client: WSClient = {
         ws,
@@ -173,23 +173,33 @@ export class RedisWSAdapter {
 
       switch (message.type) {
         case 'subscribe':
-          if (this.config.channels.includes(message.channel)) {
-            client.channels.add(message.channel);
+          {
+            const subChannels = message.channels || (message.channel ? [message.channel] : []);
+            subChannels.forEach((ch: string) => {
+              if (this.config.channels.includes(ch)) {
+                client.channels.add(ch);
+              }
+            });
             this.sendToClient(client, {
               type: 'subscribed',
-              channel: message.channel,
+              channels: Array.from(client.channels),
               timestamp: Date.now(),
             });
           }
           break;
 
         case 'unsubscribe':
-          client.channels.delete(message.channel);
-          this.sendToClient(client, {
-            type: 'unsubscribed',
-            channel: message.channel,
-            timestamp: Date.now(),
-          });
+          {
+            const unsubChannels = message.channels || (message.channel ? [message.channel] : []);
+            unsubChannels.forEach((ch: string) => {
+              client.channels.delete(ch);
+            });
+            this.sendToClient(client, {
+              type: 'unsubscribed',
+              channels: Array.from(client.channels),
+              timestamp: Date.now(),
+            });
+          }
           break;
 
         case 'ping':
@@ -297,18 +307,12 @@ export class RedisWSAdapter {
 }
 
 /**
- * Register WebSocket adapter with Fastify
+ * Start standalone WebSocket adapter
  */
-export async function registerWebSocketAdapter(
-  fastify: FastifyInstance,
+export async function startWebSocketServer(
+  portOrServer: HttpServer | number,
   config?: Partial<WSAdapterConfig>
 ): Promise<RedisWSAdapter> {
-  const adapter = new RedisWSAdapter(fastify, config);
-
-  // Add shutdown hook
-  fastify.addHook('onClose', async () => {
-    await adapter.shutdown();
-  });
-
+  const adapter = new RedisWSAdapter(portOrServer, config);
   return adapter;
 }
