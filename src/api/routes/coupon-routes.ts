@@ -174,3 +174,43 @@ couponRouter.post('/apply', async (req: Request, res: Response) => {
     return res.status(500).json({ error: 'Failed to create payment' });
   }
 });
+
+// Customer: activate free account (100% coupon) — collect email + tier
+couponRouter.post('/activate', async (req: Request, res: Response) => {
+  const { email, tier, couponCode, project } = req.body;
+  if (!email || !tier) {
+    return res.status(400).json({ error: 'email and tier required' });
+  }
+
+  const projectKey = (project || 'cashclaw').toLowerCase();
+  const tierKey = tier.toUpperCase();
+
+  logger.info(`[Coupon] Free activation: email=${email} tier=${tierKey} coupon=${couponCode} project=${projectKey}`);
+
+  // Record the activation (append to data/activations.json)
+  try {
+    const { existsSync, readFileSync, writeFileSync, mkdirSync } = require('fs');
+    const { join } = require('path');
+    const filePath = join(process.cwd(), 'data', 'activations.json');
+    const dir = join(process.cwd(), 'data');
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+
+    const existing = existsSync(filePath) ? JSON.parse(readFileSync(filePath, 'utf-8')) : [];
+    existing.push({
+      email,
+      tier: tierKey,
+      couponCode: couponCode || null,
+      project: projectKey,
+      activatedAt: new Date().toISOString(),
+    });
+    writeFileSync(filePath, JSON.stringify(existing, null, 2));
+
+    // Record coupon use
+    if (couponCode) couponService.recordUse(couponCode);
+
+    return res.json({ success: true, message: 'Account activated' });
+  } catch (err) {
+    logger.error('[Coupon] Activation error', { err });
+    return res.status(500).json({ error: 'Activation failed' });
+  }
+});
