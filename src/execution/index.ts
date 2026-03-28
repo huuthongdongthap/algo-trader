@@ -8,3 +8,4 @@ export * from './order-validator';
 export * from './rollback-handler';
 export * from './polymarket-signer';
 export * from './polymarket-adapter';
+export * from './twap-executor';
