@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CashClaw Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0B0E11;
+      --card: #141820;
+      --accent: #00D4AA;
+      --success: #00D4AA;
+      --error: #FF4757;
+      --warning: #FFB020;
+      --text: #E8EAED;
+      --text-dim: #8B95A5;
+      --border: #1E2530;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 0;
+    }
+    .mono { font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace; }
+
+    /* Header */
+    header {
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    header h1 { font-size: 1.4rem; font-weight: 600; }
+    .header-right { display: flex; align-items: center; gap: 16px; }
+    #clock { font-size: 0.95rem; color: var(--text-dim); }
+    .health-dot {
+      width: 12px; height: 12px; border-radius: 50%;
+      display: inline-block; margin-right: 6px;
+    }
+    .health-dot.ok { background: var(--success); box-shadow: 0 0 6px var(--success); }
+    .health-dot.degraded { background: var(--warning); box-shadow: 0 0 6px var(--warning); }
+    .health-dot.error { background: var(--error); box-shadow: 0 0 6px var(--error); }
+
+    /* Main grid */
+    .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+
+    /* Summary cards row */
+    .summary-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+    }
+    .summary-card .label { font-size: 0.8rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; }
+    .summary-card .value { font-size: 2rem; font-weight: 700; margin-top: 4px; }
+    .summary-card .value.success { color: var(--success); }
+    .summary-card .value.error { color: var(--error); }
+    .summary-card .value.warning { color: var(--warning); }
+
+    /* Tables */
+    table { width: 100%; border-collapse: collapse; }
+    th { text-align: left; font-size: 0.75rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+    td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+    tr:hover td { background: rgba(15, 52, 96, 0.3); }
+
+    /* Status badges */
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .badge-running { background: rgba(0, 180, 216, 0.15); color: var(--success); }
+    .badge-error { background: rgba(230, 57, 70, 0.15); color: var(--error); }
+    .badge-stopped { background: rgba(136, 153, 170, 0.15); color: var(--text-dim); }
+
+    /* Two-panel row */
+    .two-panel {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 900px) {
+      .two-panel { grid-template-columns: 1fr; }
+    }
+
+    .card h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* System health */
+    .sys-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+    }
+    .sys-item { background: var(--accent); border-radius: 6px; padding: 14px; }
+    .sys-item .sys-label { font-size: 0.75rem; color: var(--text-dim); }
+    .sys-item .sys-value { font-size: 1.2rem; font-weight: 600; margin-top: 4px; }
+
+    /* Footer */
+    footer {
+      background: var(--card);
+      border-top: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 20px;
+    }
+    .refresh-info { font-size: 0.8rem; color: var(--text-dim); }
+    #refreshBtn {
+      background: var(--accent);
+      color: var(--text);
+      border: 1px solid var(--border);
+      padding: 6px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+    #refreshBtn:hover { background: var(--success); color: #000; }
+
+    /* Connection lost banner */
+    .conn-lost {
+      background: var(--error);
+      color: #fff;
+      text-align: center;
+      padding: 8px;
+      font-weight: 600;
+      display: none;
+    }
+    .conn-lost.visible { display: block; }
+
+    .section-mb { margin-bottom: 20px; }
+    .empty-msg { color: var(--text-dim); font-style: italic; padding: 20px; text-align: center; }
+  </style>
+</head>
+<body>
+  <div id="connLost" class="conn-lost">Connection Lost - Retrying...</div>
+
+  <header>
+    <h1>CashClaw</h1>
+    <div class="header-right">
+      <span id="clock" class="mono"></span>
+      <span id="healthIndicator"><span class="health-dot" id="healthDot"></span><span id="healthText">--</span></span>
+    </div>
+  </header>
+
+  <div class="container">
+    <!-- Row 1: Summary cards -->
+    <div class="summary-row" id="summaryRow">
+      <div class="card summary-card">
+        <div class="label">Total Strategies</div>
+        <div class="value mono" id="totalStrategies">--</div>
+      </div>
+      <div class="card summary-card">
+        <div class="label">Active</div>
+        <div class="value success mono" id="activeStrategies">--</div>
+      </div>
+      <div class="card summary-card">
+        <div class="label">Error</div>
+        <div class="value error mono" id="errorStrategies">--</div>
+      </div>
+      <div class="card summary-card">
+        <div class="label">Total Trades</div>
+        <div class="value mono" id="totalTrades">--</div>
+      </div>
+    </div>
+
+    <!-- Row 2: Strategy table -->
+    <div class="card section-mb">
+      <h2>Strategy Health</h2>
+      <div style="overflow-x:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Status</th>
+              <th>Tick Count</th>
+              <th>Error Count</th>
+              <th>Last Tick</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="strategyTableBody">
+            <tr><td colspan="6" class="empty-msg">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Row 3: Two panels -->
+    <div class="two-panel">
+      <div class="card">
+        <h2>Recent Trades</h2>
+        <div style="overflow-x:auto; max-height: 400px; overflow-y: auto;">
+          <table>
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Strategy</th>
+                <th>Side</th>
+                <th>Size</th>
+                <th>Price</th>
+                <th>Fees</th>
+              </tr>
+            </thead>
+            <tbody id="tradesTableBody">
+              <tr><td colspan="6" class="empty-msg">Loading...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <h2>P&amp;L Summary</h2>
+        <div id="pnlContent" class="empty-msg">Loading...</div>
+      </div>
+    </div>
+
+    <!-- Row 4: System health -->
+    <div class="card section-mb">
+      <h2>System Health</h2>
+      <div class="sys-grid" id="sysHealthGrid">
+        <div class="sys-item">
+          <div class="sys-label">Rate Limiter (Polymarket)</div>
+          <div class="sys-value mono" id="rlTokens">--</div>
+        </div>
+        <div class="sys-item">
+          <div class="sys-label">Pipeline Status</div>
+          <div class="sys-value" id="pipelineStatus">--</div>
+        </div>
+        <div class="sys-item">
+          <div class="sys-label">Database</div>
+          <div class="sys-value" id="dbStatus">--</div>
+        </div>
+        <div class="sys-item">
+          <div class="sys-label">Uptime</div>
+          <div class="sys-value mono" id="uptime">--</div>
+        </div>
+        <div class="sys-item">
+          <div class="sys-label">WS Clients</div>
+          <div class="sys-value mono" id="wsClients">--</div>
+        </div>
+        <div class="sys-item">
+          <div class="sys-label">Version</div>
+          <div class="sys-value mono" id="appVersion">--</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="refresh-info">Auto-refresh: <span id="refreshCountdown">5</span>s | Last update: <span id="lastUpdate">--</span></div>
+    <button id="refreshBtn" onclick="refreshAll()">Refresh Now</button>
+  </footer>
+
+  <script>
+    // ── Utilities ──────────────────────────────────────────────
+    function relativeTime(isoStr) {
+      if (!isoStr) return '--';
+      var diff = Date.now() - new Date(isoStr).getTime();
+      if (diff < 0) diff = 0;
+      var sec = Math.floor(diff / 1000);
+      if (sec < 60) return sec + 's ago';
+      var min = Math.floor(sec / 60);
+      if (min < 60) return min + 'm ago';
+      var hr = Math.floor(min / 60);
+      if (hr < 24) return hr + 'h ago';
+      return Math.floor(hr / 24) + 'd ago';
+    }
+
+    function formatUptime(ms) {
+      var sec = Math.floor(ms / 1000);
+      var h = Math.floor(sec / 3600);
+      var m = Math.floor((sec % 3600) / 60);
+      var s = sec % 60;
+      return h + 'h ' + m + 'm ' + s + 's';
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function badgeClass(status) {
+      if (status === 'running') return 'badge-running';
+      if (status === 'error') return 'badge-error';
+      return 'badge-stopped';
+    }
+
+    var connLost = false;
+
+    function setConnLost(lost) {
+      connLost = lost;
+      document.getElementById('connLost').className = lost ? 'conn-lost visible' : 'conn-lost';
+    }
+
+    async function safeFetch(url) {
+      try {
+        var resp = await fetch(url);
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        setConnLost(false);
+        return await resp.json();
+      } catch (e) {
+        setConnLost(true);
+        return null;
+      }
+    }
+
+    // ── Clock ─────────────────────────────────────────────────
+    function updateClock() {
+      document.getElementById('clock').textContent = new Date().toLocaleTimeString();
+    }
+    setInterval(updateClock, 1000);
+    updateClock();
+
+    // ── Fetch & Render ────────────────────────────────────────
+    async function fetchStrategyHealth() {
+      var data = await safeFetch('/api/strategies/health');
+      if (!data) return;
+
+      // Summary cards
+      var strategies = data.strategies || [];
+      var active = strategies.filter(function(s) { return s.status === 'running'; }).length;
+      var errors = strategies.filter(function(s) { return s.status === 'error'; }).length;
+      document.getElementById('totalStrategies').textContent = strategies.length;
+      document.getElementById('activeStrategies').textContent = active;
+      document.getElementById('errorStrategies').textContent = errors;
+
+      // Overall health
+      var dot = document.getElementById('healthDot');
+      var txt = document.getElementById('healthText');
+      if (data.overall) {
+        dot.className = 'health-dot ok';
+        txt.textContent = 'Healthy';
+      } else if (errors > 0) {
+        dot.className = 'health-dot error';
+        txt.textContent = 'Unhealthy';
+      } else {
+        dot.className = 'health-dot degraded';
+        txt.textContent = 'Degraded';
+      }
+
+      // Rate limiter
+      if (data.rateLimiter) {
+        document.getElementById('rlTokens').textContent = data.rateLimiter.polymarket;
+      }
+
+      // Strategy table
+      var tbody = document.getElementById('strategyTableBody');
+      if (strategies.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-msg">No strategies configured</td></tr>';
+        return;
+      }
+      tbody.innerHTML = strategies.map(function(s) {
+        return '<tr>' +
+          '<td>' + escapeHtml(s.name) + '</td>' +
+          '<td><span class="badge ' + badgeClass(s.status) + '">' + escapeHtml(s.status) + '</span></td>' +
+          '<td class="mono">' + s.tickCount + '</td>' +
+          '<td class="mono">' + s.errorCount + '</td>' +
+          '<td>' + relativeTime(s.lastTick) + '</td>' +
+          '<td><button onclick="toggleStrategy(\'' + escapeHtml(s.strategyId) + '\',\'' + s.status + '\')" class="badge ' + (s.status === 'running' ? 'badge-error' : 'badge-running') + '" style="cursor:pointer;border:none;">' + (s.status === 'running' ? 'Stop' : 'Start') + '</button></td>' +
+          '</tr>';
+      }).join('');
+    }
+
+    async function fetchTrades() {
+      var data = await safeFetch('/api/trades');
+      if (!data) return;
+
+      var trades = (data.trades || []).slice(-20).reverse();
+      document.getElementById('totalTrades').textContent = data.count || 0;
+
+      var tbody = document.getElementById('tradesTableBody');
+      if (trades.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty-msg">No trades yet</td></tr>';
+        return;
+      }
+      tbody.innerHTML = trades.map(function(t) {
+        return '<tr>' +
+          '<td>' + relativeTime(t.timestamp || t.time) + '</td>' +
+          '<td>' + escapeHtml(t.strategy) + '</td>' +
+          '<td>' + escapeHtml(t.side || '--') + '</td>' +
+          '<td class="mono">' + (t.fillSize || t.size || '--') + '</td>' +
+          '<td class="mono">' + (t.fillPrice || t.price || '--') + '</td>' +
+          '<td class="mono">' + (t.fees || '--') + '</td>' +
+          '</tr>';
+      }).join('');
+    }
+
+    async function fetchPnl() {
+      var data = await safeFetch('/api/pnl');
+      if (!data) return;
+
+      var html = '<div style="padding: 12px 0;">';
+      html += '<div class="sys-grid">';
+      html += '<div class="sys-item"><div class="sys-label">Total Fees</div><div class="sys-value mono">' + (data.totalFees || '0') + '</div></div>';
+      html += '<div class="sys-item"><div class="sys-label">Trade Count</div><div class="sys-value mono">' + (data.tradeCount || 0) + '</div></div>';
+      html += '</div>';
+
+      if (data.tradesByStrategy && Object.keys(data.tradesByStrategy).length > 0) {
+        html += '<table style="margin-top: 16px;">';
+        html += '<thead><tr><th>Strategy</th><th>Trades</th></tr></thead><tbody>';
+        for (var name in data.tradesByStrategy) {
+          html += '<tr><td>' + escapeHtml(name) + '</td><td class="mono">' + data.tradesByStrategy[name] + '</td></tr>';
+        }
+        html += '</tbody></table>';
+      }
+      html += '</div>';
+
+      document.getElementById('pnlContent').innerHTML = html;
+    }
+
+    async function fetchStatus() {
+      var data = await safeFetch('/api/status');
+      if (!data) return;
+
+      document.getElementById('pipelineStatus').textContent = data.running ? 'Running' : 'Stopped';
+      document.getElementById('pipelineStatus').style.color = data.running ? 'var(--success)' : 'var(--text-dim)';
+      if (data.uptime) {
+        document.getElementById('uptime').textContent = formatUptime(data.uptime);
+      }
+
+      // Also fetch enriched health for db/ws/version
+      var health = await safeFetch('/api/health');
+      if (health) {
+        document.getElementById('dbStatus').textContent = health.db || '--';
+        document.getElementById('dbStatus').style.color = health.db === 'ok' ? 'var(--success)' : 'var(--error)';
+        document.getElementById('wsClients').textContent = health.wsClients != null ? health.wsClients : '--';
+        document.getElementById('appVersion').textContent = health.version || '--';
+      }
+    }
+
+    async function toggleStrategy(id, currentStatus) {
+      var endpoint = currentStatus === 'running' ? '/api/strategy/stop' : '/api/strategy/start';
+      try {
+        await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ strategyId: id })
+        });
+        await fetchStrategyHealth();
+      } catch (e) { /* ignore */ }
+    }
+
+    // ── Auto-refresh ──────────────────────────────────────────
+    var REFRESH_INTERVAL = 5;
+    var countdown = REFRESH_INTERVAL;
+    var refreshTimer = null;
+
+    async function refreshAll() {
+      countdown = REFRESH_INTERVAL;
+      document.getElementById('refreshCountdown').textContent = countdown;
+      await Promise.all([
+        fetchStrategyHealth(),
+        fetchTrades(),
+        fetchPnl(),
+        fetchStatus()
+      ]);
+      document.getElementById('lastUpdate').textContent = new Date().toLocaleTimeString();
+    }
+
+    function tick() {
+      countdown--;
+      if (countdown <= 0) {
+        refreshAll();
+        countdown = REFRESH_INTERVAL;
+      }
+      document.getElementById('refreshCountdown').textContent = countdown;
+    }
+
+    // Initial load
+    refreshAll();
+    refreshTimer = setInterval(tick, 1000);
+  </script>
+</body>
+</html>

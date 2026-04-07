@@ -1,0 +1,8 @@
+# Ignore cloned repos, cached data, Python artifacts
+skills-repo/
+scripts/
+data/
+__pycache__/
+*.pyc
+*.egg-info/
+.eggs/

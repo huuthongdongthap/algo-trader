@@ -32,6 +32,9 @@
     "src/workers/**/*",
     "src/strategies/polymarket/**/*",
     "src/wiring/**/*",
-    "dist"
+    "dist",
+    "src/dashboard/dashboard-server.ts",
+    "src/landing/landing-server.ts",
+    "src/polymarket/trading-pipeline.ts"
   ]
 }

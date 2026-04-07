@@ -1,0 +1,78 @@
+# ==============================================================================
+# CashClaw — Polymarket Market-Making Bot (M1 Max Deployment)
+#
+# Connects to bare-metal MLX LLM servers on host (NOT containerized):
+#   DeepSeek R1:    http://host.docker.internal:11435/v1  (mlx_lm.server)
+#   Nemotron Nano:  http://host.docker.internal:11436/v1  (mlx_lm.server)
+#
+# Usage:
+#   docker compose -f docker/docker-compose.cashclaw.yaml up -d
+#   docker compose -f docker/docker-compose.cashclaw.yaml logs -f
+#   docker compose -f docker/docker-compose.cashclaw.yaml down
+# ==============================================================================
+
+services:
+  cashclaw:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: cashclaw:latest
+    container_name: cashclaw-bot
+    hostname: cashclaw-bot
+    restart: unless-stopped
+    stop_grace_period: 30s  # Allow time to cancel open GTC orders on shutdown
+
+    environment:
+      - NODE_ENV=production
+
+      # ── LLM endpoints (bare metal on host) ──
+      - LLM_PRIMARY_URL=http://host.docker.internal:11435/v1
+      - LLM_PRIMARY_MODEL=mlx-community/DeepSeek-R1-Distill-Qwen-32B-4bit
+      - LLM_FAST_TRIAGE_URL=http://host.docker.internal:11436/v1
+      - LLM_FAST_TRIAGE_MODEL=mlx-community/NVIDIA-Nemotron-3-Nano-30B-A3B-4bit
+      - LLM_FALLBACK_URL=http://host.docker.internal:11434/v1
+
+      # ── AlphaEar Intelligence Sidecar (bare metal, :8100) ──
+      - ALPHAEAR_SIDECAR_URL=http://host.docker.internal:8100
+
+      # ── Trading config ──
+      - PAPER_TRADING=true          # DRY_RUN default — set false for LIVE
+      - CAPITAL_USDC=200
+      - DATABASE_PATH=data/algo-trade.db
+
+      # ── Timezone ──
+      - TZ=Asia/Ho_Chi_Minh
+
+    env_file:
+      - secrets/.env.cashclaw
+
+    # NO exposed ports — outbound only (Polymarket API + LLM endpoints)
+    # Mekong CLI uses :3001/:8000 — no conflict
+
+    volumes:
+      # Named volume for SQLite (NOT bind mount — VirtioFS corruption risk)
+      - cashclaw-data:/app/data
+
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    healthcheck:
+      # Validate: bot process alive + at least one LLM server reachable
+      test: >
+        wget -qO- http://localhost:3000/api/health &&
+        (wget -qO- http://host.docker.internal:11436/v1/models ||
+         wget -qO- http://host.docker.internal:11435/v1/models)
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+volumes:
+  cashclaw-data:
+    driver: local
