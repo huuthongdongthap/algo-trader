@@ -1,0 +1,157 @@
+{
+  "title": "Arbitrage Opportunities",
+  "uid": "arbitrage-opportunities",
+  "version": 1,
+  "schemaVersion": 39,
+  "refresh": "5s",
+  "time": { "from": "now-6h", "to": "now" },
+  "templating": {
+    "list": [
+      {
+        "name": "symbol",
+        "type": "query",
+        "datasource": { "type": "prometheus", "uid": "-- Default --" },
+        "query": "label_values(signals_total, symbol)",
+        "refresh": 2,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": { "text": "All", "value": "$__all" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Signals Generated (per hour)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "-- Default --" },
+      "targets": [
+        {
+          "expr": "increase(signals_total{symbol=~\"$symbol\"}[1h])",
+          "legendFormat": "{{symbol}} {{signal_type}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": { "lineWidth": 2, "fillOpacity": 10 }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "Signal Type Breakdown",
+      "type": "piechart",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "-- Default --" },
+      "targets": [
+        {
+          "expr": "sum(increase(signals_total{symbol=~\"$symbol\"}[6h])) by (signal_type)",
+          "legendFormat": "{{signal_type}}",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short" }
+      },
+      "options": {
+        "pieType": "donut",
+        "displayLabels": ["name", "percent"]
+      }
+    },
+    {
+      "id": 3,
+      "title": "Trades Executed vs Signals (ratio)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "-- Default --" },
+      "targets": [
+        {
+          "expr": "increase(trades_total{symbol=~\"$symbol\"}[1h])",
+          "legendFormat": "Trades {{symbol}}"
+        },
+        {
+          "expr": "increase(signals_total{symbol=~\"$symbol\"}[1h])",
+          "legendFormat": "Signals {{symbol}}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": { "lineWidth": 2, "fillOpacity": 5 }
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "Exchange API Latency Distribution",
+      "type": "histogram",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "-- Default --" },
+      "targets": [
+        {
+          "expr": "sum(rate(exchange_api_latency_seconds_bucket[5m])) by (le)",
+          "legendFormat": "{{le}}",
+          "format": "heatmap"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "s" }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Total Trades by Exchange",
+      "type": "bargauge",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "-- Default --" },
+      "targets": [
+        {
+          "expr": "sum(trades_total) by (exchange)",
+          "legendFormat": "{{exchange}}",
+          "instant": true
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "blue", "value": null }
+            ]
+          }
+        }
+      },
+      "options": { "orientation": "horizontal", "displayMode": "lcd" }
+    },
+    {
+      "id": 6,
+      "title": "Open Positions by Symbol",
+      "type": "table",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "-- Default --" },
+      "targets": [
+        {
+          "expr": "open_positions_total{symbol=~\"$symbol\"}",
+          "legendFormat": "{{symbol}} @ {{exchange}}",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "renameByName": { "symbol": "Symbol", "exchange": "Exchange", "Value": "Open Positions" },
+            "excludeByName": { "Time": true, "__name__": true, "job": true, "instance": true }
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "short" }
+      }
+    }
+  ]
+}

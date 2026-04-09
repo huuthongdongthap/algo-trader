@@ -5,6 +5,36 @@ Algo Trader is a RaaS (Robot-as-a-Service) multi-tenant automated trading platfo
 
 ## Project Structure
 
+### src/messaging/ — Event-Driven Message Bus (Phase 19)
+| File | Class | Purpose |
+|------|-------|---------|
+| `nats-message-bus.ts` | `NatsMessageBus` | NATS.io pub/sub with JetStream persistence |
+| `redis-message-bus.ts` | `RedisMessageBus` | Redis Pub/Sub fallback layer |
+| `jetstream-manager.ts` | `JetStreamManager` | Stream config, consumer mgmt, message replay |
+| `nats-connection-manager.ts` | `NatsConnectionManager` | Connection pooling, reconnection logic |
+| `message-bus-interface.ts` | `IMessageBus` | Abstract interface for pluggable bus backends |
+| `topic-schema.ts` | — | Event type definitions + routing rules |
+| `create-message-bus.ts` | — | Factory for bus instantiation |
+| `index.ts` | — | Module exports |
+
+### src/intelligence/ — Semantic Dependency Discovery (Phase 20)
+| File | Class | Purpose |
+|------|-------|---------|
+| `semantic-dependency-discovery.ts` | `SemanticDependencyDiscovery` | DeepSeek API analyzes market relationships |
+| `relationship-graph-builder.ts` | `RelationshipGraphBuilder` | DAG construction from dependency analysis |
+| `alphaear-client.ts` | `AlphaEarClient` | Gamma API integration for live market data |
+| `kronos-fair-value.ts` | `KronosFairValue` | Time-series fair value computation |
+| `semantic-cache.ts` | `SemanticCache` | Redis caching (24h TTL) for analyses |
+| `market-context-builder.ts` | — | Context aggregation from multiple sources |
+
+### src/arbitrage/ — Cross-Market ILP Solver (Phase 21)
+| File | Class | Purpose |
+|------|-------|---------|
+| `integer-programming-solver.ts` | `IntegerProgrammingSolver` | javascript-lp-solver wrapper for optimization |
+| `ilp-constraint-builder.ts` | `ILPConstraintBuilder` | Dynamic constraint generation |
+| `cross-market-arbitrage-detector.ts` | `CrossMarketArbitrageDetector` | Multi-leg arb identification |
+| `multi-leg-basket.ts` | `MultiLegBasket` | Multi-leg position representation |
+
 ### src/core/ — Engine & Multi-Tenant
 - `BotEngine.ts` — Signal routing, strategy orchestration
 - `RiskManager.ts` — Position sizing, risk calculation
@@ -19,8 +49,15 @@ Algo Trader is a RaaS (Robot-as-a-Service) multi-tenant automated trading platfo
 - `signal-market-regime-detector.ts` — Signal-layer regime classification
 
 ### src/strategies/ — Trading Strategies
-- Technical: RSI+SMA, RSI Crossover, Bollinger, MACD, MACD+Bollinger+RSI
-- Arbitrage: Cross-Exchange, Triangular, Statistical, AGI
+- **Technical**: RSI+SMA, RSI Crossover, Bollinger, MACD, MACD+Bollinger+RSI
+- **Arbitrage**: Cross-Exchange, Triangular, Statistical, AGI
+- **Polymarket (Phase 22)** (`src/strategies/polymarket/`):
+  - Delta-Neutral: DeltaNeutralVolatilityArbitrage, DeltaNeutralPortfolioMonitor, DeltaCalculator
+  - Event-Driven: EventDeadlineScaler, CrossEventDrift, EventHedgingSynthetic
+  - Momentum: BollingerSqueeze, DecayRateMomentum, SentimentMomentumDivergence
+  - Correlation: CrossCorrelationLag, CorrelationPairTrade
+  - Microstructure: ClusterBreakout, GapFillReversion, VolatilitySurfaceSmile
+  - **15+ Polymarket-optimized strategies** for implied probability arbitrage
 
 ### src/execution/ — Order Execution Pipeline
 | File | Class | Purpose |
@@ -46,6 +83,9 @@ Algo Trader is a RaaS (Robot-as-a-Service) multi-tenant automated trading platfo
 | `strategy-position-manager.ts` | `StrategyPositionManager` | Per-strategy position tracking |
 | `telegram-trade-alert-bot.ts` | `TelegramTradeAlertBot` | Trade execution notifications |
 | `tick-to-candle-aggregator.ts` | `TickToCandleAggregator` | Real-time OHLCV candle aggregation |
+| `distributed-nonce-manager.ts` | `DistributedNonceManager` | Redis atomic nonce counter for replay protection |
+| `gas-batch-optimizer.ts` | `GasBatchOptimizer` | Multi-leg order gas cost minimization |
+| `multi-leg-frank-wolfe-optimizer.ts` | `MultiLegFrankWolfeOptimizer` | Slippage minimization for multi-leg execution |
 
 ### Key Interfaces (Phase 9-11)
 | Interface | File | Description |
@@ -152,14 +192,18 @@ Algo Trader is a RaaS (Robot-as-a-Service) multi-tenant automated trading platfo
 - `workflow-pipeline-engine.ts` — Generic workflow pipeline with step sequencing
 
 ## Key Metrics
-- **232+ source files** (TypeScript 5.9, strict mode)
-- **1216 tests** (Jest 29, 102 suites, 100% pass rate)
-- **16+ CLI commands** (Commander)
-- **10+ trading strategies** (RSI, SMA, Bollinger, MACD, Statistical, Cross-Exchange, Triangular, Funding-Rate, AGI, GRU, Q-Learning)
+- **280+ source files** (TypeScript 5.9, strict mode)
+- **1400+ tests** (Jest 29, 115+ suites, 100% pass rate)
+- **20+ CLI commands** (Commander)
+- **25+ trading strategies** (RSI, SMA, MACD, Cross-Exchange, Triangular, Funding-Rate, AGI, Delta-Neutral, Event-Driven, Momentum, GRU, Q-Learning, + 15 Polymarket)
 - **28+ API endpoints** + 5 WebSocket channels (Fastify 5)
 - **3 exchange integrations** (Binance, OKX, Bybit via CCXT 4.5)
 - **9 database models** (Tenant, Strategy, Order, Trade, ApiKey, BacktestResult, Candle, PnlSnapshot, AlertRule via Prisma)
 - **5 dashboard pages** + 10 components (React 19, Vite 6, Tailwind, TradingView Charts)
+- **Event-driven messaging**: NATS primary + JetStream (persistent) + Redis fallback (8 modules)
+- **Semantic intelligence**: DeepSeek API + relationship graph + semantic cache (6 modules)
+- **Cross-market optimization**: ILP solver + Frank-Wolfe (4 modules)
+- **Infrastructure hardening**: Distributed nonce, gas optimizer, TimescaleDB hypertables, Grafana/Prometheus
 
 ## Quality Metrics
 - **0 TypeScript errors** (strict mode enforced)
@@ -170,6 +214,20 @@ Algo Trader is a RaaS (Robot-as-a-Service) multi-tenant automated trading platfo
 - **Binh Phap 6/6 fronts passing**
 
 ## Tech Stack
-TypeScript 5.9 | Node.js 20 | Fastify 5 | CCXT 4.5 | BullMQ 5 | Redis (IoRedis) | PostgreSQL (Prisma) | Zod 4.3 | TensorFlow.js | Winston | Jest 29 | Commander CLI | React 19 | Vite 6 | Tailwind CSS | Zustand 5
+**Core**: TypeScript 5.9 | Node.js 20 | Fastify 5 | CCXT 4.5
 
-Updated: 2026-03-03
+**Messaging**: NATS.io (primary) | JetStream (persistence) | Redis (fallback)
+
+**Optimization**: javascript-lp-solver (ILP) | Frank-Wolfe algorithm
+
+**Data & Analytics**: BullMQ 5 | Redis (IoRedis) | PostgreSQL 16 (Prisma) | TimescaleDB (hypertables)
+
+**Intelligence**: DeepSeek API (semantic analysis) | Gamma API (market data)
+
+**Validation & Logging**: Zod 4.3 | Winston | Prometheus | Grafana
+
+**ML & Testing**: TensorFlow.js | Jest 29 | Playwright
+
+**CLI & UI**: Commander CLI | React 19 | Vite 6 | Tailwind CSS | Zustand 5
+
+Updated: 2026-04-09

@@ -1,4 +1,5 @@
-version: '3.9'
+# Base compose — app + essential infrastructure
+# For full production stack: ./scripts/start-production.sh
 
 services:
   algo-trade:
@@ -8,13 +9,17 @@ services:
     container_name: algo-trade
     restart: unless-stopped
     ports:
-      - '3000:3000'   # API
+      - '3000:3000'   # API + /metrics
       - '3001:3001'   # Dashboard
       - '3002:3002'   # Webhooks
     env_file:
-      - .env
+      - path: .env
+        required: false
     environment:
       - NODE_ENV=production
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - NATS_URL=nats://nats:4222
     volumes:
       - ./data:/app/data
     healthcheck:
@@ -24,27 +29,54 @@ services:
       retries: 3
       start_period: 15s
     depends_on:
-      postgres:
+      redis:
         condition: service_healthy
+      nats:
+        condition: service_healthy
+    networks:
+      - algo-net
 
-  # Optional future DB - disabled by default, enabled via profile
-  postgres:
-    image: postgres:16-alpine
-    container_name: algo-trade-postgres
+  # Redis — cache, pub/sub fallback, nonce manager, semantic cache, embeddings
+  redis:
+    image: redis:7-alpine
+    container_name: algo-trade-redis
     restart: unless-stopped
-    profiles:
-      - postgres
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-algouser}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
-      POSTGRES_DB: ${POSTGRES_DB:-algotrade}
+    ports:
+      - '6379:6379'
+    command: ['redis-server', '--maxmemory', '512mb', '--maxmemory-policy', 'allkeys-lru']
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - redis_data:/data
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-algouser}']
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 3
+    networks:
+      - algo-net
+
+  # NATS — primary event-driven message bus + JetStream
+  nats:
+    image: nats:2.10-alpine
+    container_name: algo-trade-nats
+    restart: unless-stopped
+    ports:
+      - '4222:4222'   # Client connections
+      - '8222:8222'   # HTTP monitoring
+    command: ['--jetstream', '--store_dir', '/data', '-m', '8222', '--auth', '${NATS_TOKEN:-changeme}']
+    volumes:
+      - nats_data:/data
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:8222/healthz']
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - algo-net
+
+networks:
+  algo-net:
+    driver: bridge
 
 volumes:
-  postgres_data:
+  redis_data:
+  nats_data:

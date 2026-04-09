@@ -1,0 +1,28 @@
+# Prometheus scrape configuration for algo-trader
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'algo-trader'
+
+# Alert manager config (optional — wire up if alertmanager is added)
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets: ['alertmanager:9093']
+
+scrape_configs:
+  # Scrape algo-trader app /metrics endpoint
+  - job_name: 'algo-trader'
+    static_configs:
+      # 'algo-trade' = service name in docker-compose.yml
+      # 'host.docker.internal' = host machine for local dev without compose
+      - targets:
+          - 'algo-trade:3000'
+    metrics_path: /metrics
+    scrape_interval: 15s
+
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']

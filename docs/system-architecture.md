@@ -114,6 +114,54 @@ graph TD
 - Stealth commands: `/safety` (status), `/kill` (emergency stop), `/kill_reset`, `/binh_phap` (stealth report).
 - **TelegramCommandHandler** (`telegram-command-handler.ts`) — Long-polling receiver, chat ID security, commands: /status, /backtest, /balance, /health, /arb, /arb_live, /stop, /help, /safety, /kill.
 
+### Phase 19: NATS Message Bus & Event-Driven Architecture
+**Messaging Layer** (`src/messaging/`):
+- **NatsMessageBus** — NATS.io primary pub/sub + JetStream persistence for event replay, auto-recovery on broker loss
+- **RedisMessageBus** — Fallback layer (Redis Pub/Sub) when NATS unavailable
+- **JetStreamManager** — Persistent message streams, stream configuration, consumer management
+- **NatsConnectionManager** — Connection pooling, reconnection logic, health checks
+- **TopicSchema** — Event type definitions, topic routing rules
+
+### Phase 20: Semantic Dependency Discovery
+**Intelligence Layer** (`src/intelligence/`):
+- **SemanticDependencyDiscovery** — DeepSeek API analyzes Polymarket contract relationships, extracts market dependencies (e.g., "Bitcoin rises → Tech sector up")
+- **RelationshipGraphBuilder** — Builds directed acyclic graph of market dependencies from DeepSeek analysis
+- **AlphaEarClient** — Gamma API integration for live market data, feeds into dependency discovery
+- **KronosFairValue** — Time-series fair value computation using relationship graph
+- **SemanticCache** — Redis caching of DeepSeek analyses with 24h TTL to avoid redundant API calls
+
+### Phase 21: Cross-Market ILP Solver
+**Arbitrage Optimization** (`src/arbitrage/`):
+- **IntegerProgrammingSolver** — javascript-lp-solver integration, multi-market basket optimization
+- **ILPConstraintBuilder** — Builds LP constraints from market data: position limits, correlation bounds, gas cost limits
+- **CrossMarketArbitrageDetector** — Identifies profitable multi-leg arbitrage across linked markets using ILP solver
+- **MultiLegBasket** — Represents multi-leg arbitrage position (buy Market A, sell Market B, sell Market C)
+
+### Phase 22: Delta-Neutral Volatility Arbitrage & Frank-Wolfe Optimizer
+**Polymarket Strategy** (`src/strategies/polymarket/`):
+- **DeltaNeutralVolatilityArbitrage** — Market-neutral position pairs: long volatility + short correlated market
+- **DeltaCalculator** — Computes delta exposure per market, rebalancing signals
+- **DeltaNeutralPortfolioMonitor** — Real-time monitoring of aggregate delta, alerts on drift
+- **Additional Strategies** (12+): Bollinger Squeeze, Cluster Breakout, Cross-Correlation-Lag, Gap-Fill, Decay-Rate-Momentum, Event-Deadline-Scalper, etc.
+
+**Execution Optimizer** (`src/execution/`):
+- **MultiLegFrankWolfeOptimizer** — Frank-Wolfe algorithm for multi-leg execution path optimization, minimizes slippage + time-to-fill across N markets
+- **DistributedNonceManager** — Redis-backed atomic nonce counter to prevent duplicate transaction IDs across distributed traders
+- **GasBatchOptimizer** — Batches multi-leg orders, optimizes gas cost per batch on-chain
+
+### Phase 23: Time-Series Data & Monitoring
+**Database Layer** (`docker/timescaledb/`):
+- **TimescaleDB Hypertables** — PostgreSQL extension for time-series: 1m/5m candles, tick snapshots, portfolio snapshots
+- **Automatic Compression** — Hot data (last 30d) in RAM, cold data compressed to storage
+- **Downsampling Rules** — Auto-aggregate 1m → 5m → 1h → 1d for long-term analysis
+
+**Monitoring Stack** (`docker/`):
+- **Prometheus** — 9090 scraping metrics from app + TimescaleDB; 15s scrape interval
+- **Grafana** — 3001 with pre-built dashboards: Arbitrage Metrics, Risk Dashboard, Infrastructure Health
+- **Dashboard 1: Arbitrage Metrics** — Spread finder latency (p50/p95), ILP solver execution time, liquidity check miss rate
+- **Dashboard 2: Risk Dashboard** — Portfolio delta, cumulative slippage, correlation matrix heatmap
+- **Dashboard 3: Infrastructure Health** — NATS broker uptime, Redis pub/sub lag, DB query latency, GC pressure
+
 ### CLI Onboarding (Zero-Config)
 **Setup Wizard** (`src/cli/setup-wizard-command.ts`):
 - Interactive readline wizard — prompts exchange API keys, auto-generates `.env` with smart defaults.
@@ -208,6 +256,12 @@ All Opportunities →
 - Phase 15: Anti-Detection Safety Layer
 - Phase 16: BinhPhap Stealth Strategy
 - Phase 17: Phantom Order Cloaking + CLI Fingerprint Masking
+- Phase 18: Redis Cluster (6-node, 3 masters + 3 replicas)
+- Phase 19: NATS Message Bus (primary + JetStream) & Redis fallback
+- Phase 20: Semantic Dependency Discovery (DeepSeek API → relationship graph → Redis cache)
+- Phase 21: Cross-Market ILP Solver (multi-market basket optimization, javascript-lp-solver)
+- Phase 22: Delta-Neutral Volatility Arbitrage (Frank-Wolfe multi-leg execution, 12+ Polymarket strategies)
+- Phase 23: Infrastructure Hardening (Distributed nonce manager, gas batch optimizer, TimescaleDB hypertables, Grafana/Prometheus monitoring)
 
 ### Quality Gates
 - **1216 tests** (102 test suites, Jest 29, 100% pass rate)

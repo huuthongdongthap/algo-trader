@@ -34,6 +34,10 @@
     "src/wiring/**/*",
     "dist",
     "src/dashboard/dashboard-server.ts",
+    "src/dashboard/dashboard-routes.ts",
+    "src/dashboard/dashboard-middleware.ts",
+    "src/dashboard/dashboard-demo-data.ts",
+    "src/dashboard/dashboard-utils.ts",
     "src/landing/landing-server.ts",
     "src/polymarket/trading-pipeline.ts"
   ]

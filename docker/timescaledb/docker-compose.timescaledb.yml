@@ -1,0 +1,35 @@
+# TimescaleDB Docker Compose Override
+# Usage: docker compose -f docker-compose.yml -f docker/timescaledb/docker-compose.timescaledb.yml up
+
+services:
+  timescaledb:
+    image: timescale/timescaledb:2.14.2-pg16
+    container_name: algo-trader-timescaledb
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${TIMESCALE_DB:-algotrader}
+      POSTGRES_USER: ${TIMESCALE_USER:-algotrader}
+      POSTGRES_PASSWORD: ${TIMESCALE_PASSWORD:-changeme}
+    ports:
+      - "${TIMESCALE_PORT:-5433}:5432"
+    volumes:
+      - timescaledb_data:/var/lib/postgresql/data
+      - ./docker/timescaledb/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${TIMESCALE_USER:-algotrader} -d ${TIMESCALE_DB:-algotrader}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - algo-net
+
+# Use the same network as base compose
+networks:
+  algo-net:
+    external: true
+    name: algo-trader_algo-net
+
+volumes:
+  timescaledb_data:
+    driver: local
