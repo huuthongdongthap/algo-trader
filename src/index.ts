@@ -8,6 +8,7 @@ import { Command } from 'commander';
 import { initSentry } from './utils/sentry-init';
 import { runMigrations } from './db/migration-runner';
 import { runGruStrategy } from './commands/gru-strategy';
+import { KronosStrategy } from './strategies/kronos-strategy';
 import { runSetupWizard } from './commands/setup-wizard';
 import { runQuickstart } from './commands/quickstart';
 import { runActivateCommand } from './commands/activate-license';
@@ -113,6 +114,23 @@ if (!isTest) {
         dryRun: options.dryRun,
         verbose: options.verbose,
       });
+    });
+
+  program
+    .command('kronos')
+    .description('Run Kronos Foundation Model trading strategy (requires AlphaEar sidecar)')
+    .option('-s, --symbol <symbol>', 'Trading pair', 'BTC/USDT')
+    .option('-t, --threshold <number>', 'Confidence threshold (0-1)', '0.6')
+    .option('-l, --lookback <number>', 'Lookback candles', '60')
+    .action(async (options: { symbol: string; threshold: string; lookback: string }) => {
+      const strategy = new KronosStrategy({
+        confidenceThreshold: parseFloat(options.threshold),
+        lookback: parseInt(options.lookback),
+      });
+      logger.info(`[Kronos] Starting ${strategy.getName()} — symbol: ${options.symbol}`);
+      await strategy.initialize();
+      const status = strategy.getStatus();
+      logger.info('[Kronos] Strategy ready', status);
     });
 
   program.parse(process.argv);

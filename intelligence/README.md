@@ -33,8 +33,43 @@ python server.py
 | `/news/content` | POST | Article extraction | ~3s |
 | `/sentiment/analyze` | POST | FinBERT single | ~200ms |
 | `/sentiment/batch` | POST | FinBERT batch | ~1s/50 |
-| `/predict/forecast` | POST | Kronos forecast | ~5s |
+| `/predict/forecast` | POST | Kronos forecast (legacy) | ~5s |
+| `/v1/kronos/predict-ohlcv` | POST | Kronos full OHLCV prediction | ~5s |
 | `/signal/track` | POST | Signal evolution | ~2s |
+
+## Kronos Foundation Model
+
+[Kronos](https://github.com/shiyu-coder/Kronos) is a financial foundation model trained on 12B+ K-line records from 45+ exchanges.
+
+### Install
+
+```bash
+# Install Kronos from source (MIT license)
+pip install git+https://github.com/shiyu-coder/Kronos.git
+
+# Install remaining ML deps
+pip install -r requirements-kronos.txt
+```
+
+### Model sizes
+
+| Size  | Params  | Context | Use case         |
+|-------|---------|---------|------------------|
+| mini  | 4.1M    | 2048    | Low-latency      |
+| small | 24.7M   | 512     | Default (balanced)|
+| base  | 102.3M  | 512     | Max accuracy     |
+
+Change model size via `KronosEngine(model_size="base")` in `server.py` lifespan.
+
+### Endpoints
+
+| Endpoint | Description |
+|----------|-------------|
+| `POST /predict/forecast` | Legacy: close prices → predicted closes |
+| `POST /v1/kronos/predict-ohlcv` | Full OHLCV candles → predicted OHLCV |
+
+Models are **lazy-loaded** on first request (downloads from HuggingFace on cold start, ~1–2 min).
+MPS acceleration used automatically on Apple Silicon.
 
 ## launchd (auto-start on macOS)
 
@@ -47,8 +82,11 @@ launchctl load ~/Library/LaunchAgents/com.cashclaw.alphaear.plist
 ## Memory Budget
 
 ```
-FinBERT:  ~500 MB
-Kronos:   ~200 MB (MPS)
-FastAPI:  ~100 MB
-Total:    ~800 MB
+FinBERT:          ~500 MB
+Kronos-mini:      ~50 MB (MPS)
+Kronos-small:     ~200 MB (MPS)   ← default
+Kronos-base:      ~600 MB (MPS)
+FastAPI:          ~100 MB
+Total (small):    ~800 MB
+Total (base):     ~1.2 GB
 ```

@@ -1,0 +1,6 @@
+torch>=2.0.0
+transformers>=4.30.0
+pandas>=2.0.0
+numpy>=1.24.0
+# Kronos financial foundation model — install from source:
+# pip install git+https://github.com/shiyu-coder/Kronos.git
