@@ -38,6 +38,9 @@
     "src/dashboard/dashboard-middleware.ts",
     "src/dashboard/dashboard-demo-data.ts",
     "src/dashboard/dashboard-utils.ts",
+    "src/dashboard/dashboard-admin-routes.ts",
+    "src/dashboard/dashboard-api-get-routes.ts",
+    "src/dashboard/dashboard-route-helpers.ts",
     "src/landing/landing-server.ts",
     "src/polymarket/trading-pipeline.ts"
   ]
